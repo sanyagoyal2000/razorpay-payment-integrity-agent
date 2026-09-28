@@ -38,9 +38,12 @@ export type PaymentsRepository = {
   list(): ReadonlyArray<Payment>;
   save(payment: Payment): void;
   events(paymentId: string): PaymentEvent[];
+  eventsOfType(type: PaymentEvent["type"]): PaymentEvent[];
+  event(id: string): PaymentEvent | undefined;
   appendEvent(event: PaymentEvent): void;
   deliveriesForEvent(eventId: string): WebhookDelivery[];
   deliveriesForPayment(paymentId: string): WebhookDelivery[];
+  delivery(id: string): WebhookDelivery | undefined;
   appendDelivery(delivery: WebhookDelivery): void;
   customer(id: string): Customer | undefined;
   customers(): ReadonlyArray<Customer>;
@@ -51,6 +54,7 @@ export type PaymentsRepository = {
 
 export type OutcomesRepository = {
   events(merchantOrderId: string): MerchantOutcomeEvent[];
+  event(id: string): MerchantOutcomeEvent | undefined;
   appendEvent(event: MerchantOutcomeEvent): void;
   receiptForPayment(paymentId: string): OutcomeReceipt | undefined;
   receipt(id: string): OutcomeReceipt | undefined;
@@ -142,6 +146,8 @@ export function createRepositories(store: DataStore): Repositories {
       list: () => store.list("payments"),
       save: (payment) => store.put("payments", payment),
       events: (paymentId) => store.list("paymentEvents").filter((e) => e.paymentId === paymentId).sort(byTime),
+      eventsOfType: (type) => store.list("paymentEvents").filter((e) => e.type === type).sort(byTime),
+      event: (id) => store.get("paymentEvents", id),
       appendEvent: (event) => store.put("paymentEvents", event),
       deliveriesForEvent: (eventId) => store.list("webhookDeliveries").filter((d) => d.eventId === eventId).sort(byTime),
       deliveriesForPayment: (paymentId) => {
@@ -149,6 +155,7 @@ export function createRepositories(store: DataStore): Repositories {
         return store.list("webhookDeliveries").filter((d) => eventIds.has(d.eventId)).sort(byTime);
       },
       appendDelivery: (delivery) => store.put("webhookDeliveries", delivery),
+      delivery: (id) => store.get("webhookDeliveries", id),
       customer: (id) => store.get("customers", id),
       customers: () => store.list("customers"),
       order: (merchantOrderId) => store.get("orders", merchantOrderId),
@@ -158,6 +165,7 @@ export function createRepositories(store: DataStore): Repositories {
     outcomes: {
       events: (merchantOrderId) => store.list("outcomeEvents").filter((e) => e.merchantOrderId === merchantOrderId).sort(byTime),
       appendEvent: (event) => store.put("outcomeEvents", event),
+      event: (id) => store.get("outcomeEvents", id),
       receiptForPayment: (paymentId) => store.list("outcomeReceipts").find((r) => r.paymentId === paymentId),
       receipt: (id) => store.get("outcomeReceipts", id),
       saveReceipt: (receipt) => store.put("outcomeReceipts", receipt),

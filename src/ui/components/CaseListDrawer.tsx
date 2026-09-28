@@ -19,6 +19,8 @@ import { formatINR, sum } from "@/domain/money";
 import { caseListRows } from "@/services/views/caseList";
 import { useDataState } from "@/ui/providers/DataProvider";
 import { CaseStatusBadge } from "./badges";
+import { caseHref } from "@/ui/shell/nav";
+import { AppLink } from "./AppLink";
 import { Money } from "./Money";
 
 export type CaseListRequest = { title: string; explanation: string; caseIds: string[] };
@@ -59,7 +61,7 @@ export function CaseListDrawer({ request, onDismiss }: { request: CaseListReques
                     {items.map((row) => (
                       <TableRow key={row.id} item={row}>
                         <TableCell>
-                          <Text size="small" weight="semibold">{row.id}</Text>
+                          <AppLink href={caseHref(row.id)}>{row.id}</AppLink>
                           <Text size="xsmall" color="surface.text.gray.muted">{row.type}</Text>
                         </TableCell>
                         <TableCell>

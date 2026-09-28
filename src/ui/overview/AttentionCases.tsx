@@ -18,7 +18,7 @@ import { AppLink } from "@/ui/components/AppLink";
 import { Money } from "@/ui/components/Money";
 import { EmptyMessage } from "@/ui/components/states";
 import { Surface } from "@/ui/components/Surface";
-import { BASE_PATH } from "@/ui/shell/nav";
+import { BASE_PATH, caseHref } from "@/ui/shell/nav";
 
 export function AttentionCases({ rows, now }: { rows: AttentionRow[]; now: Date }) {
   const needed = rows.filter((r) => r.attentionRequired).length;
@@ -49,7 +49,7 @@ export function AttentionCases({ rows, now }: { rows: AttentionRow[]; now: Date 
                   <TableRow key={row.id} item={row}>
                     <TableCell>
                       <Box display="flex" flexDirection="column" gap="spacing.1" paddingY="spacing.2">
-                        <Text size="small" weight="semibold">{row.caseId}</Text>
+                        <AppLink href={caseHref(row.caseId)}>{row.caseId}</AppLink>
                         {row.incidentId ? (
                           <AppLink href={`${BASE_PATH}/incidents/${row.incidentId}`} size="xsmall">{row.incidentId}</AppLink>
                         ) : null}

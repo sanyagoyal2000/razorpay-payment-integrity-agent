@@ -20,6 +20,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { MERCHANT, OPERATOR } from "@/fixtures/catalogue";
 import { isActive, NAV_ITEMS } from "./nav";
+import { GlobalSearch } from "./GlobalSearch";
 import { RouterLink } from "./RouterLink";
 
 const TOP_NAV_HEIGHT = "56px";
@@ -50,6 +51,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </TopNavContent>
         <TopNavActions>
           <Box display="flex" alignItems="center" gap="spacing.4">
+            <GlobalSearch />
             <Text size="small" color="surface.text.staticWhite.normal">
               {MERCHANT.name}
             </Text>

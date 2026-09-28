@@ -81,6 +81,12 @@ describe("fixtures", () => {
     }
   });
 
+  it("never embed wall-clock times in generated text, so anchoring cannot contradict them", () => {
+    const text = JSON.stringify({ cases: fixtures.cases, incidents: fixtures.incidents, updates: fixtures.incidentUpdates, investigations: fixtures.investigationResponses, audit: fixtures.auditEvents.map((e) => e.result) });
+    const withoutTimestamps = text.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z/g, "");
+    expect(withoutTimestamps).not.toMatch(/\b\d{1,2}:\d{2}(:\d{2})?\s*IST/);
+  });
+
   it("keep references consistent", () => {
     const paymentIds = new Set(fixtures.payments.map((p) => p.id));
     const orderIds = new Set(fixtures.orders.map((o) => o.id));

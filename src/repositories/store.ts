@@ -121,10 +121,20 @@ export class DataStore {
     return this.data.investigationResponses[id];
   }
 
-  /** Deterministic ID for records created at runtime. */
+  /**
+   * Deterministic ID for records created at runtime, in the same shape as
+   * fixture IDs. Derived from a persisted counter, so no randomness is used.
+   */
   nextId(prefix: string): string {
     this.sequence += 1;
-    return `${prefix}_rt${this.sequence.toString(36).padStart(8, "0")}`;
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let x = (Math.imul(this.sequence ^ 0x5bd1e995, 0x9e3779b1) ^ (this.anchorOffsetMinutes >>> 0)) >>> 0;
+    let id = "";
+    for (let i = 0; i < 12; i += 1) {
+      x = (Math.imul(x ^ (x >>> 15), 0x2c1b3c6d) + i + this.sequence) >>> 0;
+      id += alphabet[x % alphabet.length];
+    }
+    return `${prefix}_${id}${this.sequence.toString(36)}`;
   }
 
   subscribe(listener: () => void): () => void {

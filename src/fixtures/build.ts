@@ -1091,7 +1091,7 @@ export function buildDataset(): Dataset {
 
     const highValue = slot.group === "high_value";
     const investigation: Investigation = {
-      summary: `Payment captured and order.paid acknowledged with HTTP 200, but LearnLoop's /enroll call returned HTTP 500 and no course_access_granted arrived within 2 minutes. The enrolment service has been healthy since ${istTime(enrolRecovered.occurredAt)} IST.`,
+      summary: `Payment captured and order.paid acknowledged with HTTP 200, but LearnLoop's /enroll call returned HTTP 500 and no course_access_granted arrived within 2 minutes. The enrolment service has since recovered and is accepting requests.`,
       likelyCause: "LearnLoop enrolment service returned HTTP 500 after deployment v2.3.",
       evidenceIds: baseEvidence,
       uncertainties: highValue ? [`${product.name} unlocks several courses; it is not confirmed whether a single enrolment grants access to all of them.`] : [],

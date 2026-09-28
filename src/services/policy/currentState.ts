@@ -73,9 +73,8 @@ export function buildCurrentState(
 
   const today = istDate(asOf);
   const refundsIssuedToday = repos.payments
-    .list()
-    .flatMap((p) => repos.payments.events(p.id))
-    .filter((e) => e.type === "payment.refunded" && e.occurredAt <= asOf && istDate(e.occurredAt) === today)
+    .eventsOfType("payment.refunded")
+    .filter((e) => e.occurredAt <= asOf && istDate(e.occurredAt) === today)
     .reduce((total, e) => total + Number(e.metadata?.["amount"] ?? 0), 0);
 
   return {

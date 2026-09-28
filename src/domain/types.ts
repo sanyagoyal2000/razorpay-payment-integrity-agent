@@ -493,6 +493,18 @@ export type CaseDecision = {
   bulk?: boolean;
 };
 
+/** Work a merchant decision created outside the execution state machine. */
+export type CaseFollowUp = {
+  id: string;
+  kind: "refund_draft" | "customer_message" | "alternate_inventory_request" | "escalation";
+  createdAt: ISODateTime;
+  actor: string;
+  detail: string;
+  paymentId?: string;
+  amount?: number;
+  status: "awaiting_finance" | "sent" | "awaiting_merchant" | "open";
+};
+
 /** spec, extended. */
 export type IntegrityCase = {
   id: string;
@@ -520,6 +532,7 @@ export type IntegrityCase = {
   resolution?: CaseResolution;
   /** Set when an executed action later proved wrong (e.g. access revoked). */
   wrongAction?: { detectedAt: ISODateTime; reason: string };
+  followUps?: CaseFollowUp[];
   /** Incremented on every change; used to stop execution if the case moved. */
   version: number;
   updatedAt: ISODateTime;

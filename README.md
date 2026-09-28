@@ -39,8 +39,13 @@ src/services/
   recovery/          Recovery groups and bulk eligibility
   metrics/           Aggregates, Value delivered, earned autonomy
   incidents.ts       Incident status derivation
+  containment.ts     Incident containment decisions and their effects
+  decisions.ts       Merchant decisions outside the state machine (reject, escalate, refund draft, ...)
+  customerStatus.ts  What a customer sees when they check a payment
+  views/             View models for each screen (Overview, Incidents, Cases, Audit Log)
 src/ui/                 Client components: shell, Overview, Incidents, shared pieces
-src/app/                 Next.js routes (thin wrappers around src/ui)
+src/app/                 Next.js routes (thin wrappers around src/ui):
+                           /payment-integrity, /incidents, /incidents/[id], /cases, /cases/[id], /audit-log
 src/adapters/
   demo/              Fixture investigator, simulated LearnLoop and Razorpay
   merchant/          Merchant and gateway adapter interfaces
@@ -50,7 +55,8 @@ tests/               Policy, execution, investigation, fixture and reconciliatio
 ## Data and time
 
 - `dataset.json` is generated once by a seeded PRNG and committed. The app never generates random data.
-- Fixture timestamps are shifted by whole days on first load, so the latest fixture event falls within the last 24 hours of the real clock. Wall-clock times stay the same, for example the v2.3 deploy at 14:04 IST. The offset is persisted, so it stays stable across reloads.
+- On first load, fixture timestamps shift by whole minutes so the latest event falls about a minute before the real clock. Relative timing is exact: the deploy happens 20 minutes 41 seconds before the latest event, as in the fixture file, where it is recorded at 14:04 IST. The offset is saved immediately, so times don't move on reload.
+- The fixtures also hold a fixed stream of healthy purchases after the latest event. They become visible as real time passes, which is how "Monitor the next 50 matching purchases" makes progress.
 - Changes are persisted as an overlay on top of the fixtures (`localStorage`, loaded client-side only).
 
 ## Boundaries

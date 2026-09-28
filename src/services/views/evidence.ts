@@ -46,7 +46,7 @@ export const EVIDENCE_GROUPS: Array<{ label: string; kinds: EvidenceKind[] }> = 
  * that do not exist, so nothing unsupported is ever displayed.
  */
 export function resolveEvidence(repos: Repositories, id: string): EvidenceItem | undefined {
-  const paymentEvent = repos.payments.list().flatMap((p) => repos.payments.events(p.id)).find((e) => e.id === id);
+  const paymentEvent = repos.payments.event(id);
   if (paymentEvent) {
     const payment = repos.payments.get(paymentEvent.paymentId);
     return {
@@ -58,10 +58,7 @@ export function resolveEvidence(repos: Repositories, id: string): EvidenceItem |
       occurredAt: paymentEvent.occurredAt,
     };
   }
-  const delivery = repos.payments
-    .list()
-    .flatMap((p) => repos.payments.deliveriesForPayment(p.id))
-    .find((d) => d.id === id);
+  const delivery = repos.payments.delivery(id);
   if (delivery) {
     const ok = delivery.status === "delivered";
     return {
@@ -115,9 +112,8 @@ export function resolveEvidence(repos: Repositories, id: string): EvidenceItem |
       occurredAt: caseData.detectedAt,
     };
   }
-  for (const order of repos.payments.list()) {
-    const event = repos.outcomes.events(order.merchantOrderId).find((e) => e.id === id);
-    if (!event) continue;
+  const event = repos.outcomes.event(id);
+  if (event) {
     const kind: EvidenceKind = event.status === "failed" ? "outcome_failed" : event.status === "completed" && event.type !== "inventory_changed" ? "outcome_completed" : "outcome_event";
     return {
       id,
