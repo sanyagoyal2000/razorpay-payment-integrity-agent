@@ -104,6 +104,6 @@ describe("aggregate reconciliation", () => {
 describe("earned autonomy", () => {
   it("is computed from merchant decisions, not stated", () => {
     const env = setup();
-    expect(earnedAutonomy(env.repos, "retry_provisioning")).toMatchObject({ considered: 50, approvedWithoutEdits: 48 });
+    expect(earnedAutonomy(env.repos, "retry_provisioning")).toMatchObject({ recommendationsReviewed: 50, approvedWithoutEdits: 48 });
   });
 });

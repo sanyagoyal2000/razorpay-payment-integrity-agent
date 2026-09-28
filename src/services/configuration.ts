@@ -2,6 +2,9 @@ import { z } from "zod/v4";
 import type { ActionMode, GlobalControls, IntegrationId, OutcomeContract, PolicyAction } from "@/domain/types";
 import { formatINR } from "@/domain/money";
 import type { Repositories } from "@/repositories";
+import { formatIstShort } from "@/domain/time";
+import { evaluateAutonomyEligibility, type AutonomyEligibility } from "@/services/autonomyEligibility";
+import { earnedAutonomy, type AutonomyEvidence } from "@/services/metrics/autonomy";
 import { POLICY_ACTION_LABELS } from "@/services/policy/actions";
 import { modeLabel } from "@/services/policy/evaluatePolicy";
 
@@ -38,6 +41,66 @@ export function setActionMode(repos: Repositories, action: PolicyAction, mode: A
     result: `${POLICY_ACTION_LABELS[action]}: ${modeLabel(current.mode)} → ${modeLabel(mode)}`,
   });
   return next;
+}
+
+// ---------------------------------------------------------------------------
+// Earned autonomy
+// ---------------------------------------------------------------------------
+
+/** Actions shown on the earned-autonomy panel; both are Automations entries and action types. */
+export type AutonomyAction = "retry_provisioning" | "replay_webhook";
+
+export type AutonomyAssessment = { evidence: AutonomyEvidence; eligibility: AutonomyEligibility };
+
+/** Verified-outcome evidence plus the deterministic eligibility decision. */
+export function assessAutonomy(repos: Repositories, action: AutonomyAction = "retry_provisioning"): AutonomyAssessment {
+  const evidence = earnedAutonomy(repos, action);
+  const grantedScopes = repos.config
+    .integrations()
+    .filter((i) => i.status === "connected")
+    .flatMap((i) => [...i.scopes.read, ...i.scopes.write]);
+  return {
+    evidence,
+    eligibility: evaluateAutonomyEligibility(evidence, repos.config.globalControls(), { contracts: repos.config.contracts(), grantedScopes }),
+  };
+}
+
+/**
+ * Switches on limited automation after explicit merchant confirmation.
+ * Eligibility is re-checked at confirmation time; nothing changes unless
+ * every criterion is still met.
+ */
+export function switchOnEarnedAutomation(repos: Repositories, action: AutonomyAction, actor: string, asOf: string) {
+  const { evidence, eligibility } = assessAutonomy(repos, action);
+  if (!eligibility.eligible || !eligibility.suggestion) {
+    const unmet = eligibility.criteria.filter((c) => !c.met).map((c) => c.label.toLowerCase());
+    throw new ConfigurationError(`Automation cannot be switched on: ${unmet.join("; ")}.`);
+  }
+  const policy = setActionMode(repos, action, "automatic_below_threshold", actor, asOf);
+  const { suggestion } = eligibility;
+  const window = evidence.evaluationWindow ? ` (${formatIstShort(evidence.evaluationWindow.from, asOf)} to ${formatIstShort(evidence.evaluationWindow.to, asOf)})` : "";
+  audit(repos, {
+    occurredAt: asOf,
+    actor,
+    action: "Switched on earned automation",
+    targetType: "policy",
+    targetId: action,
+    result: `${POLICY_ACTION_LABELS[action]} automatic below ${formatINR(suggestion.maxValue)} at ${Math.round(suggestion.minimumConfidence * 100)}% confidence or higher for ${suggestion.contracts.map((c) => c.name).join(", ")}. Evidence: ${evidence.verifiedSuccessful} of ${evidence.executed} executed actions verified, ${evidence.wrongActions} wrong${window}.`,
+  });
+  return policy;
+}
+
+/** Records that the merchant chose to keep reviewing each recommendation. */
+export function keepReviewFirst(repos: Repositories, action: AutonomyAction, actor: string, asOf: string) {
+  const { evidence } = assessAutonomy(repos, action);
+  audit(repos, {
+    occurredAt: asOf,
+    actor,
+    action: "Kept review-first",
+    targetType: "policy",
+    targetId: action,
+    result: `${POLICY_ACTION_LABELS[action]} stays review-first. Evidence at the time: ${evidence.verifiedSuccessful} of ${evidence.executed} executed actions verified, ${evidence.wrongActions} wrong.`,
+  });
 }
 
 export const globalControlsSchema = z.object({

@@ -6,7 +6,6 @@ import {
   Alert,
   Box,
   Button,
-  Divider,
   Dropdown,
   DropdownOverlay,
   Modal,
@@ -14,7 +13,6 @@ import {
   ModalFooter,
   ModalHeader,
   SelectInput,
-  Spinner,
   Switch,
   Table,
   TableBody,
@@ -32,15 +30,16 @@ import type { ActionMode, GlobalControls, PolicyAction } from "@/domain/types";
 import { formatINR } from "@/domain/money";
 import { formatIstShort } from "@/domain/time";
 import { OPERATOR } from "@/fixtures/catalogue";
-import { explainEarnedAutonomy, type CheckedAutonomyExplanation } from "@/services/agent";
-import { ConfigurationError, saveGlobalControls, setActionMode, setAutomationPaused } from "@/services/configuration";
+import { assessAutonomy, ConfigurationError, saveGlobalControls, setActionMode, setAutomationPaused } from "@/services/configuration";
 import { POLICY_ACTION_LABELS } from "@/services/policy/actions";
 import { actionPolicyRows, MODE_OPTIONS } from "@/services/views/configuration";
+import { CaseListDrawer, type CaseListRequest } from "@/ui/components/CaseListDrawer";
 import { PageHeader } from "@/ui/components/PageHeader";
 import { PageError, PageSkeleton } from "@/ui/components/states";
 import { Surface } from "@/ui/components/Surface";
 import { useModel } from "@/ui/data/useModel";
 import type { AppServices } from "@/services/container";
+import { EarnedAutonomy } from "./EarnedAutonomy";
 
 type PendingMode = { action: PolicyAction; from: ActionMode; to: ActionMode };
 
@@ -52,7 +51,9 @@ export function AutomationsPage() {
     rows: actionPolicyRows(services.repos),
     controls: services.repos.config.globalControls(),
     queued: services.repos.executions.list().filter((e) => !["resolved", "stopped", "failed"].includes(e.status)).length,
+    assessment: assessAutonomy(services.repos, "retry_provisioning"),
   }));
+  const [drawer, setDrawer] = useState<CaseListRequest | null>(null);
   const [pending, setPending] = useState<PendingMode | null>(null);
   const [killDialog, setKillDialog] = useState(false);
 
@@ -65,7 +66,7 @@ export function AutomationsPage() {
   if (state.status === "loading") return <>{header}<PageSkeleton rows={2} /></>;
   if (state.status === "error") return <>{header}<PageError message={state.message} /></>;
   const { services, asOf } = state;
-  const { rows, controls, queued } = state.model;
+  const { rows, controls, queued, assessment } = state.model;
 
   const confirmMode = () => {
     if (!pending) return;
@@ -149,9 +150,11 @@ export function AutomationsPage() {
 
         <EarnedAutonomy
           services={services}
-          asOf={asOf}
+          assessment={assessment}
           currentMode={rows.find((r) => r.action === "retry_provisioning")!.mode}
-          onEnable={(to) => setPending({ action: "retry_provisioning", from: rows.find((r) => r.action === "retry_provisioning")!.mode, to })}
+          asOf={asOf}
+          now={state.now}
+          onShowCases={setDrawer}
         />
 
         <GlobalControlsForm services={services} controls={controls} />
@@ -202,6 +205,7 @@ export function AutomationsPage() {
           </Box>
         </ModalFooter>
       </Modal>
+      <CaseListDrawer request={drawer} onDismiss={() => setDrawer(null)} />
     </>
   );
 }
@@ -231,72 +235,6 @@ function KillSwitch({ paused, since, queued, now, onToggle }: { paused: boolean;
         {paused ? "Resume automated actions" : "Pause all automated actions"}
       </Button>
     </Box>
-  );
-}
-
-function EarnedAutonomy({ services, asOf, currentMode, onEnable }: { services: AppServices; asOf: string; currentMode: ActionMode; onEnable: (mode: ActionMode) => void }) {
-  const [explanation, setExplanation] = useState<CheckedAutonomyExplanation | null>(null);
-  const [loading, setLoading] = useState(false);
-  const load = (refresh = false) => {
-    setLoading(true);
-    explainEarnedAutonomy(services, "retry_provisioning", asOf, refresh)
-      .then(setExplanation)
-      .finally(() => setLoading(false));
-  };
-  useEffect(() => load(), [services]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <Surface
-      title="Earned autonomy"
-      description="The Payment Integrity Agent reviews how you decided its past recommendations. It suggests; it never changes a setting."
-      actions={
-        <Button variant="tertiary" size="small" onClick={() => load(true)} isDisabled={loading}>
-          Review again
-        </Button>
-      }
-    >
-      {loading || !explanation ? (
-        <Box display="flex" alignItems="center" gap="spacing.3">
-          <Spinner accessibilityLabel="Reviewing past decisions" size="medium" />
-          <Text size="small" color="surface.text.gray.subtle">Reviewing your last 50 decisions on retry provisioning</Text>
-        </Box>
-      ) : (
-        <Box display="grid" gridTemplateColumns={{ base: "1fr", l: "3fr 2fr" }} gap="spacing.6">
-          <Box display="flex" flexDirection="column" gap="spacing.3">
-            <Text size="medium" weight="semibold">{explanation.headline}</Text>
-            <Text size="small">{explanation.explanation}</Text>
-            <Box>
-              <Text size="small" weight="semibold" marginBottom="spacing.2">Risks to weigh</Text>
-              {explanation.risks.map((r) => (
-                <Box key={r} paddingLeft="spacing.4" borderLeftWidth="thick" borderLeftColor="surface.border.gray.normal" marginBottom="spacing.2">
-                  <Text size="small">{r}</Text>
-                </Box>
-              ))}
-            </Box>
-          </Box>
-          <Box borderWidth="thin" borderColor="surface.border.gray.muted" borderRadius="medium" padding="spacing.5" backgroundColor="surface.background.gray.moderate">
-            <Text size="small" color="surface.text.gray.muted">Suggestion</Text>
-            <Text size="medium" weight="semibold" marginBottom="spacing.2">{modeText(explanation.suggestedMode)}</Text>
-            {explanation.suggestedMode === "automatic_below_threshold" ? (
-              <Text size="small" color="surface.text.gray.subtle" marginBottom="spacing.4">
-                Up to {formatINR(explanation.suggestedMaxValue)} at {Math.round(explanation.suggestedMinimumConfidence * 100)}% confidence or higher. Based on{" "}
-                {explanation.evidence.considered} decisions.
-              </Text>
-            ) : (
-              <Text size="small" color="surface.text.gray.subtle" marginBottom="spacing.4">Keep reviewing each recommendation for now.</Text>
-            )}
-            <Divider marginBottom="spacing.4" />
-            {explanation.suggestedMode !== currentMode ? (
-              <Button variant="secondary" isFullWidth onClick={() => onEnable(explanation.suggestedMode)}>
-                Review and switch on
-              </Button>
-            ) : (
-              <Text size="small" color="surface.text.gray.muted">Your current setting already matches this suggestion.</Text>
-            )}
-          </Box>
-        </Box>
-      )}
-    </Surface>
   );
 }
 
@@ -342,7 +280,7 @@ function GlobalControlsForm({ services, controls }: { services: AppServices; con
     { key: "requireApprovalForCustomerCommunication", label: "Require approval for customer communication", help: "Every customer message waits for your review." },
   ];
   return (
-    <Surface title="Global controls" description="Limits that apply to every action and contract.">
+    <Surface id="global-controls" title="Global controls" description="Limits that apply to every action and contract.">
       <Box display="grid" gridTemplateColumns={{ base: "1fr", m: "repeat(3, 1fr)" }} gap="spacing.5" marginBottom="spacing.6">
         <TextInput
           label="Maximum automatic value (₹)"

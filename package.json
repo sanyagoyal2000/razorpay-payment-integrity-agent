@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "fixtures": "tsx scripts/generate-fixtures.ts",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "evaluation:capture": "tsx scripts/capture-evaluation.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.128.0",

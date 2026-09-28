@@ -1,5 +1,4 @@
 import type {
-  ActionType,
   IntegrityCase,
   Investigation,
   InvestigationRun,
@@ -9,7 +8,6 @@ import type {
   PolicyVerdict,
 } from "@/domain/types";
 import { ACTORS } from "@/domain/types";
-import { median } from "@/domain/time";
 import type { Repositories } from "@/repositories";
 import {
   autonomyExplanationSchema,
@@ -30,9 +28,10 @@ import {
   type InvestigationResult,
 } from "@/services/investigation";
 import { toRecommendation } from "@/services/investigation/recommendation";
-import { earnedAutonomy } from "@/services/metrics/autonomy";
+import type { AutonomyEligibility } from "@/services/autonomyEligibility";
+import { assessAutonomy, type AutonomyAction } from "@/services/configuration";
+import type { AutonomyEvidence } from "@/services/metrics/autonomy";
 import { isAtRisk } from "@/services/metrics/cases";
-import { wrongActionRate } from "@/services/metrics/overview";
 import { ACTIONS, POLICY_ACTION_LABELS } from "@/services/policy/actions";
 import { evaluateCase, requireContract } from "@/services/policy/currentState";
 import { groupIncidentCases } from "@/services/recovery/groups";
@@ -370,41 +369,45 @@ function listProducts(repos: Repositories) {
 // Earned autonomy
 // ---------------------------------------------------------------------------
 
-export type CheckedAutonomyExplanation = AutonomyExplanation & { evidence: ReturnType<typeof earnedAutonomy> };
+export type CheckedAutonomyExplanation = AutonomyExplanation & { evidence: AutonomyEvidence; eligibility: AutonomyEligibility };
 
 const autonomyCache = new Map<string, Promise<AutonomyExplanation>>();
 
 /**
- * Explains whether an action could run automatically. Suggests only; never
- * changes a setting. The explanation is reused until the underlying decisions
- * change, unless `refresh` asks for a new one.
+ * Explains the earned-autonomy evidence. The eligibility decision is
+ * deterministic and passed to the agent as a fact; whatever the agent
+ * suggests is overridden by it and clamped to global controls. Suggests
+ * only; never changes a setting.
  */
 export async function explainEarnedAutonomy(
   deps: { repos: Repositories; agent: AgentGateway },
-  action: ActionType,
+  action: AutonomyAction,
   asOf: string,
   refresh = false,
 ): Promise<CheckedAutonomyExplanation> {
-  const evidence = earnedAutonomy(deps.repos, action);
-  const cases = evidence.caseIds.map((id) => deps.repos.cases.get(id)!).filter(Boolean);
-  const decisions = cases.map((c) => c.decisions.find((d) => d.actor === ACTORS.operator && d.kind !== "wait")!).filter(Boolean);
-  const amounts = cases.map((c) => c.amountAtRisk);
-  const wrong = wrongActionRate(deps.repos, asOf);
-  const policy = deps.repos.config.actionPolicies().find((p) => p.action === "retry_provisioning")!;
+  void asOf;
+  const { evidence, eligibility } = assessAutonomy(deps.repos, action);
+  const cases = evidence.caseIds.map((id) => deps.repos.cases.get(id)).filter((c) => c !== undefined);
+  const decisions = cases.map((c) => c.decisions.find((d) => d.actor === ACTORS.operator && d.kind !== "wait")).filter((d) => d !== undefined);
+  const policy = deps.repos.config.actionPolicies().find((p) => p.action === action)!;
   const controls = deps.repos.config.globalControls();
   const input = {
-    action: POLICY_ACTION_LABELS.retry_provisioning,
+    action: POLICY_ACTION_LABELS[action],
     currentMode: policy.mode,
-    considered: evidence.considered,
+    considered: evidence.recommendationsReviewed,
     approvedWithoutEdits: evidence.approvedWithoutEdits,
     edited: decisions.filter((d) => d.edited || d.kind === "edited").length,
     rejected: decisions.filter((d) => d.kind === "rejected").length,
-    wrongActionsLast30Days: wrong.wrong.length,
-    executedLast30Days: wrong.executed.length,
-    medianAmount: median(amounts) ?? 0,
-    maxAmount: Math.max(0, ...amounts),
-    maxAutomaticValue: controls.maxAutomaticValue,
-    minimumConfidence: controls.minimumConfidence,
+    executed: evidence.executed,
+    verifiedSuccessful: evidence.verifiedSuccessful,
+    failedExecutions: evidence.failedExecutions,
+    wrongActions: evidence.wrongActions,
+    eligible: eligibility.eligible,
+    unmetCriteria: eligibility.criteria.filter((c) => !c.met).map((c) => `${c.label.toLowerCase()} (${c.detail.replace(/\.$/, "")})`),
+    medianAmount: evidence.amounts?.median ?? 0,
+    maxAmount: evidence.amounts?.max ?? 0,
+    maxAutomaticValue: eligibility.suggestion?.maxValue ?? controls.maxAutomaticValue,
+    minimumConfidence: eligibility.suggestion?.minimumConfidence ?? controls.minimumConfidence,
     editReasons: decisions.filter((d) => d.edited || d.kind === "edited").map((d) => d.reason ?? "").filter(Boolean),
     rejectionReasons: decisions.filter((d) => d.kind === "rejected").map((d) => d.reason ?? "").filter(Boolean),
   };
@@ -422,11 +425,15 @@ export async function explainEarnedAutonomy(
     );
   }
   const explanation = await autonomyCache.get(key)!;
+  const reviewFirst = policy.mode === "always_require_approval" ? "always_require_approval" : "suggest_only";
   return {
     ...explanation,
-    suggestedMaxValue: Math.min(explanation.suggestedMaxValue, controls.maxAutomaticValue),
-    suggestedMinimumConfidence: Math.max(explanation.suggestedMinimumConfidence, controls.minimumConfidence),
+    // The deterministic decision wins over any suggestion in the explanation.
+    suggestedMode: eligibility.eligible ? "automatic_below_threshold" : reviewFirst,
+    suggestedMaxValue: Math.min(explanation.suggestedMaxValue, eligibility.suggestion?.maxValue ?? controls.maxAutomaticValue, controls.maxAutomaticValue),
+    suggestedMinimumConfidence: Math.max(explanation.suggestedMinimumConfidence, eligibility.suggestion?.minimumConfidence ?? controls.minimumConfidence, controls.minimumConfidence),
     evidence,
+    eligibility,
   };
 }
 

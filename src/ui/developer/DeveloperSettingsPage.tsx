@@ -1,6 +1,7 @@
 "use client";
 
 import { Box, Button, Divider, Modal, ModalBody, ModalFooter, ModalHeader, Switch, Text, useToast } from "@razorpay/blade/components";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { SystemFlags } from "@/domain/types";
 import { formatIstDateTime } from "@/domain/time";
@@ -9,6 +10,7 @@ import { PageHeader } from "@/ui/components/PageHeader";
 import { PageError, PageSkeleton } from "@/ui/components/states";
 import { Surface } from "@/ui/components/Surface";
 import { useModel } from "@/ui/data/useModel";
+import { BASE_PATH } from "@/ui/shell/nav";
 
 const DEPENDENCIES: Array<{ key: keyof SystemFlags; label: string; effect: string }> = [
   { key: "dataFeedAvailable", label: "Payment and outcome data feed", effect: "When off, data stops refreshing and goes stale after 2 minutes; consequential actions are then blocked." },
@@ -20,6 +22,7 @@ const DEPENDENCIES: Array<{ key: keyof SystemFlags; label: string; effect: strin
 /** Developer settings: simulate dependency failures and reset data. Not part of the primary interface. */
 export function DeveloperSettingsPage() {
   const toast = useToast();
+  const router = useRouter();
   const state = useModel((services) => ({
     flags: services.repos.config.flags(),
     lastSyncedAt: services.repos.config.lastSyncedAt(),
@@ -96,6 +99,15 @@ export function DeveloperSettingsPage() {
             </Box>
             <Button variant="secondary" color="negative" size="small" onClick={() => setConfirmReset(true)}>
               Reset data
+            </Button>
+          </Box>
+        </Surface>
+
+        <Surface title="Investigator validation" description="Offline comparison of the AI investigator and a fixed-rule baseline on labeled, simulated incidents.">
+          <Box display="flex" justifyContent="space-between" alignItems="center" gap="spacing.4">
+            <Text size="xsmall" color="surface.text.gray.muted">Uses committed investigator outputs; opening it makes no model calls and executes nothing.</Text>
+            <Button variant="secondary" size="small" onClick={() => router.push(`${BASE_PATH}/developer/evaluations`)}>
+              Open investigator validation
             </Button>
           </Box>
         </Surface>

@@ -88,24 +88,21 @@ export function draftContractByRule(input: ContractDraftInput): ContractDraft {
 }
 
 export function explainAutonomyByRule(input: AutonomyInput): AutonomyExplanation {
-  const rate = input.considered === 0 ? 0 : input.approvedWithoutEdits / input.considered;
   const risks: string[] = [];
-  if (input.wrongActionsLast30Days > 0) {
-    risks.push(`${input.wrongActionsLast30Days} of ${input.executedLast30Days} executed actions in the last 30 days were later reversed.`);
-  }
+  if (input.wrongActions > 0) risks.push(`${input.wrongActions} of ${input.executed} executed actions were later reversed or marked wrong.`);
+  if (input.failedExecutions > 0) risks.push(`${input.failedExecutions} executed actions did not produce the promised outcome.`);
   for (const reason of input.editReasons.slice(0, 2)) risks.push(`You edited a recommendation because: ${reason}`);
   for (const reason of input.rejectionReasons.slice(0, 2)) risks.push(`You rejected a recommendation because: ${reason}`);
-  if (risks.length === 0) risks.push("No edits, rejections or reversals in the period; the sample may not include unusual cases.");
-  const suggestedMaxValue = Math.min(input.maxAutomaticValue, Math.max(1000, Math.ceil(input.medianAmount / 1000) * 1000));
-  const strong = rate >= 0.9 && input.considered >= 20;
+  if (risks.length === 0) risks.push("No edits, rejections, failures or reversals in the sample; it may not include unusual cases.");
+  const suggestedMinimumConfidence = Math.max(0.95, input.minimumConfidence);
   return {
-    headline: `${input.action} was approved without edits in ${input.approvedWithoutEdits} of the last ${input.considered} eligible cases.`,
-    explanation: strong
-      ? `Your decisions have matched the recommendation in ${Math.round(rate * 100)}% of recent cases. Running it automatically below ${formatINR(suggestedMaxValue)} at ${Math.round(Math.max(0.95, input.minimumConfidence) * 100)}% confidence or higher would cover typical purchases while larger or less certain cases still come to you.`
-      : `Your decisions matched the recommendation in ${Math.round(rate * 100)}% of recent cases, which is not yet enough to recommend automation.`,
+    headline: `${input.verifiedSuccessful} of the last ${input.executed} executed ${input.action.toLowerCase()} actions produced a verified outcome.`,
+    explanation: input.eligible
+      ? `Every automation criterion is met. You also approved ${input.approvedWithoutEdits} of the last ${input.considered} recommendations without edits, but approval is not what qualifies it: verified outcomes are.`
+      : `Automation is not recommended yet: ${input.unmetCriteria.join("; ")}. You approved ${input.approvedWithoutEdits} of the last ${input.considered} recommendations without edits, but approval alone does not show the action worked.`,
     risks,
-    suggestedMode: strong ? "automatic_below_threshold" : "suggest_only",
-    suggestedMaxValue,
-    suggestedMinimumConfidence: Math.max(0.95, input.minimumConfidence),
+    suggestedMode: input.eligible ? "automatic_below_threshold" : "suggest_only",
+    suggestedMaxValue: input.maxAutomaticValue,
+    suggestedMinimumConfidence,
   };
 }

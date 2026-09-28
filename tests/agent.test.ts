@@ -246,7 +246,7 @@ describe("drafts and suggestions", () => {
   it("explains earned autonomy from decisions and never exceeds global limits", async () => {
     const env = setup();
     const explanation = await explainEarnedAutonomy(env, "retry_provisioning", NOW);
-    expect(explanation.headline).toBe("Retry provisioning was approved without edits in 48 of the last 50 eligible cases.");
+    expect(explanation.headline).toBe("49 of the last 50 executed retry provisioning actions produced a verified outcome.");
     expect(explanation.suggestedMaxValue).toBeLessThanOrEqual(5000);
     expect(explanation.risks.length).toBeGreaterThan(0);
     const bold: AgentGateway = { ...env.agent, explainAutonomy: async () => ({ headline: "h", explanation: "e", risks: ["r"], suggestedMode: "automatic_below_threshold", suggestedMaxValue: 99_999, suggestedMinimumConfidence: 0.5 }) };
@@ -255,6 +255,9 @@ describe("drafts and suggestions", () => {
     const clamped = await explainEarnedAutonomy({ repos: env.repos, agent: bold }, "retry_provisioning", NOW, true);
     expect(clamped.suggestedMaxValue).toBe(5000);
     expect(clamped.suggestedMinimumConfidence).toBe(0.95);
+    // Ineligible (a wrong action is in the window), so the agent's "automatic" suggestion is overridden.
+    expect(clamped.eligibility.eligible).toBe(false);
+    expect(clamped.suggestedMode).toBe("suggest_only");
     expect(env.repos.config.actionPolicies().find((p) => p.action === "retry_provisioning")!.mode).toBe("suggest_only");
   });
 });

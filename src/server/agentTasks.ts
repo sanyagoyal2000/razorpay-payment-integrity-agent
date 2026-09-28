@@ -106,7 +106,8 @@ Only state facts from the input. Do not promise timelines or refunds that are no
         schema: autonomyExplanationSchema,
         effort: "medium",
         system: `${PRODUCT_CONTEXT}\n\nExplain to a payments operations manager whether an action could safely run automatically, based on how they decided past recommendations.
-Be concrete and balanced: cite the counts, name the risks (including any wrong actions and the reasons for edits or rejections), and suggest a mode with value and confidence limits. The manager decides; nothing changes unless they switch it on.`,
+Be concrete and balanced: cite the counts, name the risks (including any wrong actions, failed executions and the reasons for edits or rejections), and suggest a mode with value and confidence limits.
+Eligibility has already been decided by deterministic rules and is given as \`eligible\` with any \`unmetCriteria\`. Never contradict it: if \`eligible\` is false, suggest keeping the action review-first. Merchant approval without edits is agreement, not evidence that the action worked; only verified outcomes count as success. The manager decides; nothing changes unless they switch it on.`,
         prompt: JSON.stringify(input),
       }),
   },
