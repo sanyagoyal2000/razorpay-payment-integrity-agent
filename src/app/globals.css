@@ -1,0 +1,19 @@
+/* Base reset only. All visual styling comes from Blade components and tokens. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  font-variant-numeric: tabular-nums;
+}

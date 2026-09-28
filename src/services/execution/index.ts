@@ -270,6 +270,16 @@ export async function runExecution(deps: ExecutionDeps, executionId: string, opt
   return execution;
 }
 
+/** Runs several executions concurrently to completion. */
+export function runExecutions(deps: ExecutionDeps, executionIds: readonly string[], options: RunOptions = {}): Promise<Execution[]> {
+  return Promise.all(executionIds.map((id) => runExecution(deps, id, options)));
+}
+
+/** Executions left mid-flight by a page reload; resumed when the app loads. */
+export function pendingExecutionIds(deps: ExecutionDeps): string[] {
+  return deps.repos.executions.list().filter((e) => !isTerminal(e)).map((e) => e.id);
+}
+
 function recommendationFor(c: IntegrityCase, action: ActionType, now: string): Recommendation {
   if (c.recommendation?.action === action) return c.recommendation;
   return {

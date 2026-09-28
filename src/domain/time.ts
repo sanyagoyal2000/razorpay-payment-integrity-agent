@@ -55,3 +55,30 @@ export function formatIstDateTime(iso: string): string {
   const [year, month, day] = istDate(iso).split("-") as [string, string, string];
   return `${Number(day)} ${MONTHS[Number(month) - 1]} ${year}, ${istTime(iso).slice(0, 5)} IST`;
 }
+
+/** e.g. "15 Jun, 14:07". Adds the year only when it differs from `reference`. */
+export function formatIstShort(iso: string, reference?: string | Date): string {
+  const [year, month, day] = istDate(iso).split("-") as [string, string, string];
+  const refYear = reference ? istDate(reference).slice(0, 4) : year;
+  return `${Number(day)} ${MONTHS[Number(month) - 1]}${refYear !== year ? ` ${year}` : ""}, ${istTime(iso).slice(0, 5)}`;
+}
+
+/** e.g. "4 min 12 s", "2 h 5 min", "3 d 4 h". */
+export function formatDuration(totalSeconds: number): string {
+  const s = Math.max(0, Math.round(totalSeconds));
+  if (s < 60) return `${s} s`;
+  const minutes = Math.floor(s / 60);
+  if (minutes < 60) return s % 60 === 0 ? `${minutes} min` : `${minutes} min ${s % 60} s`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return minutes % 60 === 0 ? `${hours} h` : `${hours} h ${minutes % 60} min`;
+  const days = Math.floor(hours / 24);
+  return hours % 24 === 0 ? `${days} d` : `${days} d ${hours % 24} h`;
+}
+
+/** e.g. "12 min ago", "in 3 h 5 min". */
+export function formatRelative(iso: string, now: Date): string {
+  const seconds = (Date.parse(iso) - now.getTime()) / MS_PER_SECOND;
+  if (Math.abs(seconds) < 60) return seconds >= 0 ? "in under a minute" : "just now";
+  const label = formatDuration(Math.abs(seconds) >= 3600 ? Math.round(Math.abs(seconds) / 60) * 60 : Math.abs(seconds) - (Math.abs(seconds) % 60));
+  return seconds >= 0 ? `in ${label}` : `${label} ago`;
+}

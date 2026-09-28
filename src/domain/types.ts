@@ -509,6 +509,22 @@ export type IntegrityCase = {
 export type IncidentStatus = "investigating" | "action_required" | "contained" | "resolved";
 export type Severity = "low" | "medium" | "high" | "critical";
 
+export type ContainmentAction =
+  | "notify_customers"
+  | "access_pending"
+  | "require_review"
+  | "engineering_incident"
+  | "monitor_next_purchases";
+
+export type ContainmentDecision = {
+  action: ContainmentAction;
+  decidedAt: ISODateTime;
+  actor: string;
+  detail: string;
+  /** Cases the decision applied to when it was recorded. */
+  caseIds: string[];
+};
+
 /** Stored incident. Money and customer totals are always computed from cases. */
 export type IncidentRecord = {
   id: string;
@@ -526,6 +542,7 @@ export type IncidentRecord = {
   affectedService: string;
   summary: string;
   investigation?: Investigation;
+  containment?: ContainmentDecision[];
 };
 
 /** spec: the incident as displayed, with computed totals. */

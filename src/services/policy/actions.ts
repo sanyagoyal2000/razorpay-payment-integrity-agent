@@ -1,5 +1,15 @@
 import type { ActionType, OutcomeContract, PolicyAction } from "@/domain/types";
 
+export const POLICY_ACTION_LABELS: Record<PolicyAction, string> = {
+  retry_provisioning: "Retry provisioning",
+  replay_webhook: "Replay webhook",
+  capture_payment: "Capture payment",
+  prepare_refund: "Prepare refund",
+  issue_refund: "Issue refund",
+  notify_customer: "Notify customer",
+  escalate: "Escalate",
+};
+
 export type ActionDefinition = {
   label: string;
   /** Automations entry that governs the action; absent for actions with no external effect. */

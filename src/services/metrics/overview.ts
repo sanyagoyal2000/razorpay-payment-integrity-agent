@@ -24,13 +24,13 @@ export type ValueDelivered = {
 
 export const VALUE_DELIVERED_EXPLANATIONS = {
   gmvResolvedBeforeRefundOrDispute:
-    "Sum of amounts at risk on cases resolved with a verified outcome in the last 30 days, where the default would have been an automatic refund or a customer contact, and the payment was not refunded.",
+    "Amount at risk on cases resolved with a verified outcome in the last 30 days that would otherwise have been refunded or raised by the customer, and were not refunded.",
   avoidableRefundsPrevented:
-    "Cases resolved with a verified outcome in the last 30 days whose payment would otherwise have been refunded automatically.",
+    "Cases resolved with a verified outcome in the last 30 days whose payment Razorpay would otherwise have refunded automatically.",
   supportContactsAvoided:
-    "Cases resolved with a verified outcome in the last 30 days, whose default was a customer contact, where the customer had not contacted LearnLoop. One contact per case.",
+    "Cases resolved with a verified outcome in the last 30 days, before the customer contacted LearnLoop. Counts one contact per case.",
   medianDetectionToVerifiedSeconds:
-    "Median time from case detection to outcome verification for the cases counted in GMV resolved.",
+    "Median time from case detection to verified outcome, across the cases counted in GMV resolved.",
 } as const;
 
 const DEFAULT_COUNTED = new Set(["auto_refund", "customer_contact"]);
@@ -58,7 +58,7 @@ export function primaryMetrics(repos: Repositories, asOf: string): PrimaryMetric
   for (const c of atRisk) customers.set(c.customerId, [...(customers.get(c.customerId) ?? []), c.id]);
   const since = windowStart(asOf, 30);
   const beforeContact = cases.filter(
-    (c) => verifiedInWindow(c, since, asOf) && DEFAULT_COUNTED.has(c.defaultOutcome) && c.customerContact === "none",
+    (c) => verifiedInWindow(c, since, asOf) && DEFAULT_COUNTED.has(c.defaultOutcome) && c.customerContact !== "customer_initiated",
   );
   const openIncidents = repos.incidents.list().filter((i) => i.status !== "resolved");
   return {
@@ -80,7 +80,7 @@ export function valueDelivered(repos: Repositories, asOf: string): ValueDelivere
     .filter((c) => verifiedInWindow(c, since, asOf) && DEFAULT_COUNTED.has(c.defaultOutcome))
     .filter((c) => repos.payments.get(c.paymentId)?.status !== "refunded");
   const refunds = counted.filter((c) => c.defaultOutcome === "auto_refund");
-  const contacts = counted.filter((c) => c.defaultOutcome === "customer_contact" && c.customerContact === "none");
+  const contacts = counted.filter((c) => c.defaultOutcome === "customer_contact" && c.customerContact !== "customer_initiated");
   const durations = counted.map((c) => secondsBetween(c.detectedAt, c.resolution!.resolvedAt));
   return {
     windowDays: 30,
@@ -130,7 +130,7 @@ export function dailyPerformance(repos: Repositories, asOf: string, days = 28): 
       completionRate: captured === 0 ? 0 : completed / captured,
       medianCompletionSeconds: course?.medianCompletionSeconds ?? null,
       casesResolved: resolvedThatDay.length,
-      casesResolvedBeforeContact: resolvedThatDay.filter((c) => DEFAULT_COUNTED.has(c.defaultOutcome) && c.customerContact === "none" && !c.wrongAction).length,
+      casesResolvedBeforeContact: resolvedThatDay.filter((c) => DEFAULT_COUNTED.has(c.defaultOutcome) && c.customerContact !== "customer_initiated" && !c.wrongAction).length,
     });
   }
   return result;

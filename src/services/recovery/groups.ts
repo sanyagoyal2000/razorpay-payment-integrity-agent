@@ -36,7 +36,7 @@ export function assessCase(repos: Repositories, caseData: IntegrityCase, asOf: s
   if (caseData.type === "duplicate_payment") group = "duplicate_review";
   else if (verdict.result === "blocked") group = "blocked";
   else if (failed("amount_within_limit")) group = "high_value";
-  else if (verdict.result === "allowed" || verdict.approvalScope === "bulk") group = "safe";
+  else if (caseData.recommendation.action === "retry_provisioning" && (verdict.result === "allowed" || verdict.approvalScope === "bulk")) group = "safe";
   else group = "individual_review";
   return { caseData, verdict, group };
 }
