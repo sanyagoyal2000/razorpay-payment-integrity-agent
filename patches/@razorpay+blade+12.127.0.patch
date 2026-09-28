@@ -1,0 +1,80 @@
+diff --git a/node_modules/@razorpay/blade/build/lib/web/development/components/Checkbox/Checkbox.js b/node_modules/@razorpay/blade/build/lib/web/development/components/Checkbox/Checkbox.js
+index bb4f8f8..5bdaced 100644
+--- a/node_modules/@razorpay/blade/build/lib/web/development/components/Checkbox/Checkbox.js
++++ b/node_modules/@razorpay/blade/build/lib/web/development/components/Checkbox/Checkbox.js
+@@ -157,6 +157,7 @@ var _Checkbox = function _Checkbox(_ref, ref) {
+             hasError: _hasError,
+             inputProps: inputProps,
+             tabIndex: tabIndex,
++            accessibilityLabel: rest['aria-label'],
+             ref: getInnerMotionRef({
+               _motionMeta: _motionMeta,
+               ref: ref
+diff --git a/node_modules/@razorpay/blade/build/lib/web/development/components/Table/Table.web.js b/node_modules/@razorpay/blade/build/lib/web/development/components/Table/Table.web.js
+index e12c0d9..e665eac 100644
+--- a/node_modules/@razorpay/blade/build/lib/web/development/components/Table/Table.web.js
++++ b/node_modules/@razorpay/blade/build/lib/web/development/components/Table/Table.web.js
+@@ -515,9 +515,7 @@ var _Table = function _Table(_ref4) {
+             showStripedRows: showStripedRows
+           },
+           pagination: hasPagination ? paginationConfig : null
+-        }, makeAccessible({
+-          multiSelectable: selectionType === 'multiple'
+-        })), metaAttribute({
++        }, makeAccessible({})), metaAttribute({
+           name: MetaConstants.Table
+         })), makeAnalyticsAttribute(rest)), {}, {
+           children: children
+diff --git a/node_modules/@razorpay/blade/build/lib/web/development/components/Table/TableHeader.web.js b/node_modules/@razorpay/blade/build/lib/web/development/components/Table/TableHeader.web.js
+index 4f6548c..0819dd9 100644
+--- a/node_modules/@razorpay/blade/build/lib/web/development/components/Table/TableHeader.web.js
++++ b/node_modules/@razorpay/blade/build/lib/web/development/components/Table/TableHeader.web.js
+@@ -307,7 +307,7 @@ var _TableHeaderRow = function _TableHeaderRow(_ref9) {
+   // This prop will be removed in a future major version.
+   setHeaderRowDensity('compact');
+   return /*#__PURE__*/jsxs(StyledHeaderRow, _objectSpread(_objectSpread(_objectSpread({
+-    role: "rowheader"
++    role: "row"
+   }, metaAttribute({
+     name: MetaConstants.TableHeaderRow
+   })), makeAnalyticsAttribute(rest)), {}, {
+diff --git a/node_modules/@razorpay/blade/build/lib/web/production/components/Checkbox/Checkbox.js b/node_modules/@razorpay/blade/build/lib/web/production/components/Checkbox/Checkbox.js
+index 73c76b4..eb3ddd6 100644
+--- a/node_modules/@razorpay/blade/build/lib/web/production/components/Checkbox/Checkbox.js
++++ b/node_modules/@razorpay/blade/build/lib/web/production/components/Checkbox/Checkbox.js
+@@ -157,6 +157,7 @@ var _Checkbox = function _Checkbox(_ref, ref) {
+             hasError: _hasError,
+             inputProps: inputProps,
+             tabIndex: tabIndex,
++            accessibilityLabel: rest['aria-label'],
+             ref: getInnerMotionRef({
+               _motionMeta: _motionMeta,
+               ref: ref
+diff --git a/node_modules/@razorpay/blade/build/lib/web/production/components/Table/Table.web.js b/node_modules/@razorpay/blade/build/lib/web/production/components/Table/Table.web.js
+index 55518a1..d898234 100644
+--- a/node_modules/@razorpay/blade/build/lib/web/production/components/Table/Table.web.js
++++ b/node_modules/@razorpay/blade/build/lib/web/production/components/Table/Table.web.js
+@@ -515,9 +515,7 @@ var _Table = function _Table(_ref4) {
+             showStripedRows: showStripedRows
+           },
+           pagination: hasPagination ? paginationConfig : null
+-        }, makeAccessible({
+-          multiSelectable: selectionType === 'multiple'
+-        })), metaAttribute({
++        }, makeAccessible({})), metaAttribute({
+           name: MetaConstants.Table
+         })), makeAnalyticsAttribute(rest)), {}, {
+           children: children
+diff --git a/node_modules/@razorpay/blade/build/lib/web/production/components/Table/TableHeader.web.js b/node_modules/@razorpay/blade/build/lib/web/production/components/Table/TableHeader.web.js
+index 4f6548c..0819dd9 100644
+--- a/node_modules/@razorpay/blade/build/lib/web/production/components/Table/TableHeader.web.js
++++ b/node_modules/@razorpay/blade/build/lib/web/production/components/Table/TableHeader.web.js
+@@ -307,7 +307,7 @@ var _TableHeaderRow = function _TableHeaderRow(_ref9) {
+   // This prop will be removed in a future major version.
+   setHeaderRowDensity('compact');
+   return /*#__PURE__*/jsxs(StyledHeaderRow, _objectSpread(_objectSpread(_objectSpread({
+-    role: "rowheader"
++    role: "row"
+   }, metaAttribute({
+     name: MetaConstants.TableHeaderRow
+   })), makeAnalyticsAttribute(rest)), {}, {
