@@ -5,6 +5,9 @@ import {
   Button,
   CheckIcon,
   Code,
+  Collapsible,
+  CollapsibleBody,
+  CollapsibleLink,
   Divider,
   HelpCircleIcon,
   MinusCircleIcon,
@@ -17,8 +20,11 @@ import {
 } from "@razorpay/blade/components";
 import { Fragment, useState } from "react";
 import { formatIstShort } from "@/domain/time";
-import type { InvestigationProgress, InvestigationStep } from "@/services/agent";
-import type { InvestigationView } from "@/services/views/investigation";
+import type { InvestigationStage } from "@/domain/types";
+import type { InvestigationProgress } from "@/services/agent";
+import { STAGE_ORDER, stageTitle } from "@/services/agent/progress";
+import type { InvestigationProduction, InvestigationView } from "@/services/views/investigation";
+import { MetaList } from "@/ui/components/MetaList";
 import { Surface } from "@/ui/components/Surface";
 
 const VERDICTS = {
@@ -27,12 +33,70 @@ const VERDICTS = {
   inconclusive: { label: "Inconclusive", icon: HelpCircleIcon },
 } as const;
 
-const STEPS: Array<{ step: InvestigationStep; title: string }> = [
-  { step: "gathering", title: "Collect evidence" },
-  { step: "reviewing", title: "Weigh possible causes" },
-  { step: "checking", title: "Check every citation" },
-  { step: "done", title: "Update recommendation" },
-];
+/** Stage marker colour: completed operations are positive, failed ones notice, skipped ones neutral. */
+const STAGE_COLOR = { complete: "positive", failed: "notice", skipped: "neutral" } as const;
+
+function StageList({ stages, subject, pending }: { stages: InvestigationStage[]; subject: "case" | "incident"; pending: boolean }) {
+  return (
+    <StepGroup orientation={pending ? "horizontal" : "vertical"} size="medium">
+      {STAGE_ORDER.map((step, index) => {
+        const reached = stages.find((s) => s.step === step);
+        const current = pending && !reached && index === stages.length;
+        return (
+          <StepItem
+            key={step}
+            title={stageTitle(step, subject)}
+            {...(reached ? { description: reached.detail } : current ? { description: "In progress" } : {})}
+            stepProgress={reached ? "full" : current ? "start" : "none"}
+            isDisabled={!reached && !current}
+            marker={<StepItemIndicator color={reached ? STAGE_COLOR[reached.status] : current ? "information" : "neutral"} />}
+          />
+        );
+      })}
+    </StepGroup>
+  );
+}
+
+function Production({ production, subject, now }: { production: InvestigationProduction; subject: "case" | "incident"; now: Date }) {
+  const { hypotheses } = production;
+  const evaluated = hypotheses.supported + hypotheses.ruled_out + hypotheses.inconclusive;
+  return (
+    <Collapsible>
+      <CollapsibleLink size="small">How this investigation was produced</CollapsibleLink>
+      <CollapsibleBody>
+        <Box display="flex" flexDirection="column" gap="spacing.5" paddingTop="spacing.3">
+          <MetaList
+            minColumnWidth={160}
+            items={[
+              { label: "Result", value: production.resultLabel },
+              { label: "Investigated", value: `${formatIstShort(production.at, now)} IST` },
+              { label: "Events examined", value: production.eventsExamined.toLocaleString("en-IN") },
+              {
+                label: "Sources used",
+                value: production.sources.length > 0 ? production.sources.map((s) => `${s.label} (${s.count})`).join(", ") : "Not recorded",
+              },
+              ...(production.casesCompared !== undefined ? [{ label: "Cases compared", value: production.casesCompared.toLocaleString("en-IN") }] : []),
+              { label: "Service health", value: production.serviceHealth ?? "Not recorded" },
+              {
+                label: "Causes evaluated",
+                value: evaluated === 0 ? "None recorded" : `${evaluated}: ${hypotheses.supported} supported, ${hypotheses.ruled_out} ruled out, ${hypotheses.inconclusive} inconclusive`,
+              },
+              { label: "Citations checked", value: production.citationsChecked.toLocaleString("en-IN") },
+              {
+                label: "Citations removed",
+                value: production.citationsRemoved.length === 0 ? "None" : `${production.citationsRemoved.length} (${production.citationsRemoved.join(", ")})`,
+              },
+            ]}
+          />
+          {production.stages.length > 0 ? <StageList stages={production.stages} subject={subject} pending={false} /> : null}
+          <Text size="xsmall" color="surface.text.gray.muted">
+            Stages record operations that ran and what they found. The investigator&apos;s private reasoning is not stored or shown.
+          </Text>
+        </Box>
+      </CollapsibleBody>
+    </Collapsible>
+  );
+}
 
 /**
  * The Payment Integrity Agent's investigation: what it examined, the causes it
@@ -46,37 +110,38 @@ export function InvestigationPanel({
 }: {
   view: InvestigationView | undefined;
   now: Date;
-  onReinvestigate?: (onProgress: (p: InvestigationProgress) => void) => Promise<unknown>;
+  onReinvestigate?: (onProgress: (p: InvestigationProgress) => void) => Promise<{ status: "valid" | "invalid" | "unavailable" }>;
   subject: "case" | "incident";
 }) {
   const toast = useToast();
   const [progress, setProgress] = useState<InvestigationProgress[] | null>(null);
-  const running = progress !== null && !progress.some((p) => p.step === "done");
+  const running = progress !== null && !progress.some((p) => p.step === "preparing");
 
   const run = async () => {
     if (!onReinvestigate) return;
     setProgress([]);
     try {
-      await onReinvestigate((p) => setProgress((current) => [...(current ?? []), p]));
-      toast.show({ color: "positive", content: `Investigation of this ${subject} updated.` });
+      const result = await onReinvestigate((p) => setProgress((current) => [...(current ?? []), p]));
+      if (result.status === "valid") {
+        toast.show({ color: "positive", content: `Investigation of this ${subject} updated.` });
+        // The stored run now carries these stages; show them in the disclosure instead.
+        setTimeout(() => setProgress(null), 1500);
+      } else {
+        toast.show({ color: "notice", content: "The investigator's output could not be used. Escalation prepared for manual review." });
+      }
     } catch {
       toast.show({ color: "notice", content: "The investigation could not be completed. Previous findings are unchanged." });
-    } finally {
-      setTimeout(() => setProgress(null), 1500);
+      setProgress(null);
     }
   };
 
   const runInfo = view?.run;
-  const sources = runInfo ? Object.entries(runInfo.sources).map(([source, n]) => `${source} (${n})`).join(", ") : "";
 
   return (
     <Surface
+      id="investigation"
       title="Investigation"
-      description={
-        runInfo
-          ? `By Payment Integrity Agent · ${formatIstShort(runInfo.at, now)} · ${runInfo.eventsExamined} events examined from ${sources}`
-          : "By Payment Integrity Agent"
-      }
+      description={runInfo ? `By Payment Integrity Agent · ${formatIstShort(runInfo.at, now)} IST` : "By Payment Integrity Agent"}
       actions={
         onReinvestigate ? (
           <Button variant="secondary" size="small" icon={RefreshIcon} isLoading={running} isDisabled={running} onClick={run}>
@@ -87,22 +152,9 @@ export function InvestigationPanel({
     >
       {progress !== null ? (
         <Box marginBottom="spacing.5">
-          <StepGroup orientation="horizontal" size="medium">
-            {STEPS.map(({ step, title }, index) => {
-              const reached = progress.find((p) => p.step === step);
-              const current = !reached && index === progress.length;
-              return (
-                <StepItem
-                  key={step}
-                  title={title}
-                  {...(reached ? { description: reached.detail } : current ? { description: "In progress" } : {})}
-                  stepProgress={reached ? "full" : current ? "start" : "none"}
-                  isDisabled={!reached && !current}
-                  marker={<StepItemIndicator color={reached ? "positive" : current ? "information" : "neutral"} />}
-                />
-              );
-            })}
-          </StepGroup>
+          <div role="status" aria-live="polite">
+            <StageList stages={progress} subject={subject} pending />
+          </div>
         </Box>
       ) : null}
 
@@ -157,15 +209,14 @@ export function InvestigationPanel({
             </Box>
           ) : null}
 
-          {runInfo ? (
+          {runInfo && runInfo.status !== "valid" ? (
             <Text size="xsmall" color="surface.text.gray.muted">
-              {runInfo.status === "valid"
-                ? `${runInfo.citationsChecked} citations checked against recorded events; ${runInfo.citationsRemoved.length === 0 ? "none removed" : `${runInfo.citationsRemoved.length} removed (${runInfo.citationsRemoved.join(", ")})`}. The agent proposes; policy and you decide.`
-                : runInfo.status === "unavailable"
-                  ? "Automated investigation unavailable. Deterministic detection remains active; escalation is recommended."
-                  : "The investigation output could not be used, so escalation is recommended."}
+              {runInfo.status === "unavailable"
+                ? "Automated investigation unavailable. Deterministic detection remains active; escalation is recommended."
+                : "The investigation output could not be used, so escalation is recommended."}
             </Text>
           ) : null}
+          {view.production ? <Production production={view.production} subject={subject} now={now} /> : null}
         </Box>
       )}
     </Surface>

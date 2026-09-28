@@ -2,7 +2,7 @@
 
 import { Alert, Box, Button } from "@razorpay/blade/components";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { reinvestigateIncident, type InvestigationProgress } from "@/services/agent";
 import { incidentWorkspace } from "@/services/views/incidents";
 import { InvestigationPanel } from "@/ui/agent/InvestigationPanel";
@@ -19,12 +19,19 @@ import { IncidentSummary } from "./IncidentSummary";
 import { RecoverySection } from "./RecoverySection";
 import { UncertaintiesPanel } from "./UncertaintiesPanel";
 import { WhatHappened } from "./WhatHappened";
+import { WhyAgentNeeded } from "./WhyAgentNeeded";
 
 export function IncidentWorkspacePage({ incidentId }: { incidentId: string }) {
   const router = useRouter();
   const state = useModel((services, asOf) => incidentWorkspace(services.repos, incidentId, asOf) ?? null, [incidentId]);
   const [drawer, setDrawer] = useState<CaseListRequest | null>(null);
   const crumbs = [{ label: "Incidents", href: `${BASE_PATH}/incidents` }, { label: incidentId }];
+  const ready = state.status === "ready" && state.model !== null;
+  // Sections render after data loads, so jump to a linked section (#recovery, #investigation) once they exist.
+  useEffect(() => {
+    if (!ready || !window.location.hash) return;
+    document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ block: "start" });
+  }, [ready]);
 
   if (state.status === "loading") return <><PageHeader title="Incident" crumbs={crumbs} /><PageSkeleton /></>;
   if (state.status === "error") return <><PageHeader title="Incident" crumbs={crumbs} /><PageError message={state.message} /></>;
@@ -70,6 +77,8 @@ export function IncidentWorkspacePage({ incidentId }: { incidentId: string }) {
           <WhatHappened model={model} />
           <UncertaintiesPanel uncertainties={model.uncertainties} />
         </Box>
+        <WhyAgentNeeded contribution={model.contribution} onShowCases={setDrawer} />
+        <RecoverySection model={model} services={state.services} asOf={state.asOf} onShowCases={setDrawer} />
         <InvestigationPanel
           subject="incident"
           view={model.investigation}
@@ -77,7 +86,6 @@ export function IncidentWorkspacePage({ incidentId }: { incidentId: string }) {
           {...(incident.status !== "resolved" ? { onReinvestigate: (onProgress: (p: InvestigationProgress) => void) => reinvestigateIncident(state.services, incident.id, onProgress) } : {})}
         />
         <EvidenceSection groups={model.evidence} now={state.now} />
-        <RecoverySection model={model} services={state.services} asOf={state.asOf} onShowCases={setDrawer} />
         <ContainmentSection model={model} services={state.services} now={state.now} />
         <HistorySection entries={model.history} now={state.now} />
       </Box>

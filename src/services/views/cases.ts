@@ -328,7 +328,7 @@ export function caseDetail(repos: Repositories, caseId: string, asOf: string) {
     otherAttempts,
     customerView: customerStatus(repos, c),
     timeline: caseTimeline(repos, c, asOf),
-    investigation: investigationView(repos, c.investigation, describeCaseInvestigation(repos, c)),
+    investigation: investigationView(repos, c.investigation, describeCaseInvestigation(repos, c, asOf), "case"),
     recommendation: c.recommendation,
     evidence,
     evidenceCount: evidence.reduce((n, g) => n + g.items.length, 0),

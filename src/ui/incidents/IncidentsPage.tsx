@@ -13,7 +13,7 @@ import {
   Text,
 } from "@razorpay/blade/components";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { Severity } from "@/domain/types";
 import { formatINR } from "@/domain/money";
 import { formatIstShort, formatRelative } from "@/domain/time";
@@ -47,7 +47,15 @@ const SEVERITIES: Array<{ value: Severity; label: string }> = [
 
 export function IncidentsPage() {
   const router = useRouter();
-  const [filters, setFilters] = usePreference<IncidentFilters>("incident-filters", DEFAULT_INCIDENT_FILTERS);
+  const [filters, setFilters, filtersLoaded] = usePreference<IncidentFilters>("incident-filters", DEFAULT_INCIDENT_FILTERS);
+  // A link such as "View resolved incidents" can preset the status filter.
+  useEffect(() => {
+    if (!filtersLoaded) return;
+    const status = new URLSearchParams(window.location.search).get("status");
+    if (status === "open" || status === "resolved") setFilters({ ...DEFAULT_INCIDENT_FILTERS, state: status });
+    // Applied once, when saved filters have loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersLoaded]);
   const state = useModel((services) => ({
     rows: incidentRows(services.repos),
     contracts: services.repos.config.contracts().map((c) => ({ value: c.id, label: c.name })),

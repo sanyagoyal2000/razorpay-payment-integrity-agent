@@ -2,6 +2,7 @@
 
 import { Box } from "@razorpay/blade/components";
 import { useState } from "react";
+import { proactiveBriefing } from "@/services/views/briefing";
 import { overviewModel } from "@/services/views/overview";
 import { CaseListDrawer, type CaseListRequest } from "@/ui/components/CaseListDrawer";
 import { PageHeader } from "@/ui/components/PageHeader";
@@ -13,10 +14,11 @@ import { IntegrityActivity } from "./IntegrityActivity";
 import { OverviewMeta } from "./OverviewMeta";
 import { PerformanceSummary } from "./PerformanceSummary";
 import { PrimaryMetrics } from "./PrimaryMetrics";
+import { ProactiveBriefing } from "./ProactiveBriefing";
 import { ValueDelivered } from "./ValueDelivered";
 
 export function OverviewPage() {
-  const state = useModel((services, asOf) => overviewModel(services.repos, asOf));
+  const state = useModel((services, asOf) => ({ ...overviewModel(services.repos, asOf), briefing: proactiveBriefing(services.repos, asOf) }));
   const [drawer, setDrawer] = useState<CaseListRequest | null>(null);
 
   const header = (
@@ -34,6 +36,7 @@ export function OverviewPage() {
     <>
       {header}
       <Box display="flex" flexDirection="column" gap="spacing.6">
+        <ProactiveBriefing model={model.briefing} now={state.now} />
         <PrimaryMetrics metrics={model.metrics} onShowCases={setDrawer} />
         <ActiveIncidents rows={model.incidents} lastRefresh={model.lastRefresh} now={state.now} />
         <AttentionCases rows={model.attention} now={state.now} />

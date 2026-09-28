@@ -9,6 +9,7 @@ export function toRecommendation(
   investigation: Investigation,
   caseType: CaseType,
   createdAt: string,
+  origin: Recommendation["origin"] = "investigation",
 ): Recommendation {
   let action: ActionType = investigation.recommendedAction;
   if (caseType === "duplicate_payment" && action === "retry_provisioning") action = "review_duplicate";
@@ -20,7 +21,7 @@ export function toRecommendation(
     uncertainties: investigation.uncertainties,
     customerImpact: investigation.customerImpact,
     consequenceOfInaction: investigation.consequenceOfInaction,
-    origin: "investigation",
+    origin,
     createdAt,
   };
 }

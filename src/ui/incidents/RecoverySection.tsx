@@ -87,13 +87,13 @@ export function RecoverySection({
       : undefined;
 
   return (
-    <Surface title="Recovery" description="Cases grouped by recommended treatment. Select groups to preview the impact before approving.">
+    <Surface id="recovery" title="Recovery" description="Cases grouped by recommended treatment. Select groups to preview the impact before approving.">
       {model.groups.length === 0 ? (
         <Text size="small" color="surface.text.gray.muted">
           No open cases remain. Every affected customer&apos;s outcome has been confirmed or closed.
         </Text>
       ) : (
-        <Box display="grid" gridTemplateColumns={{ base: "minmax(0px, 1fr)", xl: "minmax(0px, 3fr) minmax(0px, 2fr)" }} gap="spacing.6" alignItems="start">
+        <Box display="grid" gridTemplateColumns="minmax(0px, 1fr)" gap="spacing.6" alignItems="start">
           <Box minWidth="0px" overflowX="auto">
             <Table data={{ nodes: model.groups }} rowDensity="normal" gridTemplateColumns="minmax(190px, 2fr) 64px 104px minmax(150px, 1.5fr) 190px">
               {(items) => (

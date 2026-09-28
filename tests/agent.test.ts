@@ -159,7 +159,7 @@ describe("re-investigation", () => {
     const steps: string[] = [];
     const result = await reinvestigateCase(env, c.id, (p) => steps.push(p.step));
     expect(result.status).toBe("valid");
-    expect(steps).toEqual(["gathering", "reviewing", "checking", "done"]);
+    expect(steps).toEqual(["gathering", "comparing", "checking_health", "validating", "preparing"]);
     const saved = env.repos.cases.get(c.id)!;
     expect(saved.investigationRun).toMatchObject({ status: "valid", citationsRemoved: [] });
     expect(saved.investigationRun!.eventsExamined).toBeGreaterThan(5);

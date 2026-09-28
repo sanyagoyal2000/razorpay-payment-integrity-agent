@@ -32,7 +32,7 @@ export function AttentionCases({ rows, now }: { rows: AttentionRow[]; now: Date 
       {rows.length === 0 ? (
         <EmptyMessage title="Nothing needs an individual decision" description="Every open case is covered by an incident's recovery plan." />
       ) : (
-        <Table data={{ nodes: rows.map((r) => ({ ...r, id: r.caseId })) }} rowDensity="normal" gridTemplateColumns="120px minmax(150px, 1fr) 150px 100px 150px minmax(320px, 3fr)">
+        <Table data={{ nodes: rows.map((r) => ({ ...r, id: r.caseId })) }} rowDensity="normal" gridTemplateColumns="120px minmax(150px, 1fr) 150px 100px 150px minmax(270px, 3fr)">
           {(items) => (
             <>
               <TableHeader>

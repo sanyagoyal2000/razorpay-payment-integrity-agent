@@ -1,4 +1,13 @@
-import type { ActionType, IntegrityCase, InvestigationRun, OutcomeContract } from "@/domain/types";
+import type {
+  ActionType,
+  IntegrityCase,
+  Investigation,
+  InvestigationRun,
+  InvestigationStage,
+  InvestigationStepId,
+  OutcomeContract,
+  PolicyVerdict,
+} from "@/domain/types";
 import { ACTORS } from "@/domain/types";
 import { median } from "@/domain/time";
 import type { Repositories } from "@/repositories";
@@ -22,8 +31,25 @@ import {
 } from "@/services/investigation";
 import { toRecommendation } from "@/services/investigation/recommendation";
 import { earnedAutonomy } from "@/services/metrics/autonomy";
+import { isAtRisk } from "@/services/metrics/cases";
 import { wrongActionRate } from "@/services/metrics/overview";
-import { POLICY_ACTION_LABELS } from "@/services/policy/actions";
+import { ACTIONS, POLICY_ACTION_LABELS } from "@/services/policy/actions";
+import { evaluateCase, requireContract } from "@/services/policy/currentState";
+import { groupIncidentCases } from "@/services/recovery/groups";
+import {
+  citationStage,
+  compareStage,
+  countSources,
+  ESCALATION_PREPARED,
+  failedPreparingStage,
+  failedValidationStage,
+  gatherStage,
+  healthResult,
+  healthStage,
+  preparingStage,
+  recoverySplitDetail,
+  validateStage,
+} from "./progress";
 import { draftMessageByRule, explainAutonomyByRule } from "./rules";
 
 export type AgentDeps = { repos: Repositories; agent: AgentGateway; clock: { now(): Date } };
@@ -32,93 +58,149 @@ export type AgentDeps = { repos: Repositories; agent: AgentGateway; clock: { now
 // Investigation runs
 // ---------------------------------------------------------------------------
 
-export type InvestigationStep = "gathering" | "reviewing" | "checking" | "done";
-export type InvestigationProgress = { step: InvestigationStep; detail: string };
+export type InvestigationStep = InvestigationStepId;
+/** One completed stage, reported as soon as its operation finishes. */
+export type InvestigationProgress = InvestigationStage;
 
-const SOURCE_LABELS: Record<EvidenceItem["source"], string> = {
-  razorpay: "Razorpay",
-  learnloop: "LearnLoop",
-  learnloop_observability: "LearnLoop Observability",
-  payment_integrity: "Payment Integrity",
-};
-
-function countSources(evidence: EvidenceItem[]): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const item of evidence) counts[SOURCE_LABELS[item.source]] = (counts[SOURCE_LABELS[item.source]] ?? 0) + 1;
-  return counts;
+function citedIds(investigation: Investigation): string[] {
+  return [...investigation.evidenceIds, ...(investigation.hypotheses ?? []).flatMap((h) => h.evidenceIds)];
 }
 
-function runRecord(evidence: EvidenceItem[], result: InvestigationResult, at: string): InvestigationRun {
-  const cited = [...result.investigation.evidenceIds, ...(result.investigation.hypotheses ?? []).flatMap((h) => h.evidenceIds)];
+function runRecord(
+  evidence: EvidenceItem[],
+  result: InvestigationResult,
+  at: string,
+  extra: Pick<InvestigationRun, "serviceHealth" | "stages"> & { casesCompared?: number },
+): InvestigationRun {
   return {
     at,
     eventsExamined: evidence.length,
     sources: countSources(evidence),
-    citationsChecked: result.status === "valid" ? result.citationsChecked : cited.length,
+    citationsChecked: result.status === "valid" ? result.citationsChecked : citedIds(result.investigation).length,
     citationsRemoved: result.status === "valid" ? result.removedEvidenceIds : [],
     status: result.status,
+    ...extra,
   };
 }
 
-/** What the current investigation of a case examined and how its citations held up. */
-export function describeCaseInvestigation(repos: Repositories, c: IntegrityCase): InvestigationRun | undefined {
-  if (c.investigationRun) return c.investigationRun;
+const VERDICT_WORDS: Record<PolicyVerdict["result"], string> = {
+  allowed: "allowed by policy",
+  requires_approval: "needs your approval",
+  blocked: "blocked by policy",
+};
+
+function casePreparingDetail(repos: Repositories, c: IntegrityCase, asOf: string): string {
+  if (!c.recommendation) return "No recommendation; the case is not awaiting a decision.";
+  const label = ACTIONS[c.recommendation.action].label;
+  if (!isAtRisk(c)) return `Recommended ${label.toLowerCase()}.`;
+  const verdict = evaluateCase(repos, c, c.recommendation, asOf);
+  return `Recommended ${label.toLowerCase()}; ${VERDICT_WORDS[verdict.result]}.`;
+}
+
+function incidentPreparingDetail(repos: Repositories, incidentId: string, asOf: string): string {
+  const groups = groupIncidentCases(repos, incidentId, asOf);
+  const safe = groups.find((g) => g.id === "safe")?.caseIds.length ?? 0;
+  const held = groups.filter((g) => g.id !== "safe").reduce((n, g) => n + g.caseIds.length, 0);
+  return recoverySplitDetail(safe, held);
+}
+
+/**
+ * What the current investigation of a case examined and how its citations
+ * held up. Fixture investigations have no stored run, so their stages are
+ * derived from the same evidence and checks a live run would record.
+ */
+export function describeCaseInvestigation(repos: Repositories, c: IntegrityCase, asOf?: string): InvestigationRun | undefined {
+  if (c.investigationRun?.stages) return c.investigationRun;
   if (!c.investigation) return undefined;
   const evidence = buildCaseInvestigationInput(repos, c.id).evidence;
   const ids = new Set(evidence.map((e) => e.id));
-  const cited = [...c.investigation.evidenceIds, ...(c.investigation.hypotheses ?? []).flatMap((h) => h.evidenceIds)];
+  const cited = citedIds(c.investigation);
+  const removed = cited.filter((id) => !ids.has(id));
+  const at = c.investigationRun?.at ?? c.recommendation?.createdAt ?? c.detectedAt;
+  const contract = requireContract(repos, c.outcomeContractId);
+  const health = healthResult(repos, contract.fulfilmentService, at);
+  const status = c.investigationRun?.status ?? "valid";
   return {
-    at: c.recommendation?.createdAt ?? c.detectedAt,
+    at,
     eventsExamined: evidence.length,
     sources: countSources(evidence),
     citationsChecked: cited.length,
-    citationsRemoved: cited.filter((id) => !ids.has(id)),
-    status: "valid",
+    citationsRemoved: removed,
+    status,
+    serviceHealth: health,
+    stages: [
+      gatherStage(evidence),
+      compareStage(status, { kind: "case", contract }),
+      healthStage(health, at),
+      status === "valid" ? citationStage(cited.length, removed.length) : failedValidationStage(status),
+      status === "valid" ? preparingStage(casePreparingDetail(repos, c, asOf ?? at)) : failedPreparingStage(),
+    ],
   };
 }
 
-export function describeIncidentInvestigation(repos: Repositories, incidentId: string): InvestigationRun | undefined {
+export function describeIncidentInvestigation(repos: Repositories, incidentId: string, asOf?: string): InvestigationRun | undefined {
   const incident = repos.incidents.get(incidentId);
   if (!incident?.investigation) return undefined;
-  if (incident.investigationRun) return incident.investigationRun;
+  if (incident.investigationRun?.stages) return incident.investigationRun;
   const evidence = buildIncidentInvestigationInput(repos, incidentId).evidence;
   const ids = new Set([...evidence.map((e) => e.id), ...incident.caseIds]);
-  const cited = [...incident.investigation.evidenceIds, ...(incident.investigation.hypotheses ?? []).flatMap((h) => h.evidenceIds)];
+  const cited = citedIds(incident.investigation);
+  const removed = cited.filter((id) => !ids.has(id));
+  // The investigation covers every case in the incident, so it cannot predate the last one.
+  const lastCase = incident.caseIds.map((id) => repos.cases.get(id)?.detectedAt ?? incident.detectedAt).sort().at(-1);
+  const at = incident.investigationRun?.at ?? (lastCase && lastCase > incident.detectedAt ? lastCase : incident.detectedAt);
+  const health = healthResult(repos, incident.affectedService, at);
   return {
-    at: incident.detectedAt,
-    eventsExamined: evidence.length + incident.caseIds.length,
-    sources: { ...countSources(evidence), "Payment Integrity cases": incident.caseIds.length },
+    at,
+    eventsExamined: evidence.length,
+    sources: countSources(evidence),
     citationsChecked: cited.length,
-    citationsRemoved: cited.filter((id) => !ids.has(id)),
+    citationsRemoved: removed,
     status: "valid",
+    casesCompared: incident.caseIds.length,
+    serviceHealth: health,
+    stages: [
+      gatherStage(evidence),
+      compareStage("valid", { kind: "incident", caseCount: incident.caseIds.length }),
+      healthStage(health, at),
+      citationStage(cited.length, removed.length),
+      preparingStage(incidentPreparingDetail(repos, incidentId, asOf ?? at)),
+    ],
   };
 }
 
 /**
- * Runs the investigation again on the current evidence. The new
- * recommendation replaces the old one only while the case is awaiting a
- * decision; policy is always re-evaluated before anything executes.
+ * Runs the investigation again on the current evidence, reporting each stage
+ * when its operation completes. The new recommendation replaces the old one
+ * only while the case is awaiting a decision; policy is always re-evaluated
+ * before anything executes.
  */
 export async function reinvestigateCase(deps: AgentDeps, caseId: string, onProgress: (p: InvestigationProgress) => void = () => undefined) {
+  const stages: InvestigationStage[] = [];
+  const report = (stage: InvestigationStage) => {
+    stages.push(stage);
+    onProgress(stage);
+  };
   const input = buildCaseInvestigationInput(deps.repos, caseId);
-  onProgress({ step: "gathering", detail: `Collected ${input.evidence.length} events from ${Object.keys(countSources(input.evidence)).length} sources` });
-  onProgress({ step: "reviewing", detail: "Weighing possible causes against the evidence" });
+  report(gatherStage(input.evidence));
   const result = await investigateCase(deps.agent, input);
   const at = deps.clock.now().toISOString();
-  const run = runRecord(input.evidence, result, at);
-  onProgress({
-    step: "checking",
-    detail: result.status === "valid" ? `Checked ${run.citationsChecked} citations; ${run.citationsRemoved.length} removed` : "Output could not be used; escalating for review",
-  });
-  const c = deps.repos.cases.get(caseId)!;
-  const open = ["open", "review_required", "escalated", "observing"].includes(c.status);
-  deps.repos.cases.save({
-    ...c,
+  const before = deps.repos.cases.get(caseId)!;
+  const contract = requireContract(deps.repos, before.outcomeContractId);
+  report(compareStage(result.status, { kind: "case", contract }));
+  const health = healthResult(deps.repos, contract.fulfilmentService, at);
+  report(healthStage(health, at));
+  report(validateStage(result));
+
+  const open = ["open", "review_required", "escalated", "observing"].includes(before.status);
+  const updated = deps.repos.cases.save({
+    ...before,
     investigation: result.investigation,
-    investigationRun: run,
-    ...(open ? { recommendation: toRecommendation(result.investigation, c.type, at) } : {}),
+    ...(open ? { recommendation: toRecommendation(result.investigation, before.type, at, result.status === "valid" ? "investigation" : "rule_fallback") } : {}),
     updatedAt: at,
   });
+  report(result.status === "valid" ? preparingStage(casePreparingDetail(deps.repos, updated, at)) : failedPreparingStage());
+  const saved = deps.repos.cases.save({ ...updated, investigationRun: runRecord(input.evidence, result, at, { serviceHealth: health, stages }) });
   deps.repos.audit.append({
     id: deps.repos.nextId("aud"),
     occurredAt: at,
@@ -127,7 +209,7 @@ export async function reinvestigateCase(deps: AgentDeps, caseId: string, onProgr
     targetType: "case",
     targetId: caseId,
     caseId,
-    ...(c.incidentId ? { incidentId: c.incidentId } : {}),
+    ...(saved.incidentId ? { incidentId: saved.incidentId } : {}),
     result:
       result.status === "valid"
         ? `${result.investigation.likelyCause} (confidence ${Math.round(result.investigation.confidence * 100)}%)`
@@ -135,27 +217,35 @@ export async function reinvestigateCase(deps: AgentDeps, caseId: string, onProgr
     evidenceIds: result.investigation.evidenceIds,
     approvalSource: "not_required",
   });
-  onProgress({ step: "done", detail: result.status === "valid" ? "Recommendation updated; policy re-evaluated" : "Escalation recommended" });
   return result;
 }
 
+/**
+ * Re-investigates an incident. A valid result replaces the findings; an
+ * invalid or unavailable one is reported through the stages and the audit
+ * log, and the previous validated findings are kept.
+ */
 export async function reinvestigateIncident(deps: AgentDeps, incidentId: string, onProgress: (p: InvestigationProgress) => void = () => undefined) {
+  const stages: InvestigationStage[] = [];
+  const report = (stage: InvestigationStage) => {
+    stages.push(stage);
+    onProgress(stage);
+  };
   const input = buildIncidentInvestigationInput(deps.repos, incidentId);
-  onProgress({ step: "gathering", detail: `Collected ${input.evidence.length} events across ${input.caseIds.length} cases` });
-  onProgress({ step: "reviewing", detail: "Weighing possible shared causes" });
+  report(gatherStage(input.evidence));
   const result = await investigateIncident(deps.agent, input);
   const at = deps.clock.now().toISOString();
-  const run = runRecord(input.evidence, result, at);
-  run.eventsExamined += input.caseIds.length;
-  onProgress({
-    step: "checking",
-    detail: result.status === "valid" ? `Checked ${run.citationsChecked} citations; ${run.citationsRemoved.length} removed` : "Output could not be used",
-  });
   const incident = deps.repos.incidents.get(incidentId)!;
+  report(compareStage(result.status, { kind: "incident", caseCount: input.caseIds.length }));
+  const health = healthResult(deps.repos, incident.affectedService, at);
+  report(healthStage(health, at));
+  report(validateStage(result));
   if (result.status === "valid") {
+    report(preparingStage(incidentPreparingDetail(deps.repos, incidentId, at)));
+    const run = runRecord(input.evidence, result, at, { serviceHealth: health, stages, casesCompared: input.caseIds.length });
     deps.repos.incidents.save({ ...incident, investigation: result.investigation, investigationRun: run, likelyCause: result.investigation.likelyCause, summary: result.investigation.summary });
   } else {
-    deps.repos.incidents.save({ ...incident, investigationRun: run });
+    report(failedPreparingStage(incident.investigation ? "Output not used; the previous validated findings are kept for your review." : ESCALATION_PREPARED));
   }
   deps.repos.audit.append({
     id: deps.repos.nextId("aud"),
@@ -169,9 +259,9 @@ export async function reinvestigateIncident(deps: AgentDeps, incidentId: string,
     evidenceIds: result.investigation.evidenceIds,
     approvalSource: "not_required",
   });
-  onProgress({ step: "done", detail: result.status === "valid" ? "Findings updated" : "Previous findings kept" });
   return result;
 }
+
 
 // ---------------------------------------------------------------------------
 // Customer message drafts

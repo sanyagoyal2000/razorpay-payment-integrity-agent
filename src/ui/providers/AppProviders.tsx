@@ -7,7 +7,7 @@ import { LazyMotion } from "framer-motion";
 import type { ReactNode } from "react";
 import { DataProvider } from "./DataProvider";
 
-// Amounts use Indian digit grouping (₹1,82,457) regardless of the browser's locale.
+// Amounts use Indian digit grouping (₹1,00,000) regardless of the browser's locale.
 setI18nState({ locale: "en-IN" });
 
 const loadFeatures = () => import("./motion-features").then((mod) => mod.default);

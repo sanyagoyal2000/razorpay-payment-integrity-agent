@@ -375,13 +375,33 @@ export type Investigation = {
 };
 
 /** How the current investigation of a case or incident was produced and checked. */
+/**
+ * Observable investigation stages. Each records an operation that actually
+ * ran and what it found; none of them is model reasoning.
+ */
+export type InvestigationStepId = "gathering" | "comparing" | "checking_health" | "validating" | "preparing";
+
+export type InvestigationStage = {
+  step: InvestigationStepId;
+  status: "complete" | "failed" | "skipped";
+  detail: string;
+};
+
 export type InvestigationRun = {
   at: ISODateTime;
+  /** Recorded events supplied to the investigator. */
   eventsExamined: number;
+  /** Events per connected source. */
   sources: Record<string, number>;
   citationsChecked: number;
   citationsRemoved: string[];
   status: "valid" | "invalid" | "unavailable";
+  /** Incident runs: affected cases compared. */
+  casesCompared?: number;
+  /** Fulfilment service health when the run completed. */
+  serviceHealth?: { service: string; status: "healthy" | "down"; since?: ISODateTime };
+  /** Stage log, recorded as each operation completed. */
+  stages?: InvestigationStage[];
 };
 
 /** The action currently proposed for a case. */
