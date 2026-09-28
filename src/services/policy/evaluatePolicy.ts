@@ -193,6 +193,9 @@ export function evaluatePolicy(
         ? pass("contract_active", "Outcome Contract active", "The Outcome Contract is active.", "review")
         : fail("contract_active", "Outcome Contract active", `The Outcome Contract is ${s.contract.status}.`, "review"),
     );
+    if (s.incidentReviewRequired) {
+      checks.push(fail("incident_review", "Incident allows bulk approval", "You required individual review for every case in this incident.", "review"));
+    }
     if (s.contract.alwaysReviewCaseTypes.includes(caseData.type)) {
       checks.push(fail("case_type_review", "Case type allows automation", "This Outcome Contract always requires review for this case type.", "review"));
     }

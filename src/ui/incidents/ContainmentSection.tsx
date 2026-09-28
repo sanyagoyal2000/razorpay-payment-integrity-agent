@@ -9,6 +9,7 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
+  ProgressBar,
   Text,
   useToast,
 } from "@razorpay/blade/components";
@@ -54,8 +55,22 @@ export function ContainmentSection({ model, services, now }: { model: IncidentWo
                 <Text size="small" weight="semibold">{option.label}</Text>
                 <Text size="xsmall" color="surface.text.gray.muted">{option.description}</Text>
                 {option.action === "monitor_next_purchases" && model.monitoring ? (
+                  <Box marginTop="spacing.2" maxWidth="360px">
+                    <ProgressBar
+                      label={model.monitoring.complete ? "Monitoring complete" : "Monitoring"}
+                      value={Math.round((model.monitoring.observed / model.monitoring.target) * 100)}
+                      showPercentage={false}
+                      size="small"
+                      color={model.monitoring.complete ? "positive" : "information"}
+                    />
+                    <Text size="xsmall" color="surface.text.gray.subtle" marginTop="spacing.1">
+                      {model.monitoring.observed} of {model.monitoring.target} purchases observed, {model.monitoring.confirmed} with a confirmed outcome
+                    </Text>
+                  </Box>
+                ) : null}
+                {option.action === "engineering_incident" && model.engineering ? (
                   <Text size="xsmall" color="surface.text.gray.subtle" marginTop="spacing.1">
-                    {model.monitoring.observed} of {model.monitoring.target} purchases observed, {model.monitoring.confirmed} with a confirmed outcome
+                    {model.engineering.reference} · {model.engineering.status}
                   </Text>
                 ) : null}
               </Box>

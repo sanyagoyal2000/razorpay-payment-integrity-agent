@@ -321,6 +321,22 @@ export type DailyOutcomeStat = {
   webhookAttempts: number;
   webhookFailures: number;
   medianEventLatencyMs: number;
+  /** Cases whose payment was captured in this day and contract, counted in `paymentsCaptured`. */
+  caseIds: string[];
+};
+
+/**
+ * A healthy purchase that happens after the fixture horizon. It becomes visible
+ * once the real clock passes `horizon + offsetSeconds`. Used to observe new
+ * purchases (for example "monitor the next 50") without generating data at load.
+ */
+export type ScheduledPurchase = {
+  id: string;
+  contractId: string;
+  productId: string;
+  amount: number;
+  offsetSeconds: number;
+  completionSeconds: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -384,6 +400,7 @@ export type PolicyCheckId =
   | "replacement_inventory"
   | "daily_refund_limit"
   | "customer_communication_approval"
+  | "incident_review"
   | "policy_service_available";
 
 /**
@@ -431,6 +448,8 @@ export type CurrentMerchantState = {
   outcomeVerificationAvailable: boolean;
   idempotency: { keyAvailable: boolean };
   refundsIssuedToday: number;
+  /** Set when the merchant required individual review for the case's incident. */
+  incidentReviewRequired: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -523,6 +542,8 @@ export type ContainmentDecision = {
   detail: string;
   /** Cases the decision applied to when it was recorded. */
   caseIds: string[];
+  /** External reference, e.g. the engineering incident created in Slack. */
+  reference?: string;
 };
 
 /** Stored incident. Money and customer totals are always computed from cases. */

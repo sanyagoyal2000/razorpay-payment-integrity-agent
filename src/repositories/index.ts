@@ -22,6 +22,7 @@ import type {
   PaymentEvent,
   PolicyAction,
   Product,
+  ScheduledPurchase,
   SystemFlags,
   WebhookDelivery,
 } from "@/domain/types";
@@ -109,6 +110,12 @@ export type ConfigRepository = {
   saveFlags(flags: SystemFlags): void;
 };
 
+/** Healthy purchases after the fixture horizon; visibility depends on the clock. */
+export type ScheduledPurchasesRepository = {
+  forContract(contractId: string): ReadonlyArray<ScheduledPurchase>;
+  horizon(): string;
+};
+
 export type Repositories = {
   payments: PaymentsRepository;
   outcomes: OutcomesRepository;
@@ -117,6 +124,7 @@ export type Repositories = {
   executions: ExecutionsRepository;
   audit: AuditRepository;
   config: ConfigRepository;
+  scheduled: ScheduledPurchasesRepository;
   nextId(prefix: string): string;
 };
 
@@ -125,6 +133,10 @@ const byTime = <T extends { occurredAt: string }>(a: T, b: T) => a.occurredAt.lo
 export function createRepositories(store: DataStore): Repositories {
   return {
     nextId: (prefix) => store.nextId(prefix),
+    scheduled: {
+      forContract: (contractId) => store.list("scheduledPurchases").filter((p) => p.contractId === contractId),
+      horizon: () => store.meta.horizon,
+    },
     payments: {
       get: (id) => store.get("payments", id),
       list: () => store.list("payments"),

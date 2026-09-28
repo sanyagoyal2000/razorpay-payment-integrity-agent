@@ -147,6 +147,6 @@ describe("execution state machine", () => {
     expect(reloaded.repos.cases.get(c.id)!.status).toBe("resolved");
     expect(reloaded.repos.executions.get(execution.id)!.status).toBe("resolved");
     expect(reloaded.repos.audit.list().length).toBe(env.repos.audit.list().length);
-    expect(reloaded.store.dayOffset).toBe(env.store.dayOffset);
+    expect(reloaded.store.offsetMinutes).toBe(env.store.offsetMinutes);
   });
 });

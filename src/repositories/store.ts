@@ -1,6 +1,6 @@
 import type { GlobalControls, SystemFlags } from "@/domain/types";
 import type { Dataset } from "@/fixtures/dataset-types";
-import { rebaseDataset, rebaseOffsetDays } from "@/fixtures/rebase";
+import { rebaseDataset, rebaseOffsetMinutes } from "@/fixtures/rebase";
 
 /** Dataset keys whose values are entity arrays. */
 export type CollectionName = {
@@ -20,10 +20,10 @@ function keyOf(collection: CollectionName, entity: object): string {
   return key;
 }
 
-/** What survives a browser refresh: the day offset plus every entity changed since seeding. */
+/** What survives a browser refresh: the time offset plus every entity changed since seeding. */
 export type PersistedState = {
-  version: 1;
-  offsetDays: number;
+  version: 2;
+  offsetMinutes: number;
   sequence: number;
   overlay: Partial<Record<CollectionName, Record<string, unknown>>>;
   globalControls?: GlobalControls;
@@ -49,7 +49,7 @@ export const DEFAULT_SYSTEM_FLAGS: SystemFlags = {
 export class DataStore {
   private data: Dataset;
   private overlay: PersistedState["overlay"];
-  private offsetDays: number;
+  private anchorOffsetMinutes: number;
   private sequence: number;
   private systemFlags: SystemFlags;
   private listeners = new Set<() => void>();
@@ -61,8 +61,8 @@ export class DataStore {
     private readonly persistence?: Persistence,
   ) {
     const saved = persistence?.load() ?? null;
-    this.offsetDays = saved?.offsetDays ?? rebaseOffsetDays(fixtures, now);
-    this.data = rebaseDataset(fixtures, this.offsetDays);
+    this.anchorOffsetMinutes = saved?.offsetMinutes ?? rebaseOffsetMinutes(fixtures, now);
+    this.data = rebaseDataset(fixtures, this.anchorOffsetMinutes);
     this.overlay = {};
     this.sequence = saved?.sequence ?? 0;
     this.systemFlags = { ...DEFAULT_SYSTEM_FLAGS, ...saved?.systemFlags };
@@ -71,6 +71,9 @@ export class DataStore {
         for (const entity of Object.values(entities)) this.write(collection, entity as EntityOf<typeof collection>, false);
       }
       if (saved.globalControls) this.data.globalControls = saved.globalControls;
+    } else {
+      // Fix the anchor on first load so times do not move on the next visit.
+      this.persist();
     }
   }
 
@@ -78,8 +81,8 @@ export class DataStore {
     return this.data.meta;
   }
 
-  get dayOffset(): number {
-    return this.offsetDays;
+  get offsetMinutes(): number {
+    return this.anchorOffsetMinutes;
   }
 
   list<K extends CollectionName>(collection: K): ReadonlyArray<EntityOf<K>> {
@@ -156,15 +159,19 @@ export class DataStore {
   }
 
   private commit(): void {
+    this.persist();
+    for (const listener of this.listeners) listener();
+  }
+
+  private persist(): void {
     this.persistence?.save({
-      version: 1,
-      offsetDays: this.offsetDays,
+      version: 2,
+      offsetMinutes: this.anchorOffsetMinutes,
       sequence: this.sequence,
       overlay: this.overlay,
       globalControls: this.data.globalControls,
       systemFlags: this.systemFlags,
     });
-    for (const listener of this.listeners) listener();
   }
 }
 
@@ -183,14 +190,14 @@ export function memoryPersistence(): Persistence & { state: PersistedState | nul
 }
 
 /** localStorage persistence. Only construct this in the browser, after mount. */
-export function localStoragePersistence(key = "payment-integrity:v1"): Persistence {
+export function localStoragePersistence(key = "payment-integrity:v2"): Persistence {
   return {
     load() {
       try {
         const raw = window.localStorage.getItem(key);
         if (!raw) return null;
         const parsed = JSON.parse(raw) as PersistedState;
-        return parsed.version === 1 ? parsed : null;
+        return parsed.version === 2 ? parsed : null;
       } catch {
         return null;
       }

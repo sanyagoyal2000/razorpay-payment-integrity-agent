@@ -115,10 +115,7 @@ export function dailyPerformance(repos: Repositories, asOf: string, days = 28): 
     const dayStats = stats.filter((s) => s.date === date);
     if (dayStats.length === 0) continue;
     const captured = sum(dayStats.map((s) => s.paymentsCaptured));
-    const dayCases = cases.filter((c) => {
-      const capturedAt = repos.payments.get(c.paymentId)?.capturedAt;
-      return capturedAt !== undefined && istDate(capturedAt) === date && dayStats.some((s) => s.contractId === c.outcomeContractId);
-    });
+    const dayCases = dayStats.flatMap((s) => s.caseIds).map((id) => repos.cases.get(id)).filter((c) => c !== undefined);
     const completedCases = dayCases.filter((c) => c.status === "resolved" && c.resolution && c.resolution.resolvedAt <= asOf);
     const completed = sum(dayStats.map((s) => s.outcomesConfirmedOnTime)) + completedCases.length;
     const course = dayStats.find((s) => s.contractId === "ctr_course_purchase");

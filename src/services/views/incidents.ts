@@ -2,7 +2,7 @@ import type { IncidentRecord, IncidentStatus, Severity } from "@/domain/types";
 import { formatINR, sum } from "@/domain/money";
 import { istDate } from "@/domain/time";
 import type { Repositories } from "@/repositories";
-import { containmentOptions, monitoringProgress, notificationPreview } from "@/services/containment";
+import { containmentOptions, engineeringIncident, monitoringProgress, notificationPreview } from "@/services/containment";
 import { incidentTotals } from "@/services/metrics/cases";
 import { ACTIONS, serviceLabel } from "@/services/policy/actions";
 import { requireContract, serviceHealth } from "@/services/policy/currentState";
@@ -248,7 +248,10 @@ export function incidentWorkspace(repos: Repositories, incidentId: string, asOf:
     groups: groupIncidentCases(repos, incident.id, asOf),
     containment: containmentOptions(repos, incident, asOf),
     notification: notificationPreview(repos, incident),
-    monitoring: monitoringProgress(repos, incident, asOf),
+    monitoring: monitoringProgress(repos, incident, asOf, repos.scheduled.horizon()),
+    engineering: engineeringIncident(incident),
+    accessPending: (incident.containment ?? []).some((d) => d.action === "access_pending"),
+    reviewRequired: (incident.containment ?? []).some((d) => d.action === "require_review"),
     history: incidentHistory(repos, incident),
   };
 }

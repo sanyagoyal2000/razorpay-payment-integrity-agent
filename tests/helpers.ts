@@ -7,8 +7,11 @@ import type { Persistence } from "@/repositories/store";
 
 export const fixtures = dataset as unknown as Dataset;
 
-/** 14:30 IST on the fixture's incident day: after recovery, before anything is resolved. */
-export const NOW = istToIso(FIXTURE_ANCHOR_DATE, "14:30:00");
+/**
+ * One minute after the fixture horizon (14:24:41 IST), so the store applies no
+ * time shift and fixture wall-clock times hold in tests.
+ */
+export const NOW = istToIso(FIXTURE_ANCHOR_DATE, "14:25:41");
 
 export type TestClock = Clock & { advance(seconds: number): void; set(iso: string): void };
 

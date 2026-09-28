@@ -1317,6 +1317,7 @@ export function buildDataset(): Dataset {
     integrations: buildIntegrations(at),
     connectorLogs,
     dailyStats,
+    scheduledPurchases: buildScheduledPurchases(rng),
     investigationResponses,
   };
 
@@ -1350,6 +1351,29 @@ function caseOpenedResult(type: CaseType): string {
     case "delayed_processing":
       return "Outcome slower than median; within learned normal range";
   }
+}
+
+/**
+ * Twelve hours of healthy course purchases after the horizon, roughly one every
+ * 30-70 seconds. They surface as the real clock passes each one.
+ */
+function buildScheduledPurchases(rng: ReturnType<typeof createRandom>) {
+  const courses = PRODUCTS.filter((p) => p.contractId === CONTRACT_IDS.course);
+  const purchases = [];
+  let offset = 20;
+  for (let i = 1; offset < 12 * 3600; i += 1) {
+    const product = rng.pick(courses);
+    purchases.push({
+      id: `sched_${String(i).padStart(4, "0")}`,
+      contractId: CONTRACT_IDS.course,
+      productId: product.id,
+      amount: product.price,
+      offsetSeconds: offset,
+      completionSeconds: rng.int(4, 11),
+    });
+    offset += rng.int(30, 70);
+  }
+  return purchases;
 }
 
 /**
@@ -1392,6 +1416,7 @@ function buildDailyStats(
         paymentsCaptured: captured,
         gmv,
         outcomesConfirmedOnTime: captured - caseCount.length,
+        caseIds: caseCount.map((c) => c.id),
         medianCompletionSeconds: rng.int(volume.median[0], volume.median[1]),
         webhookAttempts: captured + webhookFailures,
         webhookFailures,

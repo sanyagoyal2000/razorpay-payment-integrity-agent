@@ -78,7 +78,9 @@ export function RecoverySection({
     ? "Recovery is in progress."
     : plan.eligibleCaseIds.length === 0
       ? !model.groups.some((g) => g.bulkEligible)
-        ? "No group can be recovered in bulk. The remaining cases need an individual decision."
+        ? model.reviewRequired
+          ? "You required individual review for this incident, so bulk recovery is off. Approve each case from its case page."
+          : "No group can be recovered in bulk. The remaining cases need an individual decision."
         : plan.selectedGroups.length === 0
           ? "Select a group to preview its recovery."
           : "None of the selected cases can be recovered in bulk. Review them individually."

@@ -21,6 +21,7 @@ import type {
   Payment,
   PaymentEvent,
   Product,
+  ScheduledPurchase,
   WebhookDelivery,
 } from "@/domain/types";
 
@@ -28,7 +29,7 @@ export type DatasetMeta = {
   seed: number;
   /** IST date of the active incident in the committed fixture file. */
   anchorDate: string;
-  /** Latest timestamp in the fixture set. Rebasing keeps this in the past. */
+  /** Latest timestamp in the fixture set. Rebasing places it just before the first load. */
   horizon: string;
 };
 
@@ -58,6 +59,7 @@ export type Dataset = {
   integrations: Integration[];
   connectorLogs: ConnectorLog[];
   dailyStats: DailyOutcomeStat[];
+  scheduledPurchases: ScheduledPurchase[];
   /** Raw responses returned by the fixture investigation adapter, keyed by case or incident ID. */
   investigationResponses: Record<string, unknown>;
 };

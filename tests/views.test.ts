@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ACTORS } from "@/domain/types";
 import { sum } from "@/domain/money";
-import { applyContainment, containmentOptions } from "@/services/containment";
+import { applyContainment, containmentOptions, engineeringIncident, monitoringProgress } from "@/services/containment";
+import { customerStatus } from "@/services/customerStatus";
 import { approveBulk, runExecutions } from "@/services/execution";
 import { incidentTotals } from "@/services/metrics/cases";
 import { groupEvidence, resolveEvidence } from "@/services/views/evidence";
@@ -121,6 +122,49 @@ describe("Incident workspace", () => {
 });
 
 describe("Containment", () => {
+  it("require review turns off bulk recovery for every open case in the incident", () => {
+    const env = setup();
+    applyContainment(env.repos, "INC-0017", "require_review", ACTORS.operator, NOW);
+    const groups = incidentWorkspace(env.repos, "INC-0017", NOW)!.groups;
+    expect(groups.find((g) => g.id === "safe")).toBeUndefined();
+    expect(sum(groups.map((g) => g.value))).toBe(182_457);
+    expect(recoveryPlan(env.repos, env.incident, ["individual_review", "duplicate_review", "high_value"], NOW).eligibleCaseIds).toHaveLength(0);
+    expect(env.repos.incidents.get("INC-0017")!.status).toBe("contained");
+    expect(requiredDecision(env.repos, env.repos.incidents.get("INC-0017")!, NOW)).toBe("Review 43 cases individually");
+  });
+
+  it("access pending changes what affected customers see", () => {
+    const env = setup();
+    const c = env.safeCases[0]!;
+    expect(customerStatus(env.repos, c).status).toBe("under_review");
+    applyContainment(env.repos, "INC-0017", "access_pending", ACTORS.operator, NOW);
+    expect(customerStatus(env.repos, env.repos.cases.get(c.id)!)).toMatchObject({
+      status: "recovery_in_progress",
+      message: "We found your payment. Your access is being restored, and you will not be charged again.",
+    });
+    expect(customerStatus(env.repos, env.refusalCase).status).toBe("under_review");
+  });
+
+  it("monitoring counts purchases that arrive after the decision, up to 50", () => {
+    const env = setup();
+    applyContainment(env.repos, "INC-0017", "monitor_next_purchases", ACTORS.operator, NOW);
+    const incident = () => env.repos.incidents.get("INC-0017")!;
+    const horizon = env.repos.scheduled.horizon();
+    expect(monitoringProgress(env.repos, incident(), NOW, horizon)).toMatchObject({ observed: 0, confirmed: 0, complete: false });
+    env.clock.advance(15 * 60);
+    const partial = monitoringProgress(env.repos, incident(), env.clock.now().toISOString(), horizon)!;
+    expect(partial.observed).toBeGreaterThan(5);
+    expect(partial.observed).toBeLessThan(50);
+    env.clock.advance(3 * 3600);
+    expect(monitoringProgress(env.repos, incident(), env.clock.now().toISOString(), horizon)).toMatchObject({ observed: 50, confirmed: 50, complete: true });
+  });
+
+  it("tracks the engineering incident it creates", () => {
+    const env = setup();
+    applyContainment(env.repos, "INC-0017", "engineering_incident", ACTORS.operator, NOW);
+    expect(engineeringIncident(env.repos.incidents.get("INC-0017")!)).toEqual({ reference: "INC-0017-ENG", openedAt: NOW, status: "Open" });
+  });
+
   it("notifies each affected customer once and records the decision", () => {
     const env = setup();
     const decision = applyContainment(env.repos, "INC-0017", "notify_customers", ACTORS.operator, NOW);

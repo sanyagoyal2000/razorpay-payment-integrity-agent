@@ -2,6 +2,7 @@ import type { ContainmentAction, ContainmentDecision, IncidentRecord } from "@/d
 import { ACTORS } from "@/domain/types";
 import { formatINR } from "@/domain/money";
 import type { Repositories } from "@/repositories";
+import { refreshIncident } from "@/services/incidents";
 import { incidentTotals } from "@/services/metrics/cases";
 import { evaluateCase, requireContract } from "@/services/policy/currentState";
 
@@ -22,12 +23,12 @@ const LABELS: Record<ContainmentAction, { label: string; description: string }> 
     description: "Send the contract's notification to customers whose outcome is still missing.",
   },
   access_pending: {
-    label: "Show new affected purchases as access pending",
-    description: "Customers checking a new affected purchase see that access is pending instead of an error.",
+    label: "Show affected purchases as access pending",
+    description: "Customers who check an affected payment see that access is being restored, instead of that it is under review.",
   },
   require_review: {
-    label: "Require review for new cases",
-    description: "New cases in this incident need individual approval, even if policy would allow bulk approval.",
+    label: "Require individual review for this incident",
+    description: "Every open case in this incident needs its own approval, even where policy would allow bulk approval.",
   },
   engineering_incident: {
     label: "Create an engineering incident",
@@ -98,6 +99,7 @@ export function applyContainment(
   const totals = incidentTotals(incident, repos.cases.list());
   let caseIds = totals.openCaseIds;
   let detail: string;
+  let reference: string | undefined;
   switch (action) {
     case "notify_customers": {
       const { recipientCaseIds } = notificationPreview(repos, incident);
@@ -110,20 +112,22 @@ export function applyContainment(
       break;
     }
     case "access_pending":
-      detail = `New ${contract.name} purchases affected by this incident will show access as pending.`;
+      detail = `${totals.customersAtRisk} affected customers now see that their access is being restored.`;
       break;
     case "require_review":
-      detail = "New cases in this incident will need individual approval.";
+      detail = `${totals.openCaseIds.length} open cases now need individual approval; bulk recovery is off for this incident.`;
       break;
     case "engineering_incident":
-      detail = `Engineering incident opened in Slack for ${incident.affectedService} with ${totals.caseCount} cases and ${formatINR(totals.remainingAtRisk)} at risk.`;
+      reference = `${incident.id}-ENG`;
+      detail = `Engineering incident ${reference} opened in #payments-ops for ${incident.affectedService} with ${totals.caseCount} cases and ${formatINR(totals.remainingAtRisk)} at risk.`;
       break;
     case "monitor_next_purchases":
       detail = `Monitoring the next ${MONITORED_PURCHASES} ${contract.name} purchases.`;
       break;
   }
-  const decision: ContainmentDecision = { action, decidedAt: asOf, actor, detail, caseIds };
+  const decision: ContainmentDecision = { action, decidedAt: asOf, actor, detail, caseIds, ...(reference ? { reference } : {}) };
   repos.incidents.save({ ...incident, containment: [...(incident.containment ?? []), decision] });
+  if (action === "require_review") refreshIncident(repos, incidentId, asOf);
   repos.audit.append({
     id: repos.nextId("aud"),
     occurredAt: asOf,
@@ -146,25 +150,36 @@ export function applyContainment(
       targetType: "incident",
       targetId: incidentId,
       incidentId,
-      result: "Posted to #payments-ops",
+      result: `Posted ${reference} to #payments-ops`,
       approvalSource: "merchant",
     });
   }
   return decision;
 }
 
-/** Purchases observed since monitoring started, for the "next 50" containment decision. */
-export function monitoringProgress(repos: Repositories, incident: IncidentRecord, asOf: string) {
+/**
+ * Progress of "monitor the next 50": purchases under the incident's contract
+ * captured after the decision and visible by `asOf`, and how many of them
+ * have a confirmed outcome.
+ */
+export function monitoringProgress(repos: Repositories, incident: IncidentRecord, asOf: string, horizon: string) {
   const decision = incident.containment?.find((d) => d.action === "monitor_next_purchases");
   if (!decision) return undefined;
-  const contract = requireContract(repos, incident.outcomeContractId);
-  const observed = repos.payments
-    .list()
-    .filter((p) => p.capturedAt && p.capturedAt > decision.decidedAt && p.capturedAt <= asOf)
-    .filter((p) => {
-      const order = repos.payments.order(p.merchantOrderId);
-      return order && repos.payments.product(order.productId)?.contractId === contract.id;
-    });
-  const confirmed = observed.filter((p) => repos.outcomes.receiptForPayment(p.id)?.status === "confirmed");
-  return { target: MONITORED_PURCHASES, observed: observed.length, confirmed: confirmed.length };
+  const start = Date.parse(decision.decidedAt);
+  const now = Date.parse(asOf);
+  const base = Date.parse(horizon);
+  const observed = repos.scheduled
+    .forContract(incident.outcomeContractId)
+    .map((p) => ({ capturedAt: base + p.offsetSeconds * 1000, confirmedAt: base + (p.offsetSeconds + p.completionSeconds) * 1000 }))
+    .filter((p) => p.capturedAt > start && p.capturedAt <= now)
+    .slice(0, MONITORED_PURCHASES);
+  const confirmed = observed.filter((p) => p.confirmedAt <= now).length;
+  return { target: MONITORED_PURCHASES, observed: observed.length, confirmed, complete: observed.length === MONITORED_PURCHASES && confirmed === observed.length };
+}
+
+/** Status of the engineering incident opened from this incident, if one was. */
+export function engineeringIncident(incident: IncidentRecord) {
+  const decision = incident.containment?.find((d) => d.action === "engineering_incident");
+  if (!decision?.reference) return undefined;
+  return { reference: decision.reference, openedAt: decision.decidedAt, status: incident.status === "resolved" ? "Closed with the incident" : "Open" };
 }

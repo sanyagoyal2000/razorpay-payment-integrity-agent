@@ -111,6 +111,9 @@ export function buildCurrentState(
     outcomeVerificationAvailable: flags.outcomeVerificationAvailable && outcomeIntegration?.status === "connected",
     idempotency: { keyAvailable: !keyUsed },
     refundsIssuedToday,
+    incidentReviewRequired: caseData.incidentId
+      ? (repos.incidents.get(caseData.incidentId)?.containment ?? []).some((d) => d.action === "require_review")
+      : false,
   };
 }
 

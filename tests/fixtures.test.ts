@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildDataset, FIXTURE_ANCHOR_DATE } from "@/fixtures/build";
-import { rebaseDataset, rebaseOffsetDays } from "@/fixtures/rebase";
+import { rebaseDataset, rebaseOffsetMinutes } from "@/fixtures/rebase";
 import { istDate, istTime, istToIso } from "@/domain/time";
 import { sum } from "@/domain/money";
 import { fixtures } from "./helpers";
@@ -106,16 +106,20 @@ describe("fixtures", () => {
   });
 });
 
-describe("rebasing to the real clock", () => {
-  it("shifts by whole days so wall-clock times stay the same and the horizon is in the last 24 hours", () => {
-    const now = new Date("2026-09-28T11:00:00Z");
-    const days = rebaseOffsetDays(fixtures, now);
-    const rebased = rebaseDataset(fixtures, days);
-    const horizon = Date.parse(rebased.meta.horizon);
-    expect(horizon).toBeLessThanOrEqual(now.getTime());
-    expect(now.getTime() - horizon).toBeLessThan(86_400_000);
-    const deploy = rebased.observabilityEvents.find((e) => e.metadata?.["version"] === "v2.3")!;
-    expect(istTime(deploy.occurredAt)).toBe("14:04:00");
+describe("anchoring to the real clock", () => {
+  it("places the latest event about a minute before now and keeps relative timing", () => {
+    const now = new Date("2026-09-28T07:03:27Z");
+    const minutes = rebaseOffsetMinutes(fixtures, now);
+    const rebased = rebaseDataset(fixtures, minutes);
+    const lead = now.getTime() - Date.parse(rebased.meta.horizon);
+    expect(lead).toBeGreaterThanOrEqual(60_000);
+    expect(lead).toBeLessThan(120_000);
+    const deploy = (d: typeof fixtures) => Date.parse(d.observabilityEvents.find((e) => e.metadata?.["version"] === "v2.3")!.occurredAt);
+    expect(Date.parse(rebased.meta.horizon) - deploy(rebased)).toBe(Date.parse(fixtures.meta.horizon) - deploy(fixtures));
     expect(rebased.dailyStats.at(-1)!.date).toBe(istDate(rebased.meta.horizon));
+  });
+
+  it("applies no shift one minute after the horizon", () => {
+    expect(rebaseOffsetMinutes(fixtures, new Date(Date.parse(fixtures.meta.horizon) + 60_000))).toBe(0);
   });
 });
