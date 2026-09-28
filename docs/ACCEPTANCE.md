@@ -15,7 +15,7 @@ Each criterion from the specification, where it is implemented, and the automate
 | 9 | Duplicate payments cannot enter bulk recovery | `planBulkRecovery` | `reconciliation.test.ts`, `cases.test.ts` |
 | 10 | High-value cases require approval | Amount check (individual approval) | `policy.test.ts` |
 | 11 | Inventory-conflict cases blocked | Inventory checks, refusal state | `policy.test.ts`, `cases.test.ts` |
-| 12 | Waiting cases generate no actions | Observing case has no recommendation | `policy.test.ts`, `fixtures.test.ts`, `cases.test.ts` |
+| 12 | Waiting cases generate no actions | Observing case has no recommendation until its contract deadline; then it becomes an open missing-outcome case and is investigated (`services/observation.ts`) | `policy.test.ts`, `fixtures.test.ts`, `cases.test.ts`, `observation.test.ts` |
 | 13 | Kill switch prevents execution, keeps monitoring | Automations; `kill_switch` check | `policy.test.ts`, `configuration.test.ts`, `execution.test.ts` |
 | 14 | Contracts can be created, edited, paused and resumed | Outcome Contracts editor | `configuration.test.ts` |
 | 15 | Integration permissions affect available actions | Revoke or reconnect; `permission_available` | `configuration.test.ts`, `policy.test.ts` |

@@ -1307,7 +1307,7 @@ export function buildDataset(): Dataset {
   {
     const product = productById("prd_plus_membership");
     const chain = buildChain({ customer: newCustomer(), product, orderCreatedAt: at(D, "14:23:24"), outcome: { kind: "pending" } });
-    openCase({
+    const c = openCase({
       type: "delayed_processing",
       chain,
       detectedAt: addSeconds(chain.payment.capturedAt!, 70),
@@ -1316,6 +1316,27 @@ export function buildDataset(): Dataset {
       missedDeadline: false,
       observation: { observedDelaySeconds: 70, normalRangeSeconds: { p50: 18, p95: 96 } },
     });
+    // What the investigator concludes if the activation never arrives and the
+    // case becomes a missing outcome at the contract deadline.
+    const pending = chain.outcomeEvents.find((e) => e.status === "pending")!;
+    investigationResponses[c.id] = {
+      summary: "Payment captured and order.paid acknowledged with HTTP 200. LearnLoop recorded the membership activation as pending, but no membership_activated arrived within the 5-minute contract deadline.",
+      likelyCause: "Membership activation stalled inside LearnLoop after the order was accepted.",
+      evidenceIds: [chain.captured!.id, delivered(chain)!, pending.id, chain.receipt!.id],
+      uncertainties: ["membership-service logged no errors, so why the activation stalled is not confirmed."],
+      hypotheses: [
+        hyp("order.paid not delivered to LearnLoop", "ruled_out", [delivered(chain)], "LearnLoop acknowledged order.paid with HTTP 200."),
+        hyp("Activation stalled after LearnLoop accepted the order", "supported", [pending.id], "LearnLoop recorded the activation as pending and never completed it."),
+        hyp("Slow but normal processing", "ruled_out", [chain.receipt!.id], "The 5-minute deadline is well past this contract's 95th percentile of 96 s."),
+      ],
+      // LearnLoop still reports the activation as in progress, and Payment
+      // Integrity cannot activate memberships, so the fix sits with LearnLoop.
+      recommendedAction: "escalate",
+      confidence: 0.9,
+      customerImpact: `Customer paid ${formatINR(product.price)} for ${product.name} and the membership is not active.`,
+      consequenceOfInaction: "The customer is likely to contact LearnLoop support or request a refund.",
+      customerMessageDraft: `Your ${formatINR(product.price)} payment for ${product.name} was successful. We are activating your membership now, and you will not be charged again.`,
+    } satisfies Investigation;
   }
 
   // =========================================================================

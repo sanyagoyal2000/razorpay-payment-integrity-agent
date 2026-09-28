@@ -27,6 +27,7 @@ Components contain no business logic. Every figure on screen comes from a servic
 1. On first load, `DataProvider` (client-only, after mount) imports `dataset.json`. It then creates the `DataStore`, which shifts every fixture timestamp by whole minutes so the latest event sits about a minute before now. The offset is persisted immediately.
 2. Changes are written through repositories. The store keeps an overlay of changed entities and saves it to `localStorage`, so a refresh restores exactly the same state.
 3. Pages build view models with `useModel`, which recomputes when the store changes or the 15-second clock ticks. Each tick also syncs data from the (simulated) feed; stale data blocks consequential actions.
+4. Each tick also checks observed cases. One whose contract deadline passes without the outcome becomes an open missing-outcome case, and the agent investigates it. This check is skipped while data is stale.
 
 ## Execution
 

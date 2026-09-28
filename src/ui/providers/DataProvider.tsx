@@ -6,6 +6,7 @@ import type { Dataset } from "@/fixtures/dataset-types";
 import { localStoragePersistence } from "@/repositories/store";
 import { createAppServices, type AppServices } from "@/services/container";
 import { pendingExecutionIds, runExecutions } from "@/services/execution";
+import { checkObservations } from "@/services/observation";
 
 export type DataState =
   | { status: "loading" }
@@ -26,9 +27,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0);
   const [now, setNow] = useState<Date | null>(null);
   const servicesRef = useRef<AppServices | null>(null);
+  const checkingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
+    // Observed cases past their contract deadline become missing outcomes.
+    const observe = (current: AppServices) => {
+      if (checkingRef.current) return;
+      checkingRef.current = true;
+      void checkObservations(current).finally(() => {
+        checkingRef.current = false;
+      });
+    };
     let unsubscribe: (() => void) | undefined;
     import("@/fixtures/dataset.json")
       .then((module) => {
@@ -45,6 +55,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         // Finish any recovery that was mid-flight when the page was last closed.
         const pending = pendingExecutionIds(created);
         if (pending.length > 0) void runExecutions(created, pending);
+        observe(created);
       })
       .catch((cause: unknown) => {
         if (!cancelled) setError(cause instanceof Error ? cause.message : "Data could not be loaded");
@@ -52,7 +63,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const tick = window.setInterval(() => {
       const current = new Date();
       // Refresh from the data feed; while the feed is down, data goes stale.
-      servicesRef.current?.store.sync(current);
+      const active = servicesRef.current;
+      if (active) {
+        active.store.sync(current);
+        observe(active);
+      }
       setNow(current);
     }, CLOCK_TICK_MS);
     return () => {
