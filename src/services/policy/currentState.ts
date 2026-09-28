@@ -11,6 +11,13 @@ import { istDate } from "@/domain/time";
 import type { Repositories } from "@/repositories";
 import { evaluatePolicy, policyUnavailableVerdict } from "./evaluatePolicy";
 
+/** Data older than this cannot be acted on until it is refreshed. */
+export const STALE_AFTER_MS = 2 * 60 * 1000;
+
+export function isDataFresh(repos: Repositories, asOf: string): boolean {
+  return Date.parse(asOf) - Date.parse(repos.config.lastSyncedAt()) <= STALE_AFTER_MS;
+}
+
 export function requireContract(repos: Repositories, id: string): OutcomeContract {
   const contract = repos.config.contract(id);
   if (!contract) throw new Error(`Unknown Outcome Contract ${id}`);
@@ -110,6 +117,7 @@ export function buildCurrentState(
     outcomeVerificationAvailable: flags.outcomeVerificationAvailable && outcomeIntegration?.status === "connected",
     idempotency: { keyAvailable: !keyUsed },
     refundsIssuedToday,
+    dataFresh: isDataFresh(repos, asOf),
     incidentReviewRequired: caseData.incidentId
       ? (repos.incidents.get(caseData.incidentId)?.containment ?? []).some((d) => d.action === "require_review")
       : false,

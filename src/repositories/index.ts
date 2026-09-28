@@ -112,6 +112,7 @@ export type ConfigRepository = {
   dailyStats(): ReadonlyArray<DailyOutcomeStat>;
   flags(): SystemFlags;
   saveFlags(flags: SystemFlags): void;
+  lastSyncedAt(): string;
 };
 
 /** Healthy purchases after the fixture horizon; visibility depends on the clock. */
@@ -229,6 +230,7 @@ export function createRepositories(store: DataStore): Repositories {
       dailyStats: () => store.list("dailyStats"),
       flags: () => store.flags,
       saveFlags: (flags) => store.setFlags(flags),
+      lastSyncedAt: () => store.lastSyncedAt,
     },
   };
 }

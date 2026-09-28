@@ -18,8 +18,8 @@ export function IntegrityActivity({ entries, now }: { entries: ActivityEntry[]; 
         <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {entries.map((entry, index) => (
             <Fragment key={entry.id}>
-              {index > 0 ? <Divider /> : null}
               <li>
+              {index > 0 ? <Divider /> : null}
               <Box display="grid" gridTemplateColumns="96px 1fr" gap="spacing.4" paddingY="spacing.3">
                 <Box>
                   <Text size="xsmall" color="surface.text.gray.subtle">{formatIstShort(entry.occurredAt, now)}</Text>

@@ -221,6 +221,11 @@ export function evaluatePolicy(
   }
   if (definition.pausable) {
     checks.push(
+      s.dataFresh
+        ? pass("data_fresh", "Data up to date", "Payment and outcome data were refreshed within the last 2 minutes.")
+        : fail("data_fresh", "Data up to date", "Payment and outcome data are stale. Refresh before acting."),
+    );
+    checks.push(
       s.controls.automationPaused
         ? fail("kill_switch", "Automated actions running", "All automated actions are paused. Monitoring and investigation continue.")
         : pass("kill_switch", "Automated actions running", "Automated actions are not paused."),

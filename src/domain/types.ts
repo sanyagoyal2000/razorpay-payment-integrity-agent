@@ -420,6 +420,7 @@ export type PolicyCheckId =
   | "daily_refund_limit"
   | "customer_communication_approval"
   | "incident_review"
+  | "data_fresh"
   | "policy_service_available";
 
 /**
@@ -469,6 +470,8 @@ export type CurrentMerchantState = {
   refundsIssuedToday: number;
   /** Set when the merchant required individual review for the case's incident. */
   incidentReviewRequired: boolean;
+  /** False when data has not been refreshed recently enough to act on. */
+  dataFresh: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -690,4 +693,6 @@ export type SystemFlags = {
   investigationAvailable: boolean;
   policyServiceAvailable: boolean;
   outcomeVerificationAvailable: boolean;
+  /** Whether payment and outcome data are still arriving. When off, data goes stale. */
+  dataFeedAvailable: boolean;
 };

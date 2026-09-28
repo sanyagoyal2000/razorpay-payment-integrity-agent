@@ -14,6 +14,24 @@ const INCIDENT_STATUS: Record<IncidentStatus, { label: string; color: BadgeColor
 
 export function IncidentStatusBadge({ status }: { status: IncidentStatus }) {
   const { label, color } = INCIDENT_STATUS[status];
+  return <StatusBadge label={label} color={color} />;
+}
+
+/**
+ * Amber status. Neither Blade amber badge meets 4.5:1 at badge size, so amber
+ * states use an amber indicator (non-text, above 3:1) beside full-contrast text.
+ */
+export function NoticeLabel({ children }: { children: string }) {
+  return (
+    <Box display="inline-flex" alignItems="center" gap="spacing.2">
+      <Indicator color="notice" emphasis="intense" size="medium" accessibilityLabel="" />
+      <Text size="small" weight="semibold">{children}</Text>
+    </Box>
+  );
+}
+
+function StatusBadge({ label, color }: { label: string; color: BadgeColor }) {
+  if (color === "notice") return <NoticeLabel>{label}</NoticeLabel>;
   return (
     <Badge size="medium" color={color}>
       {label}
@@ -34,11 +52,7 @@ const CASE_STATUS: Record<CaseStatus, { label: string; color: BadgeColor }> = {
 
 export function CaseStatusBadge({ status }: { status: CaseStatus }) {
   const { label, color } = CASE_STATUS[status];
-  return (
-    <Badge size="medium" color={color}>
-      {label}
-    </Badge>
-  );
+  return <StatusBadge label={label} color={color} />;
 }
 
 const SEVERITY: Record<Severity, { label: string; color: "negative" | "notice" | "neutral" }> = {
@@ -67,9 +81,5 @@ const VERDICT: Record<PolicyVerdict["result"], { label: string; color: BadgeColo
 
 export function VerdictBadge({ result, label }: { result: PolicyVerdict["result"]; label?: string }) {
   const meta = VERDICT[result];
-  return (
-    <Badge size="medium" color={meta.color}>
-      {label ?? meta.label}
-    </Badge>
-  );
+  return <StatusBadge label={label ?? meta.label} color={meta.color} />;
 }

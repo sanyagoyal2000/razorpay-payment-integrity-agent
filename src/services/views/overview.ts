@@ -8,6 +8,7 @@ import { POLICY_ACTION_LABELS, serviceLabel } from "@/services/policy/actions";
 import { modeLabel } from "@/services/policy/evaluatePolicy";
 import { assessCase, groupIncidentCases } from "@/services/recovery/groups";
 import { serviceHealth } from "@/services/policy/currentState";
+import { SYSTEMIC_CHECKS, systemicBlocker } from "./systemStatus";
 
 export const CASE_TYPE_LABELS: Record<IntegrityCase["type"], string> = {
   missing_outcome: "Missing outcome",
@@ -17,11 +18,10 @@ export const CASE_TYPE_LABELS: Record<IntegrityCase["type"], string> = {
   delayed_processing: "Delayed processing",
 };
 
-/** Latest event the product has ingested, used as "last data refresh". */
+/** When payment and outcome data were last refreshed successfully. */
 export function lastDataRefresh(repos: Repositories, asOf: string): string {
-  const latest = (items: ReadonlyArray<{ occurredAt: string }>) =>
-    items.reduce((max, e) => (e.occurredAt <= asOf && e.occurredAt > max ? e.occurredAt : max), "");
-  return [latest(repos.audit.list()), latest(repos.outcomes.integrityEvents({}))].sort().at(-1)!;
+  const synced = repos.config.lastSyncedAt();
+  return synced <= asOf ? synced : asOf;
 }
 
 export function agentStatus(repos: Repositories): { label: string; detail: string } {
@@ -58,6 +58,8 @@ export type ActiveIncidentRow = {
 /** What the merchant has to decide next on an incident, derived from its recovery groups. */
 export function requiredDecision(repos: Repositories, incident: IncidentRecord, asOf: string): string {
   if (incident.status === "resolved") return "None";
+  const blocker = systemicBlocker(repos, asOf);
+  if (blocker) return blocker;
   if (serviceHealth(repos, incident.affectedService, asOf) !== "healthy") {
     return `None until ${serviceLabel(incident.affectedService).toLowerCase()} recovers`;
   }
@@ -125,7 +127,23 @@ export function attentionRows(repos: Repositories, asOf: string): AttentionRow[]
       continue;
     }
     if (!isAtRisk(c)) continue;
-    const { verdict, group } = assessCase(repos, c, asOf);
+    const assessment = assessCase(repos, c, asOf);
+    const verdict = assessment.verdict;
+    let group = assessment.group;
+    // A system-wide block (stale data, kill switch, ...) is explained once by the status banner:
+    // judge the case as if those checks had passed.
+    const hardFailures = verdict?.checks.filter((check) => check.status !== "passed" && check.enforcement === "hard") ?? [];
+    if (group === "blocked" && hardFailures.length > 0 && hardFailures.every((check) => SYSTEMIC_CHECKS.has(check.id))) {
+      const reviewFailures = verdict!.checks.filter((check) => check.status !== "passed" && check.enforcement === "review");
+      group =
+        c.type === "duplicate_payment"
+          ? "duplicate_review"
+          : reviewFailures.some((check) => check.id === "amount_within_limit")
+            ? "high_value"
+            : reviewFailures.length === 0 && c.recommendation?.action === "retry_provisioning"
+              ? "safe"
+              : "individual_review";
+    }
     if (group === "safe") continue;
     const contract = repos.config.contract(c.outcomeContractId);
     const limit = Math.min(contract?.maxAutomaticValue ?? controls.maxAutomaticValue, controls.maxAutomaticValue);
@@ -155,9 +173,9 @@ export function attentionRows(repos: Repositories, asOf: string): AttentionRow[]
       rows.push({ ...base, rank: 3, attentionRequired: true, reason: `${formatINR(c.amountAtRisk)} is above the ${formatINR(limit)} automatic limit. Needs individual approval.` });
     } else if (c.type === "inventory_conflict") {
       rows.push({ ...base, rank: 4, attentionRequired: true, reason: "Inventory changed after payment. Automatic fulfilment is blocked; a person must choose the next step." });
-    } else if (verdict?.result === "blocked") {
-      const failed = verdict.checks.filter((check) => check.status !== "passed").map((check) => check.label.toLowerCase());
-      rows.push({ ...base, rank: 4, attentionRequired: true, reason: `Recovery blocked by policy: ${failed.join(", ")}.` });
+    } else if (verdict?.result === "blocked" && group === "blocked") {
+      const failed = verdict.checks.filter((check) => check.status !== "passed" && check.enforcement === "hard").map((check) => check.explanation);
+      rows.push({ ...base, rank: 4, attentionRequired: true, reason: `Recovery blocked by policy. ${failed.join(" ")}` });
     } else {
       rows.push({ ...base, rank: 4, attentionRequired: true, reason: "Needs individual approval." });
     }

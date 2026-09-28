@@ -42,9 +42,16 @@ export function customerStatus(repos: Repositories, caseData: IntegrityCase): { 
       reason: "Access pending is switched on for this incident",
     };
   }
+  if (caseData.status === "observing") {
+    return {
+      status: "recovery_in_progress",
+      message: "We found your payment. Your access is being set up, and you will not be charged again.",
+      reason: "Outcome still within the normal processing time",
+    };
+  }
   return {
     status: "under_review",
     message: "Your payment is safe. A specialist is reviewing the order before any further action.",
-    reason: caseData.status === "observing" ? "Outcome still within the normal processing time" : "Case awaiting a decision",
+    reason: "Case awaiting a decision",
   };
 }

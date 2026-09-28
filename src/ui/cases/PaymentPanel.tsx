@@ -6,6 +6,7 @@ import { formatINR } from "@/domain/money";
 import { formatIstShort } from "@/domain/time";
 import type { CaseDetailModel } from "@/services/views/cases";
 import { AppLink } from "@/ui/components/AppLink";
+import { NoticeLabel } from "@/ui/components/badges";
 import { Money } from "@/ui/components/Money";
 import { Surface } from "@/ui/components/Surface";
 import { incidentHref } from "@/ui/shell/nav";
@@ -62,7 +63,7 @@ export function PaymentPanel({ model, now }: { model: CaseDetailModel; now: Date
       </Field>
       <Field label="Payment state">
         <Box display="flex">
-          <Badge color={state.color} size="medium">{state.label}</Badge>
+          {state.color === "notice" ? <NoticeLabel>{state.label}</NoticeLabel> : <Badge color={state.color} size="medium">{state.label}</Badge>}
         </Box>
         {payment.captureDeadline && payment.status === "authorized" ? (
           <Text size="xsmall" color="feedback.text.notice.intense">

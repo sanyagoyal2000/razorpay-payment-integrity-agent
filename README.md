@@ -80,6 +80,27 @@ With a key, `/api/agent/*` route handlers (server-side only; the key never reach
 
 The model receives only what each task needs: payment and outcome events for the case, never customer names, emails or phone numbers.
 
+## Customer page
+
+`/check-payment` is the customer-facing page (no admin navigation). A customer enters the phone number they paid with and their order ID (for example `LL-4301232`, shown on each case's detail page). The result is one of: resolved, recovery in progress, under review, or not found. A second charge is explained as under review, and a refunded payment says so. A wrong phone number gets the same "not found" answer as an unknown order. No confidence, internal errors, webhook status, thresholds or architecture are shown.
+
+## Degraded states and developer settings
+
+Open **Developer settings** from the avatar menu (top right). It is deliberately outside the main navigation. From there you can:
+
+- turn off the data feed, outcome verification, automated investigation or the policy service. Each shows a banner with the specified wording and blocks what it should.
+- make data stale immediately. Data older than 2 minutes blocks every consequential action until **Refresh data** succeeds.
+- reset all data, re-seeding the fixtures anchored to the current time.
+
+## Accessibility
+
+Checked with axe-core (WCAG 2.1 A/AA) on every page, plus keyboard and 375 px checks on the customer page:
+
+- Skip link, visible focus, labelled controls, live regions for status changes and results.
+- Amber statuses use an indicator plus text, because Blade's amber badges fall below 4.5:1 at badge size.
+- Key-value summaries use a valid `dl`, instead of Blade InfoGroup, whose markup nests `dt`/`dd` too deeply.
+- **Known issues inside Blade's Table, not fixed here:** the header row is rendered with `role="rowheader"`, `aria-multiselectable` is set on `role="table"`, and the row-selection checkboxes have no accessible names. These appear on every page that uses Blade Table.
+
 ## Boundaries
 
 Rules detect. AI investigates. Policy validates. APIs execute. Outcomes verify.

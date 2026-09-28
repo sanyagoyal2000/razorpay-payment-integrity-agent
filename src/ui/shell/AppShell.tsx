@@ -3,6 +3,10 @@
 import {
   Avatar,
   Badge,
+  Menu,
+  MenuHeader,
+  MenuItem,
+  MenuOverlay,
   Box,
   SideNav,
   SideNavBody,
@@ -16,10 +20,11 @@ import {
   TopNavBrand,
   TopNavContent,
 } from "@razorpay/blade/components";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { MERCHANT, OPERATOR } from "@/fixtures/catalogue";
-import { isActive, NAV_ITEMS } from "./nav";
+import { BASE_PATH, isActive, NAV_ITEMS } from "./nav";
+import { SystemStatusBanner } from "./SystemStatusBanner";
 import { GlobalSearch } from "./GlobalSearch";
 import { RouterLink } from "./RouterLink";
 
@@ -27,9 +32,13 @@ const TOP_NAV_HEIGHT = "56px";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   return (
     <Box display="flex" flexDirection="column" height="100vh" backgroundColor="surface.background.gray.subtle">
-      <SkipNavLink />
+      {/* Raised above the top bar so the link is visible when focused. */}
+      <div style={{ position: "relative", zIndex: 2000 }}>
+        <SkipNavLink _hasBackground />
+      </div>
       <TopNav>
         <TopNavBrand>
           <Text size="large" weight="semibold" color="surface.text.staticWhite.normal">
@@ -58,7 +67,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Badge color="positive" size="small" emphasis="intense">
               Live
             </Badge>
-            <Avatar name={OPERATOR.name} size="small" color="primary" />
+            <Menu>
+              <Avatar name={OPERATOR.name} size="small" color="primary" />
+              <MenuOverlay>
+                <MenuHeader title={OPERATOR.name} subtitle={OPERATOR.role} />
+                <MenuItem title="Developer settings" onClick={() => router.push(`${BASE_PATH}/developer`)} />
+              </MenuOverlay>
+            </Menu>
           </Box>
         </TopNavActions>
       </TopNav>
@@ -89,6 +104,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           <SkipNavContent />
           <Box as="main" flex="1" width="100%" maxWidth="1440px" marginX="auto" paddingX="spacing.8" paddingY="spacing.7">
+            <SystemStatusBanner />
             {children}
           </Box>
           <Box as="footer" paddingX="spacing.8" paddingY="spacing.4" borderTopWidth="thin" borderTopColor="surface.border.gray.muted">

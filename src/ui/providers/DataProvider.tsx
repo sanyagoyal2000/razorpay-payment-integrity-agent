@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { systemClock } from "@/domain/time";
 import type { Dataset } from "@/fixtures/dataset-types";
 import { localStoragePersistence } from "@/repositories/store";
@@ -14,7 +14,7 @@ export type DataState =
 
 const DataContext = createContext<DataState>({ status: "loading" });
 
-const CLOCK_TICK_MS = 30_000;
+const CLOCK_TICK_MS = 15_000;
 
 /**
  * Loads fixtures and persisted state in the browser only, after mount, so the
@@ -25,6 +25,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
   const [now, setNow] = useState<Date | null>(null);
+  const servicesRef = useRef<AppServices | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +38,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           setVersion((v) => v + 1);
           setNow(new Date());
         });
+        created.store.sync(new Date());
+        servicesRef.current = created;
         setServices(created);
         setNow(new Date());
         // Finish any recovery that was mid-flight when the page was last closed.
@@ -46,7 +49,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .catch((cause: unknown) => {
         if (!cancelled) setError(cause instanceof Error ? cause.message : "Data could not be loaded");
       });
-    const tick = window.setInterval(() => setNow(new Date()), CLOCK_TICK_MS);
+    const tick = window.setInterval(() => {
+      const current = new Date();
+      // Refresh from the data feed; while the feed is down, data goes stale.
+      servicesRef.current?.store.sync(current);
+      setNow(current);
+    }, CLOCK_TICK_MS);
     return () => {
       cancelled = true;
       unsubscribe?.();

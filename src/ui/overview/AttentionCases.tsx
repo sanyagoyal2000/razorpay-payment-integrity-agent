@@ -15,6 +15,7 @@ import {
 import { formatRelative } from "@/domain/time";
 import type { AttentionRow } from "@/services/views/overview";
 import { AppLink } from "@/ui/components/AppLink";
+import { NoticeLabel } from "@/ui/components/badges";
 import { Money } from "@/ui/components/Money";
 import { EmptyMessage } from "@/ui/components/states";
 import { Surface } from "@/ui/components/Surface";
@@ -66,7 +67,7 @@ export function AttentionCases({ rows, now }: { rows: AttentionRow[]; now: Date 
                     </TableCell>
                     <TableCell>
                       {row.attentionRequired ? (
-                        <Badge color="notice" size="medium">Decision needed</Badge>
+                        <NoticeLabel>Decision needed</NoticeLabel>
                       ) : (
                         <Badge color="neutral" size="medium">No action</Badge>
                       )}

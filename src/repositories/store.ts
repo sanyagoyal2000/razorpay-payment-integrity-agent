@@ -28,6 +28,7 @@ export type PersistedState = {
   overlay: Partial<Record<CollectionName, Record<string, unknown>>>;
   globalControls?: GlobalControls;
   systemFlags?: SystemFlags;
+  lastSyncedAt?: string;
 };
 
 export type Persistence = {
@@ -40,6 +41,7 @@ export const DEFAULT_SYSTEM_FLAGS: SystemFlags = {
   investigationAvailable: true,
   policyServiceAvailable: true,
   outcomeVerificationAvailable: true,
+  dataFeedAvailable: true,
 };
 
 /**
@@ -52,6 +54,7 @@ export class DataStore {
   private anchorOffsetMinutes: number;
   private sequence: number;
   private systemFlags: SystemFlags;
+  private syncedAt: string;
   private listeners = new Set<() => void>();
   private indexes = new Map<CollectionName, Map<string, number>>();
 
@@ -66,6 +69,7 @@ export class DataStore {
     this.overlay = {};
     this.sequence = saved?.sequence ?? 0;
     this.systemFlags = { ...DEFAULT_SYSTEM_FLAGS, ...saved?.systemFlags };
+    this.syncedAt = saved?.lastSyncedAt ?? now.toISOString();
     if (saved) {
       for (const [collection, entities] of Object.entries(saved.overlay) as Array<[CollectionName, Record<string, unknown>]>) {
         for (const entity of Object.values(entities)) this.write(collection, entity as EntityOf<typeof collection>, false);
@@ -114,6 +118,33 @@ export class DataStore {
 
   setFlags(flags: SystemFlags): void {
     this.systemFlags = flags;
+    this.commit();
+  }
+
+  /** When payment and outcome data were last refreshed successfully. */
+  get lastSyncedAt(): string {
+    return this.syncedAt;
+  }
+
+  /**
+   * Refreshes data from the feed. Fails, leaving the last sync time unchanged,
+   * while the data feed is unavailable.
+   */
+  sync(now: Date): boolean {
+    if (!this.systemFlags.dataFeedAvailable) return false;
+    this.syncedAt = now.toISOString();
+    this.commit();
+    return true;
+  }
+
+  /** Developer setting: forget every change and re-seed from fixtures on next load. */
+  clearPersisted(): void {
+    this.persistence?.clear();
+  }
+
+  /** Developer setting: make the data look stale immediately. */
+  markStale(at: string): void {
+    this.syncedAt = at;
     this.commit();
   }
 
@@ -181,6 +212,7 @@ export class DataStore {
       overlay: this.overlay,
       globalControls: this.data.globalControls,
       systemFlags: this.systemFlags,
+      lastSyncedAt: this.syncedAt,
     });
   }
 }
