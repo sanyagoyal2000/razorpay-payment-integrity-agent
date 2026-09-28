@@ -114,3 +114,11 @@ Rules detect. AI investigates. Policy validates. APIs execute. Outcomes verify.
 - Investigator output is validated with Zod. Unknown evidence IDs are removed, invalid output becomes an escalation, and an unavailable investigator produces a rule-based alert.
 - `evaluatePolicy` is pure and deterministic, and it runs again immediately before every execution.
 - Cases resolve only once an Outcome Receipt is confirmed. Idempotency keys (`payment:action`) prevent duplicate execution.
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md): layers, data flow, the execution state machine, and how to replace the demo layer
+- [Data model](docs/DATA_MODEL.md): entities, what was added to the specification and why, and tested invariants
+- [AI and policy boundaries](docs/AI_AND_POLICY.md): what the agent sees and produces, guardrails, providers, and the policy engine
+- [Simulated integrations and non-goals](docs/INTEGRATIONS_AND_NON_GOALS.md)
+- [Acceptance criteria](docs/ACCEPTANCE.md): each of the specification's 20 criteria mapped to its implementation and tests

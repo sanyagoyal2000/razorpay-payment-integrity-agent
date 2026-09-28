@@ -1,0 +1,36 @@
+# Acceptance criteria
+
+Each criterion from the specification, where it is implemented, and the automated check that covers it. Browser checks (console, axe-core and responsive layout) were run against production builds.
+
+| # | Criterion | Where | Covered by |
+|---|---|---|---|
+| 1 | Overview metrics reconcile with incidents and cases | `services/metrics`, Overview | `reconciliation.test.ts`, `views.test.ts` |
+| 2 | Search and filter cases | Cases page, top-bar search | `cases.test.ts` (Case list) |
+| 3 | Payment-to-outcome timeline | Case detail, centre column | `cases.test.ts` (timeline in order, by source) |
+| 4 | AI recommendations cite existing evidence | Investigation panels; `validateInvestigation` | `investigation.test.ts`, `agent.test.ts`, `fixtures.test.ts` |
+| 5 | Policy verdicts deterministic and visible | Case decision panel, recovery groups | `policy.test.ts` ("is deterministic" and each rule) |
+| 6 | Safe cases can be approved and resolved | Incident bulk recovery, case approval | `reconciliation.test.ts`, `cases.test.ts` |
+| 7 | Outcome verification required before resolution | Execution `awaiting_outcome` step | `execution.test.ts` (pending, not verified leads to escalation) |
+| 8 | Duplicate executions prevented | Idempotency reservation, demo merchant | `execution.test.ts` (racing executions) |
+| 9 | Duplicate payments cannot enter bulk recovery | `planBulkRecovery` | `reconciliation.test.ts`, `cases.test.ts` |
+| 10 | High-value cases require approval | Amount check (individual approval) | `policy.test.ts` |
+| 11 | Inventory-conflict cases blocked | Inventory checks, refusal state | `policy.test.ts`, `cases.test.ts` |
+| 12 | Waiting cases generate no actions | Observing case has no recommendation | `policy.test.ts`, `fixtures.test.ts`, `cases.test.ts` |
+| 13 | Kill switch prevents execution, keeps monitoring | Automations; `kill_switch` check | `policy.test.ts`, `configuration.test.ts`, `execution.test.ts` |
+| 14 | Contracts can be created, edited, paused and resumed | Outcome Contracts editor | `configuration.test.ts` |
+| 15 | Integration permissions affect available actions | Revoke or reconnect; `permission_available` | `configuration.test.ts`, `policy.test.ts` |
+| 16 | Every material action creates an audit event | Services append to the append-only audit log | assertions throughout; `cases.test.ts` (append-only) |
+| 17 | Changes persist across refreshes | `DataStore` overlay in `localStorage` | `execution.test.ts` (reload), browser reload checks |
+| 18 | Works without an external AI key | Claude CLI default, offline fallback | `agent.test.ts`; full browser runs with and without the live agent |
+| 19 | Empty, loading, stale and unavailable states | Skeletons, empty states, status banners, developer settings | `states.test.ts`, `views.test.ts` |
+| 20 | Consistent visual system | Blade components and tokens on every page | axe-core: no violations on all 12 pages; no horizontal scroll at 768–1440 px |
+
+## Additions from CLAUDE.md
+
+| Requirement | Covered by |
+|---|---|
+| Value delivered (trailing 30 days), each figure linked to its cases, with a calculation tooltip | Overview; `reconciliation.test.ts` |
+| Deploy evidence from LearnLoop Observability (`deploy.completed` v2.3) | `fixtures.test.ts` |
+| Exact arithmetic from real course prices | `fixtures.test.ts`, `reconciliation.test.ts` |
+| Single footer disclaimer; text wordmark | App shell |
+| No hydration warnings or console errors | Production browser runs on every route |

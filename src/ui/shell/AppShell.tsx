@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Text>
         </TopNavBrand>
         <TopNavContent>
-          <Box display="flex" alignItems="center" gap="spacing.3">
+          <Box display={{ base: "none", l: "flex" }} alignItems="center" gap="spacing.3">
             <Text size="small" color="surface.text.staticWhite.muted">
               Agent Studio
             </Text>

@@ -52,7 +52,8 @@ export function Surface({
           {actions ? <Box flexShrink={0}>{actions}</Box> : null}
         </Box>
       ) : null}
-      <Box padding={padded ? "spacing.6" : "spacing.0"}>{children}</Box>
+      {/* Wide tables scroll inside their section; the page itself never scrolls sideways. */}
+      <Box padding={padded ? "spacing.6" : "spacing.0"} overflowX="auto">{children}</Box>
     </Box>
   );
 }

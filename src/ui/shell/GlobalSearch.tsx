@@ -22,7 +22,7 @@ export function GlobalSearch() {
         submit();
       }}
     >
-      <Box width="340px">
+      <Box width={{ base: "240px", l: "340px" }}>
         <SearchInput
         accessibilityLabel="Search payments and customers"
         placeholder="Payment ID, order ID, name, email or phone"

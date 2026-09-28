@@ -93,8 +93,8 @@ export function RecoverySection({
           No open cases remain. Every affected customer&apos;s outcome has been confirmed or closed.
         </Text>
       ) : (
-        <Box display="grid" gridTemplateColumns={{ base: "1fr", l: "3fr 2fr" }} gap="spacing.6" alignItems="start">
-          <Box>
+        <Box display="grid" gridTemplateColumns={{ base: "minmax(0px, 1fr)", xl: "minmax(0px, 3fr) minmax(0px, 2fr)" }} gap="spacing.6" alignItems="start">
+          <Box minWidth="0px" overflowX="auto">
             <Table data={{ nodes: model.groups }} rowDensity="normal" gridTemplateColumns="minmax(190px, 2fr) 64px 104px minmax(150px, 1.5fr) 190px">
               {(items) => (
                 <>
