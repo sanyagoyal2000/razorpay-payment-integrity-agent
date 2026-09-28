@@ -237,20 +237,20 @@ function KillSwitch({ paused, since, queued, now, onToggle }: { paused: boolean;
 function EarnedAutonomy({ services, asOf, currentMode, onEnable }: { services: AppServices; asOf: string; currentMode: ActionMode; onEnable: (mode: ActionMode) => void }) {
   const [explanation, setExplanation] = useState<CheckedAutonomyExplanation | null>(null);
   const [loading, setLoading] = useState(false);
-  const load = () => {
+  const load = (refresh = false) => {
     setLoading(true);
-    explainEarnedAutonomy(services, "retry_provisioning", asOf)
+    explainEarnedAutonomy(services, "retry_provisioning", asOf, refresh)
       .then(setExplanation)
       .finally(() => setLoading(false));
   };
-  useEffect(load, [services]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => load(), [services]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Surface
       title="Earned autonomy"
       description="The Payment Integrity Agent reviews how you decided its past recommendations. It suggests; it never changes a setting."
       actions={
-        <Button variant="tertiary" size="small" onClick={load} isDisabled={loading}>
+        <Button variant="tertiary" size="small" onClick={() => load(true)} isDisabled={loading}>
           Review again
         </Button>
       }

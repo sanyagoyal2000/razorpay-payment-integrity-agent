@@ -282,8 +282,19 @@ function listProducts(repos: Repositories) {
 
 export type CheckedAutonomyExplanation = AutonomyExplanation & { evidence: ReturnType<typeof earnedAutonomy> };
 
-/** Explains whether an action could run automatically. Suggests only; never changes a setting. */
-export async function explainEarnedAutonomy(deps: { repos: Repositories; agent: AgentGateway }, action: ActionType, asOf: string): Promise<CheckedAutonomyExplanation> {
+const autonomyCache = new Map<string, Promise<AutonomyExplanation>>();
+
+/**
+ * Explains whether an action could run automatically. Suggests only; never
+ * changes a setting. The explanation is reused until the underlying decisions
+ * change, unless `refresh` asks for a new one.
+ */
+export async function explainEarnedAutonomy(
+  deps: { repos: Repositories; agent: AgentGateway },
+  action: ActionType,
+  asOf: string,
+  refresh = false,
+): Promise<CheckedAutonomyExplanation> {
   const evidence = earnedAutonomy(deps.repos, action);
   const cases = evidence.caseIds.map((id) => deps.repos.cases.get(id)!).filter(Boolean);
   const decisions = cases.map((c) => c.decisions.find((d) => d.actor === ACTORS.operator && d.kind !== "wait")!).filter(Boolean);
@@ -307,14 +318,20 @@ export async function explainEarnedAutonomy(deps: { repos: Repositories; agent: 
     editReasons: decisions.filter((d) => d.edited || d.kind === "edited").map((d) => d.reason ?? "").filter(Boolean),
     rejectionReasons: decisions.filter((d) => d.kind === "rejected").map((d) => d.reason ?? "").filter(Boolean),
   };
-  let raw: unknown;
-  try {
-    raw = await deps.agent.explainAutonomy(input);
-  } catch {
-    raw = null;
+  const key = JSON.stringify(input);
+  if (refresh || !autonomyCache.has(key)) {
+    autonomyCache.set(
+      key,
+      deps.agent
+        .explainAutonomy(input)
+        .catch(() => null)
+        .then((raw) => {
+          const parsed = autonomyExplanationSchema.safeParse(raw);
+          return parsed.success ? parsed.data : explainAutonomyByRule(input);
+        }),
+    );
   }
-  const parsed = autonomyExplanationSchema.safeParse(raw);
-  const explanation = parsed.success ? parsed.data : explainAutonomyByRule(input);
+  const explanation = await autonomyCache.get(key)!;
   return {
     ...explanation,
     suggestedMaxValue: Math.min(explanation.suggestedMaxValue, controls.maxAutomaticValue),

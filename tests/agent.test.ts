@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ACTORS } from "@/domain/types";
 import { createLiveAgentGateway } from "@/adapters/live/agent";
@@ -50,6 +53,7 @@ describe("agent API route", () => {
   });
 
   it("reports availability, and returns 503 without credentials, 404 for unknown tasks and 400 for invalid input", async () => {
+    vi.stubEnv("AGENT_PROVIDER", "api");
     vi.stubEnv("ANTHROPIC_API_KEY", "");
     vi.stubEnv("ANTHROPIC_AUTH_TOKEN", "");
     const status = await import("@/app/api/agent/status/route");
@@ -63,6 +67,7 @@ describe("agent API route", () => {
   });
 
   it("calls claude-opus-5 with structured output and maps refusals to 422", async () => {
+    vi.stubEnv("AGENT_PROVIDER", "api");
     vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
     const parse = vi.fn();
     vi.doMock("@anthropic-ai/sdk", async (importOriginal) => {
@@ -89,6 +94,61 @@ describe("agent API route", () => {
 
     parse.mockResolvedValueOnce({ stop_reason: "refusal", parsed_output: null });
     expect((await call()).status).toBe(422);
+  });
+});
+
+describe("Claude CLI provider (default)", () => {
+  const fake = path.resolve(__dirname, "stubs/fake-claude.mjs");
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it("is the default provider and needs no API key", async () => {
+    vi.stubEnv("AGENT_PROVIDER", "");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("CLAUDE_CLI_PATH", fake);
+    const { agentProvider, isLiveAgentConfigured } = await import("@/server/claude");
+    expect(agentProvider()).toBe("claude-cli");
+    expect(isLiveAgentConfigured()).toBe(true);
+    vi.stubEnv("CLAUDE_CLI_PATH", "/nonexistent/claude");
+    expect(isLiveAgentConfigured()).toBe(false);
+  });
+
+  it("runs the CLI headless with no tools and validates its structured output", async () => {
+    const log = path.join(os.tmpdir(), `fake-claude-${process.pid}.json`);
+    vi.stubEnv("CLAUDE_CLI_PATH", fake);
+    vi.stubEnv("FAKE_CLAUDE_LOG", log);
+    vi.stubEnv("FAKE_CLAUDE_RESULT", JSON.stringify({ type: "result", is_error: false, structured_output: { subject: "Your payment", body: "Hi {first_name}, your payment is safe." } }));
+    const { POST } = await import("@/app/api/agent/[task]/route");
+    const body = { audience: "one_customer", situation: "under_review", productName: "SQL for Data Analysis", amount: 2499, facts: ["Paid"] };
+    const response = await POST(new Request("http://x", { method: "POST", body: JSON.stringify(body) }), { params: { task: "draft-message" } });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ output: { subject: "Your payment", body: "Hi {first_name}, your payment is safe." } });
+    const recorded = JSON.parse(fs.readFileSync(log, "utf8")) as { args: string[]; prompt: string; cwd: string };
+    expect(recorded.args).toEqual(expect.arrayContaining(["-p", "--output-format", "json", "--json-schema", "--tools", "", "--strict-mcp-config", "--no-session-persistence", "--model", "claude-opus-5"]));
+    expect(JSON.parse(recorded.prompt)).toEqual(body);
+    expect(fs.realpathSync(recorded.cwd)).toBe(fs.realpathSync(os.tmpdir()));
+    const schema = JSON.parse(recorded.args[recorded.args.indexOf("--json-schema") + 1]!);
+    expect(schema.required).toEqual(["subject", "body"]);
+    expect(JSON.stringify(schema)).not.toMatch(/minLength|minimum|maximum/);
+  });
+
+  it("maps CLI failures and invalid output to the same errors as the API path", async () => {
+    vi.stubEnv("CLAUDE_CLI_PATH", fake);
+    const body = { audience: "one_customer", situation: "under_review", productName: "X", facts: [] };
+    const call = async () => {
+      vi.resetModules();
+      const { POST } = await import("@/app/api/agent/[task]/route");
+      return POST(new Request("http://x", { method: "POST", body: JSON.stringify(body) }), { params: { task: "draft-message" } });
+    };
+    vi.stubEnv("FAKE_CLAUDE_RESULT", JSON.stringify({ is_error: false, structured_output: { subject: "" } }));
+    expect((await call()).status).toBe(422);
+    vi.stubEnv("FAKE_CLAUDE_RESULT", JSON.stringify({ is_error: true, subtype: "error_during_execution" }));
+    expect((await call()).status).toBe(502);
+    vi.stubEnv("FAKE_CLAUDE_RESULT", "not json");
+    vi.stubEnv("FAKE_CLAUDE_EXIT", "1");
+    expect((await call()).status).toBe(502);
   });
 });
 
@@ -190,7 +250,9 @@ describe("drafts and suggestions", () => {
     expect(explanation.suggestedMaxValue).toBeLessThanOrEqual(5000);
     expect(explanation.risks.length).toBeGreaterThan(0);
     const bold: AgentGateway = { ...env.agent, explainAutonomy: async () => ({ headline: "h", explanation: "e", risks: ["r"], suggestedMode: "automatic_below_threshold", suggestedMaxValue: 99_999, suggestedMinimumConfidence: 0.5 }) };
-    const clamped = await explainEarnedAutonomy({ repos: env.repos, agent: bold }, "retry_provisioning", NOW);
+    const cached = await explainEarnedAutonomy({ repos: env.repos, agent: bold }, "retry_provisioning", NOW);
+    expect(cached.headline).toBe(explanation.headline);
+    const clamped = await explainEarnedAutonomy({ repos: env.repos, agent: bold }, "retry_provisioning", NOW, true);
     expect(clamped.suggestedMaxValue).toBe(5000);
     expect(clamped.suggestedMinimumConfidence).toBe(0.95);
     expect(env.repos.config.actionPolicies().find((p) => p.action === "retry_provisioning")!.mode).toBe("suggest_only");

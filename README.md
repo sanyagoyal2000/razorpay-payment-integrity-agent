@@ -70,13 +70,19 @@ The agent investigates, drafts and explains. It never executes: the deterministi
 | Draft Outcome Contracts | Outcome Contracts → New contract → "Draft fields" | Fields are validated against the catalogue and global limits; assumptions and corrections are listed for review. |
 | Explain earned autonomy | Automations → Earned autonomy | Suggestions are clamped to global limits. Automation changes only when a person switches it on. |
 
-**Live model (optional).** Put a key in `.env.local`:
+**Where agent requests go.** Requests run server-side from `/api/agent/*` route handlers. Nothing model-related runs in the browser.
 
-```bash
-ANTHROPIC_API_KEY=sk-ant-...
-```
+- **Default: the Claude CLI (no API key).** The server runs the local `claude` CLI (Claude Code) headless, signed in with your Claude account: `claude -p --output-format json --json-schema … --tools "" --strict-mcp-config --no-session-persistence --model claude-opus-5`, from a temporary directory. The CLI must be on the server's `PATH`, or set `CLAUDE_CLI_PATH`. Typical responses take 7–40 seconds.
+- **Anthropic API.** Set these in `.env.local`:
 
-With a key, `/api/agent/*` route handlers (server-side only; the key never reaches the browser) call `claude-opus-5` using the SDK's structured outputs (`messages.parse` with Zod schemas), a 60-second timeout, and Anthropic's server-side refusal fallback (`fallbacks: "default"`). Without a key, or if the model fails, the app uses deterministic fixture investigations and rule-based drafts, so it works fully offline. The product UI does not show which path produced a result.
+  ```bash
+  AGENT_PROVIDER=api
+  ANTHROPIC_API_KEY=sk-ant-...
+  ```
+
+  This uses the SDK's structured outputs (`messages.parse` with Zod schemas) on `claude-opus-5`, a 60-second timeout, and Anthropic's server-side refusal fallback (`fallbacks: "default"`).
+
+Both paths validate output with the same Zod schemas and guardrails. If neither is available, or a request fails, the app uses deterministic fixture investigations and rule-based drafts, so it works fully offline. The product UI does not show which path produced a result.
 
 The model receives only what each task needs: payment and outcome events for the case, never customer names, emails or phone numbers.
 
@@ -99,7 +105,7 @@ Checked with axe-core (WCAG 2.1 A/AA) on every page, plus keyboard and 375 px ch
 - Skip link, visible focus, labelled controls, live regions for status changes and results.
 - Amber statuses use an indicator plus text, because Blade's amber badges fall below 4.5:1 at badge size.
 - Key-value summaries use a valid `dl`, instead of Blade InfoGroup, whose markup nests `dt`/`dd` too deeply.
-- **Known issues inside Blade's Table, not fixed here:** the header row is rendered with `role="rowheader"`, `aria-multiselectable` is set on `role="table"`, and the row-selection checkboxes have no accessible names. These appear on every page that uses Blade Table.
+- **Local Blade patch** (`patches/@razorpay+blade+12.127.0.patch`, applied on install by `patch-package`): Blade's Table header row uses `role="row"` instead of `role="rowheader"`; `aria-multiselectable` is no longer set on `role="table"`; and Checkbox passes its `aria-label` to the input, so Table's selection checkboxes have accessible names. With the patch, axe reports no violations on any page. Remove the patch once Blade fixes these upstream.
 
 ## Boundaries
 
