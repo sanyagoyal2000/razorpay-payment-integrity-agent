@@ -7,6 +7,7 @@ import { isAtRisk } from "@/services/metrics/cases";
 import { ACTIONS } from "@/services/policy/actions";
 import { evaluateCase, requireContract } from "@/services/policy/currentState";
 import { verifyOutcome } from "@/services/verification";
+import { checkCustomerMessage } from "@/services/agent";
 import { approveAndStart, EXECUTABLE_ACTIONS, type ExecutionDeps } from "@/services/execution";
 
 export class DecisionError extends Error {}
@@ -167,11 +168,17 @@ export function prepareRefund(repos: Repositories, caseId: string, actor: string
   return saved.followUps!.at(-1)!;
 }
 
-export function contactCustomer(repos: Repositories, caseId: string, actor: string, asOf: string): CaseFollowUp {
+export function contactCustomer(repos: Repositories, caseId: string, actor: string, asOf: string, message?: string): CaseFollowUp {
   const c = requireCase(repos, caseId);
   const option = decisionOption(repos, c, "notify_customer", asOf);
   if (option.disabledReason) throw new DecisionError(option.disabledReason);
-  const detail = "Message sent: your payment is safe and a specialist is reviewing your order.";
+  const text = message?.trim();
+  if (text !== undefined && text.length === 0) throw new DecisionError("The message is empty.");
+  if (text) {
+    const flagged = checkCustomerMessage(text);
+    if (flagged.length > 0) throw new DecisionError(`Remove ${flagged.join(", ")} from the message before sending.`);
+  }
+  const detail = text ? `Message sent: “${text}”` : "Message sent: your payment is safe and a specialist is reviewing your order.";
   const saved = addFollowUp(repos, c, { kind: "customer_message", createdAt: asOf, actor, detail, status: "sent" }, { customerContact: c.customerContact === "customer_initiated" ? "customer_initiated" : "notified" });
   audit(repos, c, { occurredAt: asOf, actor, action: "Contacted customer", result: detail, policyResult: option.verdict.result });
   return saved.followUps!.at(-1)!;
@@ -190,7 +197,7 @@ export function requestAlternateInventory(repos: Repositories, caseId: string, a
 export type DecisionResult = { kind: "execution"; executionId: string } | { kind: "recorded"; message: string };
 
 /** Applies an approved or edited action, routing executable actions to the state machine. */
-export function applyDecision(deps: ExecutionDeps, caseId: string, action: ActionType, actor: string, reason = ""): DecisionResult {
+export function applyDecision(deps: ExecutionDeps, caseId: string, action: ActionType, actor: string, reason = "", message?: string): DecisionResult {
   const asOf = deps.clock.now().toISOString();
   const c = requireCase(deps.repos, caseId);
   if (EXECUTABLE_ACTIONS.has(action)) {
@@ -208,7 +215,7 @@ export function applyDecision(deps: ExecutionDeps, caseId: string, action: Actio
     case "prepare_refund":
       return { kind: "recorded", message: `${prepareRefund(deps.repos, caseId, actor, asOf).detail}.` };
     case "notify_customer":
-      contactCustomer(deps.repos, caseId, actor, asOf);
+      contactCustomer(deps.repos, caseId, actor, asOf, message);
       return { kind: "recorded", message: "Customer contacted." };
     case "review_alternate_inventory":
       requestAlternateInventory(deps.repos, caseId, actor, asOf);

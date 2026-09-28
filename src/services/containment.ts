@@ -2,6 +2,7 @@ import type { ContainmentAction, ContainmentDecision, IncidentRecord } from "@/d
 import { ACTORS } from "@/domain/types";
 import { formatINR } from "@/domain/money";
 import type { Repositories } from "@/repositories";
+import { checkCustomerMessage } from "@/services/agent";
 import { refreshIncident } from "@/services/incidents";
 import { incidentTotals } from "@/services/metrics/cases";
 import { evaluateCase, requireContract } from "@/services/policy/currentState";
@@ -88,6 +89,7 @@ export function applyContainment(
   action: ContainmentAction,
   actor: string,
   asOf: string,
+  message?: string,
 ): ContainmentDecision {
   const incident = repos.incidents.get(incidentId);
   if (!incident) throw new Error(`Incident ${incidentId} not found`);
@@ -102,13 +104,18 @@ export function applyContainment(
   let reference: string | undefined;
   switch (action) {
     case "notify_customers": {
+      const text = message?.trim();
+      if (text) {
+        const flagged = checkCustomerMessage(text);
+        if (flagged.length > 0) throw new Error(`Remove ${flagged.join(", ")} from the message before sending.`);
+      }
       const { recipientCaseIds } = notificationPreview(repos, incident);
       for (const id of recipientCaseIds) {
         const c = repos.cases.get(id)!;
         repos.cases.save({ ...c, customerContact: "notified", updatedAt: asOf });
       }
       caseIds = recipientCaseIds;
-      detail = `Notification sent to ${recipientCaseIds.length} customers.`;
+      detail = text ? `Notification sent to ${recipientCaseIds.length} customers: “${text}”` : `Notification sent to ${recipientCaseIds.length} customers.`;
       break;
     }
     case "access_pending":

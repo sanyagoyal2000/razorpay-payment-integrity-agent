@@ -35,7 +35,7 @@ export type InvestigationAdapter = {
 };
 
 export type InvestigationResult =
-  | { status: "valid"; investigation: Investigation; removedEvidenceIds: string[] }
+  | { status: "valid"; investigation: Investigation; removedEvidenceIds: string[]; citationsChecked: number }
   | { status: "invalid"; investigation: Investigation; issues: string[] }
   | { status: "unavailable"; investigation: Investigation };
 
@@ -71,7 +71,9 @@ export function validateInvestigation(raw: unknown, allowedEvidenceIds: Readonly
   }
   const investigation = parsed.data as Investigation;
   const supported = investigation.evidenceIds.filter((id) => allowedEvidenceIds.has(id));
-  const removedEvidenceIds = investigation.evidenceIds.filter((id) => !allowedEvidenceIds.has(id));
+  const hypotheses = (investigation.hypotheses ?? []).map((h) => ({ ...h, evidenceIds: h.evidenceIds.filter((id) => allowedEvidenceIds.has(id)) }));
+  const cited = [...investigation.evidenceIds, ...(investigation.hypotheses ?? []).flatMap((h) => h.evidenceIds)];
+  const removedEvidenceIds = [...new Set(cited.filter((id) => !allowedEvidenceIds.has(id)))];
   if (supported.length === 0 && investigation.recommendedAction !== "escalate") {
     return {
       status: "invalid",
@@ -79,7 +81,9 @@ export function validateInvestigation(raw: unknown, allowedEvidenceIds: Readonly
       issues: ["evidenceIds: no cited evidence exists in the supplied event set"],
     };
   }
-  return { status: "valid", investigation: { ...investigation, evidenceIds: supported }, removedEvidenceIds };
+  const cleaned: Investigation = { ...investigation, evidenceIds: supported };
+  if (investigation.hypotheses) cleaned.hypotheses = hypotheses;
+  return { status: "valid", investigation: cleaned, removedEvidenceIds, citationsChecked: cited.length };
 }
 
 async function run(call: () => Promise<unknown>, allowed: ReadonlySet<string>): Promise<InvestigationResult> {

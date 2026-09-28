@@ -2,7 +2,9 @@
 
 import { Box, Button, Text } from "@razorpay/blade/components";
 import { useRouter } from "next/navigation";
+import { reinvestigateCase, type InvestigationProgress } from "@/services/agent";
 import { caseDetail } from "@/services/views/cases";
+import { InvestigationPanel } from "@/ui/agent/InvestigationPanel";
 import { CaseStatusBadge } from "@/ui/components/badges";
 import { Money } from "@/ui/components/Money";
 import { PageHeader } from "@/ui/components/PageHeader";
@@ -53,7 +55,15 @@ export function CaseDetailPage({ caseId }: { caseId: string }) {
       />
       <Box display="grid" gridTemplateColumns={{ base: "1fr", l: "280px minmax(0, 1fr) 400px" }} gap="spacing.5" alignItems="start">
         <PaymentPanel model={model} now={state.now} />
-        <TimelinePanel entries={model.timeline} />
+        <Box display="flex" flexDirection="column" gap="spacing.5" minWidth="0px">
+          <TimelinePanel entries={model.timeline} />
+          <InvestigationPanel
+            subject="case"
+            view={model.investigation}
+            now={state.now}
+            {...(model.open && model.investigation ? { onReinvestigate: (onProgress: (p: InvestigationProgress) => void) => reinvestigateCase(state.services, model.caseData.id, onProgress) } : {})}
+          />
+        </Box>
         <DecisionPanel model={model} services={state.services} />
       </Box>
     </>

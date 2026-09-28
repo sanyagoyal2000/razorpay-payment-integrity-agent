@@ -7,7 +7,9 @@ import { incidentTotals } from "@/services/metrics/cases";
 import { ACTIONS, serviceLabel } from "@/services/policy/actions";
 import { requireContract, serviceHealth } from "@/services/policy/currentState";
 import { groupIncidentCases, planBulkRecovery, type RecoveryGroupId } from "@/services/recovery/groups";
+import { describeIncidentInvestigation } from "@/services/agent";
 import { groupEvidence } from "./evidence";
+import { investigationView } from "./investigation";
 import { requiredDecision } from "./overview";
 
 export type IncidentRow = {
@@ -244,6 +246,7 @@ export function incidentWorkspace(repos: Repositories, incidentId: string, asOf:
     likelyCause: incident.likelyCause,
     rootCauseConfidence: incident.investigation?.confidence,
     evidence: groupEvidence(repos, evidenceIds),
+    investigation: investigationView(repos, incident.investigation, describeIncidentInvestigation(repos, incident.id)),
     uncertainties: incident.investigation?.uncertainties ?? [],
     groups: groupIncidentCases(repos, incident.id, asOf),
     containment: containmentOptions(repos, incident, asOf),

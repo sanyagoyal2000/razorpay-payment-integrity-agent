@@ -20,6 +20,7 @@ import type {
   IncidentUpdate,
   IntegrityCase,
   IntegrityEvent,
+  Hypothesis,
   Investigation,
   MerchantOrder,
   MerchantOutcomeEvent,
@@ -631,6 +632,15 @@ export function buildDataset(): Dataset {
       ...extra,
     ].filter((id): id is string => Boolean(id));
 
+  const hyp = (cause: string, verdict: Hypothesis["verdict"], evidenceIds: Array<string | undefined>, reasoning: string): Hypothesis => ({
+    cause,
+    verdict,
+    evidenceIds: evidenceIds.filter((id): id is string => Boolean(id)),
+    reasoning,
+  });
+  const delivered = (chain: Chain) => chain.deliveries.find((d) => d.status === "delivered")?.id;
+  const failedOutcome = (chain: Chain) => chain.outcomeEvents.find((e) => e.status === "failed")?.id;
+
   const courseMessage = (product: Product) =>
     `Your ${formatINR(product.price)} payment for ${product.name} was successful. We are restoring your course access now, and you will not be charged again.`;
 
@@ -668,6 +678,11 @@ export function buildDataset(): Dataset {
       likelyCause: `Single enrolment request failure (HTTP ${responseCode}); no other failures in the surrounding window.`,
       evidenceIds: missingOutcomeEvidence(chain),
       uncertainties: [],
+      hypotheses: [
+        hyp("order.paid not delivered to LearnLoop", "ruled_out", [delivered(chain)], "LearnLoop acknowledged order.paid with HTTP 200."),
+        hyp("Enrolment request failed", "supported", [failedOutcome(chain)], `/enroll returned HTTP ${responseCode} and no access grant followed.`),
+        hyp("Wider enrolment outage", "ruled_out", [chain.receipt?.id], "No other purchases in the surrounding window missed their outcome."),
+      ],
       recommendedAction: "retry_provisioning",
       confidence: rng.pick([0.96, 0.97, 0.98]),
       customerImpact: `Customer paid ${formatINR(product.price)} for ${product.name} and does not have course access.`,
@@ -829,6 +844,10 @@ export function buildDataset(): Dataset {
         likelyCause: "LearnLoop webhook endpoint unavailable (HTTP 503: no healthy upstream).",
         evidenceIds: [chain.captured!.id, ...chain.deliveries.map((d) => d.id), chain.receipt!.id, errors.id],
         uncertainties: [],
+        hypotheses: [
+          hyp("LearnLoop webhook endpoint unavailable", "supported", [...chain.deliveries.map((d) => d.id), errors.id], "Every order.paid delivery returned HTTP 503 while the endpoint reported no healthy upstream."),
+          hyp("Enrolment service failure", "ruled_out", [chain.receipt!.id], "No enrolment request was made, so enrolment could not have failed; LearnLoop never learned of the payment."),
+        ],
         recommendedAction: "replay_webhook",
         confidence: 0.96,
         customerImpact: `Customer paid ${formatINR(product.price)} for ${product.name} and does not have course access.`,
@@ -917,6 +936,10 @@ export function buildDataset(): Dataset {
       likelyCause: "Late bank authorisation after the checkout session expired.",
       evidenceIds: [chain.orderCreated.id, chain.authorized!.id],
       uncertainties: ["Whether the customer still expects access after checkout timed out."],
+      hypotheses: [
+        hyp("Bank authorised after checkout expired", "supported", [chain.orderCreated.id, chain.authorized!.id], "Authorisation arrived after the LearnLoop order had expired, so it was never captured."),
+        hyp("Payment failed", "ruled_out", [chain.authorized!.id], "The bank authorised the payment; the money is held, not declined."),
+      ],
       recommendedAction: "capture",
       confidence: 0.95,
       customerImpact: `Customer's ${formatINR(product.price)} is held by the bank and they do not have access.`,
@@ -979,6 +1002,10 @@ export function buildDataset(): Dataset {
       likelyCause: "Enrolment request timed out (HTTP 504); the customer retried checkout when access did not appear.",
       evidenceIds: [first.captured!.id, second.captured!.id, first.outcomeEvents.find((e) => e.status === "failed")!.id, first.receipt!.id],
       uncertainties: ["Whether the second payment was intentional."],
+      hypotheses: [
+        hyp("Customer retried because access did not appear", "supported", [first.captured!.id, second.captured!.id], "The second payment for the same course followed the first failed enrolment within minutes."),
+        hyp("Enrolment request timed out", "supported", [failedOutcome(first)], "/enroll returned HTTP 504 for the first payment."),
+      ],
       recommendedAction: "retry_provisioning",
       confidence: 0.9,
       customerImpact: `Customer was charged ${formatINR(product.price * 2)} for one ${formatINR(product.price)} course and has no access.`,
@@ -1078,6 +1105,11 @@ export function buildDataset(): Dataset {
         likelyCause: "LearnLoop enrolment service returned HTTP 500 after deployment v2.3; the customer retried checkout when access did not appear.",
         evidenceIds: [...baseEvidence, second.captured!.id, second.outcomeEvents.find((e) => e.status === "failed")!.id],
         uncertainties: ["Whether the second payment was intentional or a retry after access did not appear."],
+        hypotheses: [
+          hyp("order.paid not delivered to LearnLoop", "ruled_out", [delivered(chain), delivered(second)], "Both order.paid webhooks returned HTTP 200."),
+          hyp("Enrolment service failing after deployment v2.3", "supported", [deploy.id, enrolErrors.id, failedOutcome(chain), failedOutcome(second)], "Both /enroll calls returned HTTP 500 during the outage that began after deploy.completed v2.3."),
+          hyp("Customer paid twice for one purchase", "supported", [chain.captured!.id, second.captured!.id], "Two captured payments from the same customer for the same course, minutes apart."),
+        ],
         recommendedAction: "retry_provisioning",
         confidence: 0.9,
         customerImpact: `Customer was charged ${formatINR(product.price * 2)} for one ${formatINR(product.price)} course and has no access.`,
@@ -1095,6 +1127,12 @@ export function buildDataset(): Dataset {
       likelyCause: "LearnLoop enrolment service returned HTTP 500 after deployment v2.3.",
       evidenceIds: baseEvidence,
       uncertainties: highValue ? [`${product.name} unlocks several courses; it is not confirmed whether a single enrolment grants access to all of them.`] : [],
+      hypotheses: [
+        hyp("order.paid not delivered to LearnLoop", "ruled_out", [delivered(chain)], "LearnLoop acknowledged order.paid with HTTP 200."),
+        hyp("Enrolment service failing after deployment v2.3", "supported", [deploy.id, enrolErrors.id, failedOutcome(chain)], "/enroll returned HTTP 500 during the outage that began 81 seconds after deploy.completed v2.3."),
+        hyp("Customer already has access from another payment", "ruled_out", [chain.receipt?.id], "No other captured payment or access grant exists for this order."),
+        hyp("Enrolment service still unavailable", "ruled_out", [enrolRecovered.id], "Health checks have passed since the service recovered, so a retry can succeed."),
+      ],
       recommendedAction: "retry_provisioning",
       confidence: highValue ? 0.96 : 0.97,
       customerImpact: `Customer paid ${formatINR(product.price)} for ${product.name} and does not have course access.`,
@@ -1133,6 +1171,12 @@ export function buildDataset(): Dataset {
     uncertainties: [
       "Whether duplicate payments were intentional.",
       "Whether high-value bundles require different access.",
+    ],
+    hypotheses: [
+      hyp("Deployment v2.3 broke enrolment", "supported", [deploy.id, enrolErrors.id, enrolRecovered.id], "/enroll began returning HTTP 500 81 seconds after deploy.completed v2.3 and every enrolment failed until the service recovered."),
+      hyp("Razorpay webhooks not reaching LearnLoop", "ruled_out", incidentCases.slice(0, 3).map((c) => c.investigation!.evidenceIds[1]), "order.paid deliveries returned HTTP 200 throughout the incident."),
+      hyp("Payments not captured", "ruled_out", incidentCases.slice(0, 3).map((c) => c.investigation!.evidenceIds[0]), "Every affected payment was captured by Razorpay."),
+      hyp("Enrolment still failing now", "ruled_out", [enrolRecovered.id, postRecovery[0]!.outcomeEvents.find((e) => e.type === "course_access_granted")!.id], "New purchases after the recovery received access normally."),
     ],
     recommendedAction: "retry_provisioning",
     confidence: 0.93,
@@ -1214,6 +1258,11 @@ export function buildDataset(): Dataset {
       likelyCause: "Seat inventory changed after payment: capacity reduced from 60 to 40 and seat block B released.",
       evidenceIds: [chain.captured!.id, chain.deliveries.at(-1)!.id, inventoryChanged.id, bookingFailed.id, chain.receipt!.id],
       uncertainties: ["Whether a valid replacement seat exists in the reduced layout.", "Whether the customer would accept a different seat."],
+      hypotheses: [
+        hyp("Seat inventory changed after payment", "supported", [inventoryChanged.id, bookingFailed.id], "Seat block B was released 17 seconds after capture; the booking then returned HTTP 409 for the missing seat."),
+        hyp("Booking service outage", "ruled_out", [bookingFailed.id], "The booking was rejected with HTTP 409 (conflict), not a server error."),
+        hyp("order.paid not delivered to LearnLoop", "ruled_out", [chain.deliveries.at(-1)!.id], "LearnLoop acknowledged order.paid with HTTP 200."),
+      ],
       recommendedAction: "escalate",
       confidence: 0.91,
       customerImpact: `Customer paid ${formatINR(product.price)} for a workshop seat that no longer exists.`,
@@ -1237,6 +1286,11 @@ export function buildDataset(): Dataset {
       likelyCause: "Late bank authorisation after the checkout session expired.",
       evidenceIds: [chain.orderCreated.id, chain.authorized!.id],
       uncertainties: ["Whether the customer still expects access after checkout timed out."],
+      hypotheses: [
+        hyp("Bank authorised after checkout expired", "supported", [chain.orderCreated.id, chain.authorized!.id], "Authorisation arrived 17 minutes after checkout started, after the LearnLoop order had expired."),
+        hyp("Payment failed", "ruled_out", [chain.authorized!.id], "The bank authorised the payment; the money is held, not declined."),
+        hyp("Customer bought the course again", "ruled_out", [chain.orderCreated.id], "No other payment from this customer for the course was found."),
+      ],
       recommendedAction: "capture",
       confidence: 0.95,
       customerImpact: `Customer's ${formatINR(product.price)} is held by the bank and they do not have access.`,

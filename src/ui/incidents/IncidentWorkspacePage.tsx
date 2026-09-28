@@ -3,7 +3,9 @@
 import { Alert, Box, Button } from "@razorpay/blade/components";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { reinvestigateIncident, type InvestigationProgress } from "@/services/agent";
 import { incidentWorkspace } from "@/services/views/incidents";
+import { InvestigationPanel } from "@/ui/agent/InvestigationPanel";
 import { CaseListDrawer, type CaseListRequest } from "@/ui/components/CaseListDrawer";
 import { IncidentStatusBadge, SeverityLabel } from "@/ui/components/badges";
 import { PageHeader } from "@/ui/components/PageHeader";
@@ -68,6 +70,12 @@ export function IncidentWorkspacePage({ incidentId }: { incidentId: string }) {
           <WhatHappened model={model} />
           <UncertaintiesPanel uncertainties={model.uncertainties} />
         </Box>
+        <InvestigationPanel
+          subject="incident"
+          view={model.investigation}
+          now={state.now}
+          {...(incident.status !== "resolved" ? { onReinvestigate: (onProgress: (p: InvestigationProgress) => void) => reinvestigateIncident(state.services, incident.id, onProgress) } : {})}
+        />
         <EvidenceSection groups={model.evidence} now={state.now} />
         <RecoverySection model={model} services={state.services} asOf={state.asOf} onShowCases={setDrawer} />
         <ContainmentSection model={model} services={state.services} now={state.now} />

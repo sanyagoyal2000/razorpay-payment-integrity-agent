@@ -20,6 +20,8 @@ import { OPERATOR } from "@/fixtures/catalogue";
 import { applyContainment, type ContainmentOption } from "@/services/containment";
 import type { AppServices } from "@/services/container";
 import type { IncidentWorkspaceModel } from "@/services/views/incidents";
+import { draftCustomerMessage, messageInputForIncident } from "@/services/agent";
+import { MessageDraftModal } from "@/ui/agent/MessageDraftModal";
 import { Surface } from "@/ui/components/Surface";
 
 export function ContainmentSection({ model, services, now }: { model: IncidentWorkspaceModel; services: AppServices; now: Date }) {
@@ -27,9 +29,9 @@ export function ContainmentSection({ model, services, now }: { model: IncidentWo
   const [pending, setPending] = useState<ContainmentOption | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const confirm = (action: ContainmentAction) => {
+  const confirm = (action: ContainmentAction, message?: string) => {
     try {
-      const decision = applyContainment(services.repos, model.incident.id, action, OPERATOR.name, new Date().toISOString());
+      const decision = applyContainment(services.repos, model.incident.id, action, OPERATOR.name, new Date().toISOString(), message);
       toast.show({ color: "positive", content: decision.detail });
       setPending(null);
       setError(null);
@@ -97,7 +99,19 @@ export function ContainmentSection({ model, services, now }: { model: IncidentWo
           </Fragment>
         ))}
       </Box>
-      <Modal isOpen={pending !== null} onDismiss={() => setPending(null)} size="medium" accessibilityLabel={pending?.label ?? "Containment"}>
+      <MessageDraftModal
+        isOpen={pending?.action === "notify_customers"}
+        title="Notify affected customers"
+        recipients={`${recipients} customers whose ${product} outcome is still missing (email and SMS)`}
+        loadDraft={() => draftCustomerMessage(services.agent, messageInputForIncident(services.repos, model.incident.id))}
+        onSend={(message) => confirm("notify_customers", message)}
+        onDismiss={() => {
+          setPending(null);
+          setError(null);
+        }}
+        error={error}
+      />
+      <Modal isOpen={pending !== null && pending.action !== "notify_customers"} onDismiss={() => setPending(null)} size="medium" accessibilityLabel={pending?.label ?? "Containment"}>
         <ModalHeader title={pending?.label ?? ""} />
         <ModalBody>
           {pending?.action === "notify_customers" ? (

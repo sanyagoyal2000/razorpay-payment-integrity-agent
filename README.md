@@ -59,6 +59,27 @@ tests/               Policy, execution, investigation, fixture and reconciliatio
 - The fixtures also hold a fixed stream of healthy purchases after the latest event. They become visible as real time passes, which is how "Monitor the next 50 matching purchases" makes progress.
 - Changes are persisted as an overlay on top of the fixtures (`localStorage`, loaded client-side only).
 
+## The Payment Integrity Agent (AI)
+
+The agent investigates, drafts and explains. It never executes: the deterministic policy engine and a person decide what runs.
+
+| Task | Where it shows | Guardrails |
+|---|---|---|
+| Investigate a case or incident | "Investigation" panels on case detail and the incident workspace, with **Re-investigate** | Zod-validated structured output. Every cited event ID, including those inside each hypothesis, is checked against the events actually sent; unknown IDs are removed and the removal is shown. Invalid output or an unreachable model produces an escalation, not an action. |
+| Draft customer messages | "Contact customer" on inventory-conflict cases; "Notify affected customers" on incidents | A deterministic check blocks confidence scores, webhooks/HTTP codes, policies, AI/agent mentions and system internals. Nothing is sent until a person approves the text. |
+| Draft Outcome Contracts | Outcome Contracts → New contract → "Draft fields" | Fields are validated against the catalogue and global limits; assumptions and corrections are listed for review. |
+| Explain earned autonomy | Automations → Earned autonomy | Suggestions are clamped to global limits. Automation changes only when a person switches it on. |
+
+**Live model (optional).** Put a key in `.env.local`:
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+With a key, `/api/agent/*` route handlers (server-side only; the key never reaches the browser) call `claude-opus-5` using the SDK's structured outputs (`messages.parse` with Zod schemas), a 60-second timeout, and Anthropic's server-side refusal fallback (`fallbacks: "default"`). Without a key, or if the model fails, the app uses deterministic fixture investigations and rule-based drafts, so it works fully offline. The product UI does not show which path produced a result.
+
+The model receives only what each task needs: payment and outcome events for the case, never customer names, emails or phone numbers.
+
 ## Boundaries
 
 Rules detect. AI investigates. Policy validates. APIs execute. Outcomes verify.

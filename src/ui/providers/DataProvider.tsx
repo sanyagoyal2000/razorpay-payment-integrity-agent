@@ -32,7 +32,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     import("@/fixtures/dataset.json")
       .then((module) => {
         if (cancelled) return;
-        const created = createAppServices(module.default as unknown as Dataset, systemClock, localStoragePersistence());
+        const created = createAppServices(module.default as unknown as Dataset, systemClock, localStoragePersistence(), { liveAgent: true });
         unsubscribe = created.store.subscribe(() => {
           setVersion((v) => v + 1);
           setNow(new Date());

@@ -26,6 +26,8 @@ import { runExecution } from "@/services/execution";
 import { ACTIONS } from "@/services/policy/actions";
 import type { CaseDetailModel } from "@/services/views/cases";
 import { Surface } from "@/ui/components/Surface";
+import { draftCustomerMessage, messageInputForCase } from "@/services/agent";
+import { MessageDraftModal } from "@/ui/agent/MessageDraftModal";
 import { ExecutionProgress } from "./ExecutionProgress";
 import { PolicyVerdictSection } from "./PolicyVerdictSection";
 
@@ -37,7 +39,7 @@ const OUTCOME_LABELS: Record<string, string> = {
   plan_upgraded: "Plan upgraded",
 };
 
-type Dialog = { kind: "edit" } | { kind: "reject" } | { kind: "escalate" } | { kind: "confirm"; option: DecisionOption } | null;
+type Dialog = { kind: "edit" } | { kind: "reject" } | { kind: "escalate" } | { kind: "message" } | { kind: "confirm"; option: DecisionOption } | null;
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -72,9 +74,9 @@ export function DecisionPanel({ model, services }: { model: CaseDetailModel; ser
     setEditAction("");
   };
 
-  const run = (action: ActionType, note = "") => {
+  const run = (action: ActionType, note = "", message?: string) => {
     try {
-      const result = applyDecision(services, c.id, action, OPERATOR.name, note);
+      const result = applyDecision(services, c.id, action, OPERATOR.name, note, message);
       close();
       if (result.kind === "execution") {
         void runExecution(services, result.executionId).then((execution) => {
@@ -252,7 +254,9 @@ export function DecisionPanel({ model, services }: { model: CaseDetailModel; ser
                           variant="secondary"
                           isFullWidth
                           isDisabled={option.disabledReason !== undefined}
-                          onClick={() => (option.action === "escalate" ? setDialog({ kind: "escalate" }) : setDialog({ kind: "confirm", option }))}
+                          onClick={() =>
+                            setDialog(option.action === "escalate" ? { kind: "escalate" } : option.action === "notify_customer" ? { kind: "message" } : { kind: "confirm", option })
+                          }
                         >
                           {option.action === "notify_customer" ? "Contact customer" : option.label}
                         </Button>
@@ -297,6 +301,16 @@ export function DecisionPanel({ model, services }: { model: CaseDetailModel; ser
           </>
         ) : null}
       </Box>
+
+      <MessageDraftModal
+        isOpen={dialog?.kind === "message"}
+        title="Contact customer"
+        recipients={model.customer.name}
+        loadDraft={() => draftCustomerMessage(services.agent, messageInputForCase(services.repos, c))}
+        onSend={(message) => run("notify_customer", "", message)}
+        onDismiss={close}
+        error={error}
+      />
 
       <Modal isOpen={dialog?.kind === "edit"} onDismiss={close} size="medium" accessibilityLabel="Edit recommendation">
         <ModalHeader title="Edit the recommended action" subtitle="Blocked actions cannot be chosen. Policy is re-checked before anything runs." />

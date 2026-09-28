@@ -8,7 +8,9 @@ import { isAtRisk } from "@/services/metrics/cases";
 import { ACTIONS, serviceLabel } from "@/services/policy/actions";
 import { evaluateCase, requireContract } from "@/services/policy/currentState";
 import { assessCase, planBulkRecovery } from "@/services/recovery/groups";
+import { describeCaseInvestigation } from "@/services/agent";
 import { groupEvidence, resolveEvidence } from "./evidence";
+import { investigationView } from "./investigation";
 import { AMOUNT_BANDS, type AmountBand } from "./incidents";
 import { CASE_TYPE_LABELS } from "./overview";
 
@@ -326,6 +328,7 @@ export function caseDetail(repos: Repositories, caseId: string, asOf: string) {
     otherAttempts,
     customerView: customerStatus(repos, c),
     timeline: caseTimeline(repos, c, asOf),
+    investigation: investigationView(repos, c.investigation, describeCaseInvestigation(repos, c)),
     recommendation: c.recommendation,
     evidence,
     evidenceCount: evidence.reduce((n, g) => n + g.items.length, 0),

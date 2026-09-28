@@ -352,7 +352,15 @@ export type InvestigationAction =
   | "refund_duplicate"
   | "escalate";
 
-/** spec */
+/** A cause the investigator weighed, and what the cited evidence says about it. */
+export type Hypothesis = {
+  cause: string;
+  verdict: "supported" | "ruled_out" | "inconclusive";
+  evidenceIds: string[];
+  reasoning: string;
+};
+
+/** spec, extended with the hypotheses considered. */
 export type Investigation = {
   summary: string;
   likelyCause: string;
@@ -363,6 +371,17 @@ export type Investigation = {
   customerImpact: string;
   consequenceOfInaction: string;
   customerMessageDraft?: string;
+  hypotheses?: Hypothesis[];
+};
+
+/** How the current investigation of a case or incident was produced and checked. */
+export type InvestigationRun = {
+  at: ISODateTime;
+  eventsExamined: number;
+  sources: Record<string, number>;
+  citationsChecked: number;
+  citationsRemoved: string[];
+  status: "valid" | "invalid" | "unavailable";
 };
 
 /** The action currently proposed for a case. */
@@ -518,6 +537,7 @@ export type IntegrityCase = {
   detectedAt: ISODateTime;
   deadline?: ISODateTime;
   investigation?: Investigation;
+  investigationRun?: InvestigationRun;
   recommendation?: Recommendation;
   policyVerdict?: PolicyVerdict;
   customerId: string;
@@ -576,6 +596,7 @@ export type IncidentRecord = {
   affectedService: string;
   summary: string;
   investigation?: Investigation;
+  investigationRun?: InvestigationRun;
   containment?: ContainmentDecision[];
 };
 
