@@ -22,6 +22,15 @@ Rules detect → AI investigates → Policy validates → APIs execute → Outco
 
 Components contain no business logic. Every figure on screen comes from a service computing over the store.
 
+View models added for the briefing, contribution, autonomy and validation work:
+- `views/briefing.ts`: the Overview briefing and the incident priority.
+- `views/agentContribution.ts`: "Why the agent was needed".
+- `views/investigation.ts`: stage views and the "How this investigation was produced" disclosure. The stages are built in `agent/progress.ts`.
+- `autonomyEligibility.ts` and `metrics/autonomy.ts`: earned autonomy.
+- `evaluation/` and `views/evaluation.ts`: investigator validation. This is offline and never imports execution or adapters.
+- `communication.ts` and `privacy.ts`: message details and contact masking.
+- `versions.ts`: the agent and policy versions and the fingerprints recorded in audit detail.
+
 ## Data flow
 
 1. On first load, `DataProvider` (client-only, after mount) imports `dataset.json`. It then creates the `DataStore`, which shifts every fixture timestamp by whole minutes so the latest event sits about a minute before now. The offset is persisted immediately.

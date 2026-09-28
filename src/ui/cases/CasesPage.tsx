@@ -175,7 +175,7 @@ export function CasesPage() {
                 Clear selection
               </Button>
               <Button variant="primary" size="small" isDisabled={!selection.allowed} onClick={() => setConfirming(true)}>
-                {`Approve retry provisioning for ${selected.length}`}
+                {`Approve recovery for ${selected.length}`}
               </Button>
             </Box>
           </Box>
@@ -264,7 +264,7 @@ export function CasesPage() {
       </Text>
       {selection ? (
         <Modal isOpen={confirming} onDismiss={() => setConfirming(false)} size="small" accessibilityLabel="Confirm bulk recovery">
-          <ModalHeader title={`Approve retry provisioning for ${selection.plan.eligible.length} cases?`} subtitle={`${formatINR(selection.plan.value)} across ${selection.plan.eligible.length} customers`} />
+          <ModalHeader title={`Approve recovery for ${selection.plan.eligible.length} cases?`} subtitle={`${formatINR(selection.plan.value)} across ${selection.plan.eligible.length} customers`} />
           <ModalBody>
             <Text size="small">
               One idempotent enrolment request per payment. Policy is re-checked for each case before its request is sent, and each case resolves only

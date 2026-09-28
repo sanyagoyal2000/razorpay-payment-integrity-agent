@@ -4,7 +4,7 @@ import { istDate } from "@/domain/time";
 import type { Repositories } from "@/repositories";
 import { containmentOptions, engineeringIncident, monitoringProgress, notificationPreview } from "@/services/containment";
 import { incidentTotals } from "@/services/metrics/cases";
-import { ACTIONS, serviceLabel } from "@/services/policy/actions";
+import { actionLabel, serviceLabel } from "@/services/policy/actions";
 import { requireContract, serviceHealth } from "@/services/policy/currentState";
 import { groupIncidentCases, planBulkRecovery, type RecoveryGroupId } from "@/services/recovery/groups";
 import { describeIncidentInvestigation } from "@/services/agent";
@@ -211,7 +211,7 @@ export function recoveryPlan(repos: Repositories, incident: IncidentRecord, sele
     actions:
       plan.eligible.length === 0
         ? "No actions. None of the selected cases can be recovered in bulk."
-        : `${plan.eligible.length} × ${ACTIONS[plan.action].label} through the LearnLoop Enrolment API, one idempotent request per payment`,
+        : `${plan.eligible.length} × ${actionLabel(plan.action, contract)} through ${contract.fulfilmentService === "enrolment-service" ? "the LearnLoop Enrolment API" : `LearnLoop's ${serviceLabel(contract.fulfilmentService).toLowerCase()}`}, one idempotent request per payment`,
     excluded: plan.excluded,
     communication:
       notifyMode === "automatic_below_threshold" && !repos.config.globalControls().requireApprovalForCustomerCommunication

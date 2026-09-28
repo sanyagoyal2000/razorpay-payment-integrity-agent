@@ -1,4 +1,5 @@
 import type { MerchantOutcomeEvent, OutcomeContract, PaymentEvent, WebhookDelivery } from "@/domain/types";
+import { fulfilmentVocabulary } from "@/domain/fulfilment";
 import { addSeconds, type Clock } from "@/domain/time";
 import { WEBHOOK_ENDPOINT } from "@/fixtures/catalogue";
 import type { Repositories } from "@/repositories";
@@ -34,14 +35,15 @@ function requestFulfilment(
   contract: OutcomeContract,
   idempotencyKey: string,
 ): ActionCallResult {
+  const fulfil = fulfilmentVocabulary(contract.fulfilmentService);
   const request: MerchantOutcomeEvent = {
     id: repos.nextId("ll_evt"),
     merchantOrderId,
     source: "learnloop",
-    type: "enrolment.requested",
+    type: fulfil.requested,
     status: "pending",
     occurredAt: now,
-    metadata: { endpoint: "/enroll", initiatedBy: "payment_integrity", idempotencyKey },
+    metadata: { endpoint: fulfil.endpoint, initiatedBy: "payment_integrity", idempotencyKey },
   };
   repos.outcomes.appendEvent(request);
   if (serviceHealth(repos, contract.fulfilmentService, now) !== "healthy") {
@@ -49,11 +51,11 @@ function requestFulfilment(
       id: repos.nextId("ll_evt"),
       merchantOrderId,
       source: "learnloop",
-      type: "enrolment.failed",
+      type: fulfil.failed,
       status: "failed",
       responseCode: 500,
       occurredAt: now,
-      metadata: { endpoint: "/enroll", idempotencyKey },
+      metadata: { endpoint: fulfil.endpoint, idempotencyKey },
     };
     repos.outcomes.appendEvent(failed);
     return { accepted: false, responseCode: 500, eventIds: [request.id, failed.id] };

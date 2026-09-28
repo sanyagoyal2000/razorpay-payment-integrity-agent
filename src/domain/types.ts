@@ -34,6 +34,8 @@ export type Customer = {
   name: string;
   email: string;
   phone: string;
+  /** The customer unsubscribed from LearnLoop email; no message may be sent to them. */
+  emailOptOut?: boolean;
 };
 
 export type ProductKind =
@@ -125,6 +127,13 @@ export type WebhookDelivery = {
 export type OutcomeEventType =
   | "enrolment.requested"
   | "enrolment.failed"
+  | "booking.requested"
+  | "membership.activation_requested"
+  | "membership.activation_failed"
+  | "wallet.credit_requested"
+  | "wallet.credit_failed"
+  | "plan.upgrade_requested"
+  | "plan.upgrade_failed"
   | "course_access_granted"
   | "course_access_revoked"
   | "inventory_changed"
@@ -481,7 +490,7 @@ export type CurrentMerchantState = {
   actionModes: Record<PolicyAction, ActionMode>;
   contract: Pick<
     OutcomeContract,
-    "id" | "status" | "maxAutomaticValue" | "minimumConfidence" | "alwaysReviewCaseTypes" | "fulfilmentService"
+    "id" | "status" | "maxAutomaticValue" | "minimumConfidence" | "alwaysReviewCaseTypes" | "fulfilmentService" | "expectedOutcome"
   >;
   controls: GlobalControls;
   fulfilmentServiceHealth: "healthy" | "degraded" | "down";
@@ -699,6 +708,27 @@ export type AuditEvent = {
   approvalSource?: "merchant" | "policy_automatic" | "not_required";
   caseId?: string;
   incidentId?: string;
+  /** Machine-readable context for agent invocations and executions. Never raw PII or model reasoning. */
+  detail?: AuditDetail;
+};
+
+export type AuditDetail = {
+  /** Groups the events of one agent run or one execution. */
+  invocationId?: string;
+  trigger?: "merchant" | "system" | "automatic_policy";
+  agentVersion?: string;
+  policyVersion?: string;
+  /** Connectors or data sources read. */
+  sources?: string[];
+  /** Model and provider, or the deterministic fallback that produced the result. */
+  producedBy?: string;
+  /** Short fingerprints (FNV-1a) of the input and output, not their contents. */
+  inputFingerprint?: string;
+  outputFingerprint?: string;
+  idempotencyKey?: string;
+  /** Execution state when the event was recorded, including stopped or failed. */
+  state?: string;
+  failure?: string;
 };
 
 export const ACTORS = {

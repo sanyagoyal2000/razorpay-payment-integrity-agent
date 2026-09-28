@@ -81,7 +81,7 @@ export function PrimaryMetrics({ metrics, onShowCases }: { metrics: Metrics; onS
         footnote={metrics.openIncidents.value === 0 ? "No systemic issues detected" : metrics.openIncidents.incidentIds.join(", ")}
       />
       <Metric
-        label="Resolved before customer contact"
+        label="Cases resolved before customer contact"
         value={count(metrics.resolvedBeforeContact.value)}
         footnote="Trailing 30 days"
         action={{

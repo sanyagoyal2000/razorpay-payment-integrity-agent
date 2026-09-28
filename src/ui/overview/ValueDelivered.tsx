@@ -56,14 +56,14 @@ export function ValueDelivered({ value, onShowCases }: { value: Value; onShowCas
         <ValueFigure
           label="Avoidable refunds prevented"
           value={value.avoidableRefundsPrevented.value.toLocaleString("en-IN")}
-          detail={formatINR(value.avoidableRefundsPrevented.amount)}
+          detail={`${value.avoidableRefundsPrevented.value === 1 ? "Payment" : "Payments"} worth ${formatINR(value.avoidableRefundsPrevented.amount)}`}
           explanation={VALUE_DELIVERED_EXPLANATIONS.avoidableRefundsPrevented}
           onView={show("Avoidable refunds prevented", VALUE_DELIVERED_EXPLANATIONS.avoidableRefundsPrevented, value.avoidableRefundsPrevented.caseIds)}
         />
         <ValueFigure
           label="Estimated support contacts avoided"
           value={value.supportContactsAvoided.value.toLocaleString("en-IN")}
-          detail="One contact per case"
+          detail="Contacts; one per case"
           explanation={VALUE_DELIVERED_EXPLANATIONS.supportContactsAvoided}
           onView={show("Estimated support contacts avoided", VALUE_DELIVERED_EXPLANATIONS.supportContactsAvoided, value.supportContactsAvoided.caseIds)}
         />

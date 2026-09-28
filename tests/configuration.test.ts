@@ -96,7 +96,8 @@ describe("Outcome Contracts", () => {
   it("previews the resulting logic in plain language", () => {
     const env = setup();
     const lines = contractLogic(contractToForm(env.repos.config.contract("ctr_event_booking")!), (id) => env.repos.payments.product(id)?.name ?? id, 5000);
-    expect(lines[0]).toBe("When a payment for System Design Live Workshop, Bengaluru is captured, expect booking_confirmed from enrolment-service, matched on merchant_order_id, within 5 min.");
+    expect(lines[0]).toBe("When a payment for System Design Live Workshop, Bengaluru is captured, expect booking_confirmed from booking-service, matched on merchant_order_id, within 5 min.");
+    expect(lines[1]).toBe("If it does not arrive, open a case and propose to reconfirm booking.");
     expect(lines).toContain("Never fulfil if the purchased inventory changed after payment.");
   });
 });
@@ -105,7 +106,7 @@ describe("Integrations", () => {
   it("shows scopes, actions and health from data", () => {
     const env = setup();
     const rows = integrationRows(env.repos, NOW);
-    expect(rows.find((r) => r.id === "learnloop_enrolment")!.actionsAllowed).toEqual(["Retry provisioning"]);
+    expect(rows.find((r) => r.id === "learnloop_enrolment")!.actionsAllowed).toEqual(["Retry enrolment"]);
     expect(rows.find((r) => r.id === "razorpay_payments")!.errorSummary).toMatch(/% errors/);
     expect(rows.every((r) => r.lastSuccessfulEventAt === undefined || r.lastSuccessfulEventAt <= NOW)).toBe(true);
     const health = integrationHealth(env.repos, NOW);
@@ -124,5 +125,27 @@ describe("Integrations", () => {
     setIntegrationConnected(env.repos, "learnloop_enrolment", true, ACTORS.operator, NOW);
     expect(evaluateCase(env.repos, c, c.recommendation!, NOW).result).toBe("requires_approval");
     expect(env.repos.audit.list().slice(-2).map((e) => e.action)).toEqual(["Revoked integration", "Reconnected integration"]);
+  });
+});
+
+describe("Contract-specific language", () => {
+  it("labels actions in each contract's own terms", async () => {
+    const { actionLabel } = await import("@/services/policy/actions");
+    const env = setup();
+    const label = (id: string) => actionLabel("retry_provisioning", env.repos.config.contract(id)!);
+    expect(label("ctr_course_purchase")).toBe("Retry enrolment");
+    expect(label("ctr_event_booking")).toBe("Reconfirm booking");
+    expect(label("ctr_membership_activation")).toBe("Activate membership");
+    expect(label("ctr_wallet_credit")).toBe("Credit wallet");
+    expect(label("ctr_saas_upgrade")).toBe("Apply plan upgrade");
+  });
+
+  it("never shows enrolment terms on the event-booking case", async () => {
+    const { caseDetail } = await import("@/services/views/cases");
+    const env = setup();
+    const booking = env.refusalCase;
+    expect(env.repos.config.contract(booking.outcomeContractId)!.fulfilmentService).toBe("booking-service");
+    const text = JSON.stringify(caseDetail(env.repos, booking.id, NOW));
+    expect(text).not.toMatch(/enrol|grant_course_access|Retry provisioning|course access/i);
   });
 });

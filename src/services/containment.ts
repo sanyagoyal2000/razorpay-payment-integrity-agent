@@ -1,3 +1,4 @@
+import { messageAudience } from "@/services/communication";
 import type { ContainmentAction, ContainmentDecision, IncidentRecord } from "@/domain/types";
 import { ACTORS } from "@/domain/types";
 import { formatINR } from "@/domain/money";
@@ -45,7 +46,9 @@ const LABELS: Record<ContainmentAction, { label: string; description: string }> 
 export function containmentOptions(repos: Repositories, incident: IncidentRecord, asOf: string): ContainmentOption[] {
   const recorded = new Map((incident.containment ?? []).map((d) => [d.action, d]));
   const openCases = incidentTotals(incident, repos.cases.list()).openCaseIds.map((id) => repos.cases.get(id)!);
-  const notifiable = openCases.filter((c) => c.customerContact === "none");
+  const uncontacted = openCases.filter((c) => c.customerContact === "none");
+  const { optedOut } = messageAudience(repos, uncontacted.map((c) => c.customerId));
+  const notifiable = uncontacted.filter((c) => !optedOut.includes(c.customerId));
   return (Object.keys(LABELS) as ContainmentAction[]).map((action) => {
     const option: ContainmentOption = { action, ...LABELS[action] };
     const decision = recorded.get(action);
@@ -53,7 +56,11 @@ export function containmentOptions(repos: Repositories, incident: IncidentRecord
     if (incident.status === "resolved") option.unavailableReason = "The incident is resolved.";
     else if (action === "notify_customers") {
       const blocked = notifyBlockedReason(repos, notifiable[0], asOf);
-      if (notifiable.length === 0) option.unavailableReason = "Every affected customer has already been contacted.";
+      if (notifiable.length === 0)
+        option.unavailableReason =
+          optedOut.length > 0
+            ? `Every reachable customer has been contacted; ${optedOut.length} opted out of email.`
+            : "Every affected customer has already been contacted.";
       else if (blocked) option.unavailableReason = blocked;
     } else if (action === "engineering_incident" && repos.config.integration("incident_management")?.status !== "connected") {
       option.unavailableReason = "Slack incident management is not connected.";
@@ -75,7 +82,13 @@ export function notificationPreview(repos: Repositories, incident: IncidentRecor
   const contract = requireContract(repos, incident.outcomeContractId);
   const open = incidentTotals(incident, repos.cases.list()).openCaseIds.map((id) => repos.cases.get(id)!);
   const recipients = open.filter((c) => c.customerContact === "none");
-  return { template: contract.customerNotificationTemplate, recipientCaseIds: recipients.map((c) => c.id) };
+  const { optedOut } = messageAudience(repos, recipients.map((c) => c.customerId));
+  const sendable = recipients.filter((c) => !optedOut.includes(c.customerId));
+  return {
+    template: contract.customerNotificationTemplate,
+    recipientCaseIds: sendable.map((c) => c.id),
+    optedOutCaseIds: recipients.filter((c) => optedOut.includes(c.customerId)).map((c) => c.id),
+  };
 }
 
 /**
@@ -109,13 +122,14 @@ export function applyContainment(
         const flagged = checkCustomerMessage(text);
         if (flagged.length > 0) throw new Error(`Remove ${flagged.join(", ")} from the message before sending.`);
       }
-      const { recipientCaseIds } = notificationPreview(repos, incident);
+      const { recipientCaseIds, optedOutCaseIds } = notificationPreview(repos, incident);
       for (const id of recipientCaseIds) {
         const c = repos.cases.get(id)!;
         repos.cases.save({ ...c, customerContact: "notified", updatedAt: asOf });
       }
       caseIds = recipientCaseIds;
-      detail = text ? `Notification sent to ${recipientCaseIds.length} customers: “${text}”` : `Notification sent to ${recipientCaseIds.length} customers.`;
+      const excluded = optedOutCaseIds.length > 0 ? ` ${optedOutCaseIds.length} opted out of email and ${optedOutCaseIds.length === 1 ? "was" : "were"} not contacted.` : "";
+      detail = text ? `Notification sent to ${recipientCaseIds.length} customers by email: “${text}”${excluded}` : `Notification sent to ${recipientCaseIds.length} customers by email.${excluded}`;
       break;
     }
     case "access_pending":

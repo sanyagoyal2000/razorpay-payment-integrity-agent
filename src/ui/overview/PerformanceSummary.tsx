@@ -88,7 +88,7 @@ export function PerformanceSummary({
       <Divider />
       <Figure
         label="Avoidable refunds prevented"
-        value={`${performance.avoidableRefunds.value} · ${formatINR(performance.avoidableRefunds.amount)}`}
+        value={`${performance.avoidableRefunds.value} ${performance.avoidableRefunds.value === 1 ? "payment" : "payments"} · ${formatINR(performance.avoidableRefunds.amount)}`}
         detail="Late authorisations captured before the automatic refund"
         action={{
           label: "View",

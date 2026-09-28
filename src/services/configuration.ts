@@ -5,7 +5,7 @@ import type { Repositories } from "@/repositories";
 import { formatIstShort } from "@/domain/time";
 import { evaluateAutonomyEligibility, type AutonomyEligibility } from "@/services/autonomyEligibility";
 import { earnedAutonomy, type AutonomyEvidence } from "@/services/metrics/autonomy";
-import { POLICY_ACTION_LABELS } from "@/services/policy/actions";
+import { actionLabel, POLICY_ACTION_LABELS } from "@/services/policy/actions";
 import { modeLabel } from "@/services/policy/evaluatePolicy";
 
 export class ConfigurationError extends Error {
@@ -296,7 +296,7 @@ function uniqueContractId(repos: Repositories, name: string): string {
 export function contractLogic(values: ContractForm, productNames: (id: string) => string, globalMax: number): string[] {
   const deadline = values.deadlineSeconds >= 3600 ? `${values.deadlineSeconds / 3600} h` : values.deadlineSeconds >= 60 ? `${values.deadlineSeconds / 60} min` : `${values.deadlineSeconds} s`;
   const products = values.productScope.length === 0 ? "the selected products" : values.productScope.map(productNames).join(", ");
-  const recovery = { retry_provisioning: "retry provisioning", replay_webhook: "replay the order.paid webhook", escalate: "escalate to you" }[values.safeRecoveryAction];
+  const recovery = { retry_provisioning: actionLabel("retry_provisioning", { expectedOutcome: values.expectedOutcome }).toLowerCase(), replay_webhook: "replay the order.paid webhook", escalate: "escalate to you" }[values.safeRecoveryAction];
   const limit = Math.min(values.maxAutomaticValue, globalMax);
   const lines = [
     `When a payment for ${products} is captured, expect ${values.expectedOutcome} from ${values.fulfilmentService}, matched on ${values.matchingKey}, within ${deadline}.`,

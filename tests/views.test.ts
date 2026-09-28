@@ -111,7 +111,7 @@ describe("Incident workspace", () => {
     expect(requiredDecision(env.repos, incident, asOf)).toBe("Review 5 cases individually");
     const workspace = incidentWorkspace(env.repos, "INC-0017", asOf)!;
     expect(workspace.history[0]!.change).toMatch(/38 customer outcomes verified/);
-    expect(workspace.history.some((h) => /Approved retry provisioning for 38 cases \(₹1,51,962\)/.test(h.change))).toBe(true);
+    expect(workspace.history.some((h) => /Approved retry enrolment for 38 cases \(₹1,51,962\)/.test(h.change))).toBe(true);
     const activity = overviewModel(env.repos, asOf).activity;
     expect(activity.find((a) => a.category === "Outcome verified")!.count).toBe(38);
     expect(activity.find((a) => a.category === "Case resolved")!.count).toBe(38);
@@ -168,8 +168,12 @@ describe("Containment", () => {
   it("notifies each affected customer once and records the decision", () => {
     const env = setup();
     const decision = applyContainment(env.repos, "INC-0017", "notify_customers", ACTORS.operator, NOW);
-    expect(decision.caseIds).toHaveLength(43);
-    expect(env.repos.cases.forIncident("INC-0017").every((c) => c.customerContact === "notified")).toBe(true);
+    // One affected customer opted out of email: 42 are notified and the opt-out is recorded, not contacted.
+    expect(decision.caseIds).toHaveLength(42);
+    expect(decision.detail).toContain("1 opted out of email and was not contacted");
+    const notContacted = env.repos.cases.forIncident("INC-0017").filter((c) => c.customerContact !== "notified");
+    expect(notContacted).toHaveLength(1);
+    expect(env.repos.payments.customer(notContacted[0]!.customerId)!.emailOptOut).toBe(true);
     expect(env.repos.audit.forIncident("INC-0017").at(-1)).toMatchObject({ action: "Notify affected customers", actor: ACTORS.operator });
     const option = containmentOptions(env.repos, env.repos.incidents.get("INC-0017")!, NOW).find((o) => o.action === "notify_customers")!;
     expect(option.decision).toBeDefined();

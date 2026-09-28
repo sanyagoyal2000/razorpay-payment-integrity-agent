@@ -111,6 +111,7 @@ export function buildCurrentState(
       minimumConfidence: contract.minimumConfidence,
       alwaysReviewCaseTypes: contract.alwaysReviewCaseTypes,
       fulfilmentService: contract.fulfilmentService,
+      expectedOutcome: contract.expectedOutcome,
     },
     controls: repos.config.globalControls(),
     fulfilmentServiceHealth: serviceHealth(repos, contract.fulfilmentService, asOf),

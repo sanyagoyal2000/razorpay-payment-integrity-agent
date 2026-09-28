@@ -34,7 +34,7 @@ export function draftMessageByRule(input: MessageDraftInput): MessageDraft {
 }
 
 const OUTCOME_RULES: Array<{ pattern: RegExp; outcome: ContractDraft["expectedOutcome"]; service: string; kinds: string[]; name: string; deadline: number }> = [
-  { pattern: /\b(seat|workshop|event|booking|ticket)s?\b/i, outcome: "booking_confirmed", service: "enrolment-service", kinds: ["event_seat"], name: "Event booking", deadline: 300 },
+  { pattern: /\b(seat|workshop|event|booking|ticket)s?\b/i, outcome: "booking_confirmed", service: "booking-service", kinds: ["event_seat"], name: "Event booking", deadline: 300 },
   { pattern: /\b(membership|member|plus)\b/i, outcome: "membership_activated", service: "membership-service", kinds: ["membership"], name: "Membership activation", deadline: 300 },
   { pattern: /\b(credit|credits|wallet)\b/i, outcome: "wallet_credited", service: "wallet-service", kinds: ["credits"], name: "Wallet credit purchase", deadline: 60 },
   { pattern: /\b(upgrade|plan|team|teams)\b/i, outcome: "plan_upgraded", service: "billing-service", kinds: ["plan_upgrade"], name: "SaaS upgrade", deadline: 300 },

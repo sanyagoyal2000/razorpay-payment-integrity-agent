@@ -3,6 +3,8 @@
 import { Alert, Box, Button, Modal, ModalBody, ModalFooter, ModalHeader, Spinner, Text, TextArea } from "@razorpay/blade/components";
 import { useEffect, useState } from "react";
 import { checkCustomerMessage, type CheckedDraft } from "@/services/agent";
+import type { CommunicationSummary } from "@/services/communication";
+import { MetaList } from "@/ui/components/MetaList";
 
 /**
  * Review a message the agent drafted before anything is sent. Edits are
@@ -11,7 +13,7 @@ import { checkCustomerMessage, type CheckedDraft } from "@/services/agent";
 export function MessageDraftModal({
   isOpen,
   title,
-  recipients,
+  summarize,
   loadDraft,
   onSend,
   onDismiss,
@@ -19,7 +21,8 @@ export function MessageDraftModal({
 }: {
   isOpen: boolean;
   title: string;
-  recipients: string;
+  /** Channel, consent, opt-outs, recipients, format and review requirement for the current text. */
+  summarize: (text: string) => CommunicationSummary;
   loadDraft: () => Promise<CheckedDraft>;
   onSend: (message: string) => void;
   onDismiss: () => void;
@@ -46,9 +49,10 @@ export function MessageDraftModal({
   }, [isOpen]);
 
   const flagged = checkCustomerMessage(text);
+  const summary = summarize(text);
   return (
     <Modal isOpen={isOpen} onDismiss={onDismiss} size="medium" accessibilityLabel={title}>
-      <ModalHeader title={title} subtitle={`To ${recipients}. Drafted by Payment Integrity Agent; review before sending.`} />
+      <ModalHeader title={title} subtitle={`To ${summary.recipientLabel}. Drafted by Payment Integrity Agent; review before sending.`} />
       <ModalBody>
         {loading ? (
           <Box display="flex" alignItems="center" gap="spacing.3" paddingY="spacing.6">
@@ -57,6 +61,20 @@ export function MessageDraftModal({
           </Box>
         ) : (
           <Box display="flex" flexDirection="column" gap="spacing.4">
+            <MetaList
+              minColumnWidth={170}
+              items={[
+                { label: "Channel", value: summary.channel },
+                {
+                  label: "Recipients",
+                  value: summary.recipientLabel,
+                  help: summary.optedOut > 0 ? `${summary.optedOut} opted out of email and will not be contacted` : "No recipient has opted out",
+                },
+                { label: "Consent", value: summary.consent },
+                { label: "Format", value: summary.formatLabel },
+                { label: "Merchant review", value: summary.reviewLabel },
+              ]}
+            />
             <TextArea
               label="Message"
               value={text}
@@ -87,7 +105,7 @@ export function MessageDraftModal({
           <Button variant="tertiary" onClick={draft} isDisabled={loading}>Draft again</Button>
           <Box display="flex" gap="spacing.3">
             <Button variant="secondary" onClick={onDismiss}>Cancel</Button>
-            <Button variant="primary" isDisabled={loading || text.trim().length === 0 || flagged.length > 0} onClick={() => onSend(text.trim())}>
+            <Button variant="primary" isDisabled={loading || text.trim().length === 0 || flagged.length > 0 || summary.recipients === 0} onClick={() => onSend(text.trim())}>
               Send
             </Button>
           </Box>

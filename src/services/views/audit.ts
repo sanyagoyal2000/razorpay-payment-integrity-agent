@@ -90,3 +90,26 @@ export const APPROVAL_SOURCE_LABELS: Record<NonNullable<AuditEvent["approvalSour
   policy_automatic: "Policy (automatic)",
   not_required: "Not required",
 };
+
+export const AUDIT_DETAIL_LABELS: Record<keyof NonNullable<AuditEvent["detail"]>, string> = {
+  invocationId: "Invocation",
+  trigger: "Trigger",
+  agentVersion: "Agent version",
+  policyVersion: "Policy version",
+  sources: "Sources accessed",
+  producedBy: "Produced by",
+  inputFingerprint: "Input fingerprint",
+  outputFingerprint: "Output fingerprint",
+  idempotencyKey: "Idempotency key",
+  state: "Execution state",
+  failure: "Failure",
+};
+
+/**
+ * Machine-readable export of audit entries: the stored events exactly as
+ * recorded, plus their derived category and outcome. Contains no customer
+ * contact details, because audit events never store them.
+ */
+export function auditExport(rows: readonly AuditRow[], exportedAt: string) {
+  return { format: "payment-integrity.audit.v1", exportedAt, count: rows.length, events: rows };
+}

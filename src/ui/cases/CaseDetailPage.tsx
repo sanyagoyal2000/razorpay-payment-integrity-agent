@@ -54,7 +54,7 @@ export function CaseDetailPage({ caseId }: { caseId: string }) {
         }
       />
       <Box display="grid" gridTemplateColumns={{ base: "1fr", l: "280px minmax(0, 1fr) 400px" }} gap="spacing.5" alignItems="start">
-        <PaymentPanel model={model} now={state.now} />
+        <PaymentPanel model={model} now={state.now} services={state.services} />
         <Box display="flex" flexDirection="column" gap="spacing.5" minWidth="0px">
           <TimelinePanel entries={model.timeline} />
           <InvestigationPanel

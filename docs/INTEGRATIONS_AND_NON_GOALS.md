@@ -7,16 +7,18 @@ No real Razorpay, LearnLoop, messaging or Slack calls are made. Each integration
 | Razorpay Payments | Read payment, order and webhook data; write `capture_payment`, `replay_webhook`; `issue_refund` not granted | Capture emits `payment.captured` and `order.paid` plus a delivery. Replay emits a new delivery. Both then ask LearnLoop to fulfil. |
 | LearnLoop Orders API | Read-only | Merchant orders in fixtures. |
 | LearnLoop Enrolment API | Read access status; write `grant_course_access` | Grants access 2 s after a request while `enrolment-service` is healthy; otherwise returns HTTP 500. Repeated idempotency keys are ignored. |
-| Customer communications | Write `send_customer_message` | Messages are recorded on the case or incident and in the audit log, not delivered. |
+| Customer communications | Write `send_customer_message` | Email only. Messages are recorded on the case or incident and in the audit log, not delivered. Opted-out customers are excluded. |
 | Slack incident management | Write `create_incident`, `post_message` | Escalations and engineering incidents are recorded with references, not posted. |
 | LearnLoop Observability | Read-only | Deploy events and service errors or recoveries in fixtures; the source for "deployment v2.3". |
 
 Revoking an integration removes its scopes, and policy then blocks every action that needs them.
 
+The event-booking contract is fulfilled by LearnLoop's booking service, which has no connected integration. Its `confirm_booking` scope is therefore not granted, so booking retries are always blocked by policy and come to a person. Membership activation (`activate_membership`) works the same way.
+
 # Deliberate non-goals
 
 - **No backend or database.** State lives in the browser (`localStorage`). Data is per browser and is not shared between users.
-- **No authentication or roles.** The operator is Priya Sharma.
+- **No authentication.** The operator is Priya Sharma (Payments Operations Manager). The only role check is the one that allows revealing customer contact details.
 - **No real payments, refunds, messages or Slack posts.** Refunds are only prepared for LearnLoop finance, because Payment Integrity has no refund permission.
 - **No live detection engine.** Cases and incidents come from fixtures. New healthy purchases arrive on a fixed schedule; no new failures are generated.
 - **No chatbot.** The agent's work appears inside the workflows (investigations, drafts, explanations), not as a conversation.

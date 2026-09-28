@@ -4,7 +4,7 @@ import { formatINR } from "@/domain/money";
 import type { Repositories } from "@/repositories";
 import { refreshIncident } from "@/services/incidents";
 import { isAtRisk } from "@/services/metrics/cases";
-import { ACTIONS } from "@/services/policy/actions";
+import { ACTIONS, actionLabel } from "@/services/policy/actions";
 import { evaluateCase, requireContract } from "@/services/policy/currentState";
 import { verifyOutcome } from "@/services/verification";
 import { checkCustomerMessage } from "@/services/agent";
@@ -49,9 +49,10 @@ function applicability(c: IntegrityCase, action: ActionType, repos: Repositories
 
 export function decisionOption(repos: Repositories, c: IntegrityCase, action: ActionType, asOf: string): DecisionOption {
   const verdict = evaluateCase(repos, c, recommendationWithAction(c, action, asOf), asOf);
-  const option: DecisionOption = { action, label: ACTIONS[action].label, verdict, executes: EXECUTABLE_ACTIONS.has(action) };
+  const option: DecisionOption = { action, label: actionLabel(action, requireContract(repos, c.outcomeContractId)), verdict, executes: EXECUTABLE_ACTIONS.has(action) };
   const notApplicable = applicability(c, action, repos);
   if (!DECIDABLE.has(c.status)) option.disabledReason = `The case is ${c.status.replace("_", " ")}.`;
+  else if (action === "notify_customer" && repos.payments.customer(c.customerId)?.emailOptOut) option.disabledReason = "The customer opted out of email. Contact them through LearnLoop support instead.";
   else if (notApplicable) option.disabledReason = notApplicable;
   else if (verdict.result === "blocked") {
     const failed = verdict.checks.filter((check) => check.status !== "passed" && check.enforcement === "hard");
@@ -178,7 +179,7 @@ export function contactCustomer(repos: Repositories, caseId: string, actor: stri
     const flagged = checkCustomerMessage(text);
     if (flagged.length > 0) throw new DecisionError(`Remove ${flagged.join(", ")} from the message before sending.`);
   }
-  const detail = text ? `Message sent: “${text}”` : "Message sent: your payment is safe and a specialist is reviewing your order.";
+  const detail = text ? `Email sent: “${text}”` : "Email sent: your payment is safe and a specialist is reviewing your order.";
   const saved = addFollowUp(repos, c, { kind: "customer_message", createdAt: asOf, actor, detail, status: "sent" }, { customerContact: c.customerContact === "customer_initiated" ? "customer_initiated" : "notified" });
   audit(repos, c, { occurredAt: asOf, actor, action: "Contacted customer", result: detail, policyResult: option.verdict.result });
   return saved.followUps!.at(-1)!;

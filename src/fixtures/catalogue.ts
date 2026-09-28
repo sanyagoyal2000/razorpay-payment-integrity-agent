@@ -149,7 +149,7 @@ export function buildContracts(at: (daysBeforeAnchor: number, time: string) => s
       minimumConfidence: 0.95,
       status: "active",
       productScope: ["prd_system_design_workshop"],
-      fulfilmentService: "enrolment-service",
+      fulfilmentService: "booking-service",
       verificationMethod: "booking_confirmed event with the original seat, matched on merchant_order_id",
       alwaysReviewCaseTypes: ["duplicate_payment", "inventory_conflict"],
       requiresInventoryCheck: true,
@@ -229,7 +229,7 @@ export function buildIntegrations(at: (daysBeforeAnchor: number, time: string) =
     {
       id: "customer_comms",
       name: "Customer communications",
-      purpose: "Email and SMS updates to affected customers",
+      purpose: "Email updates to affected customers",
       status: "connected",
       access: "scoped_write",
       scopes: { read: ["message_status"], write: ["send_customer_message"], notGranted: ["edit_customer"] },

@@ -21,6 +21,7 @@ import { applyContainment, type ContainmentOption } from "@/services/containment
 import type { AppServices } from "@/services/container";
 import type { IncidentWorkspaceModel } from "@/services/views/incidents";
 import { draftCustomerMessage, messageInputForIncident } from "@/services/agent";
+import { communicationSummary } from "@/services/communication";
 import { MessageDraftModal } from "@/ui/agent/MessageDraftModal";
 import { Surface } from "@/ui/components/Surface";
 
@@ -102,7 +103,14 @@ export function ContainmentSection({ model, services, now }: { model: IncidentWo
       <MessageDraftModal
         isOpen={pending?.action === "notify_customers"}
         title="Notify affected customers"
-        recipients={`${recipients} customers whose ${product} outcome is still missing (email and SMS)`}
+        summarize={(text) =>
+          communicationSummary(
+            services.repos,
+            [...model.notification.recipientCaseIds, ...model.notification.optedOutCaseIds].map((id) => services.repos.cases.get(id)!.customerId),
+            text,
+            model.notification.template,
+          )
+        }
         loadDraft={() => draftCustomerMessage(services.agent, messageInputForIncident(services.repos, model.incident.id))}
         onSend={(message) => confirm("notify_customers", message)}
         onDismiss={() => {
@@ -117,7 +125,7 @@ export function ContainmentSection({ model, services, now }: { model: IncidentWo
           {pending?.action === "notify_customers" ? (
             <Box display="flex" flexDirection="column" gap="spacing.4">
               <Text size="small">
-                {recipients} customers whose {product} outcome is still missing will receive this message by email and SMS:
+                {recipients} customers whose {product} outcome is still missing will receive this message by email:
               </Text>
               <Box padding="spacing.4" borderRadius="medium" backgroundColor="surface.background.gray.moderate">
                 <Text size="small">{model.notification.template.replace("{product}", "your course")}</Text>

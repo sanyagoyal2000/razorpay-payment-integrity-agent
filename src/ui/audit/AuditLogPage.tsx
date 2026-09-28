@@ -2,7 +2,11 @@
 
 import {
   Box,
+  Button,
   Code,
+  Drawer,
+  DrawerBody,
+  DrawerHeader,
   FilterChipGroup,
   SearchInput,
   Table,
@@ -17,10 +21,12 @@ import {
   Tooltip,
   TooltipInteractiveWrapper,
 } from "@razorpay/blade/components";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { formatIstShort } from "@/domain/time";
 import {
   APPROVAL_SOURCE_LABELS,
+  AUDIT_DETAIL_LABELS,
+  auditExport,
   AUDIT_ACTORS,
   AUDIT_CATEGORIES,
   AUDIT_OUTCOMES,
@@ -35,6 +41,7 @@ import {
 } from "@/services/views/audit";
 import { AppLink } from "@/ui/components/AppLink";
 import { VerdictBadge } from "@/ui/components/badges";
+import { MetaList } from "@/ui/components/MetaList";
 import { PageHeader } from "@/ui/components/PageHeader";
 import { EmptyMessage, PageError, PageSkeleton } from "@/ui/components/states";
 import { Surface } from "@/ui/components/Surface";
@@ -72,6 +79,40 @@ function Evidence({ ids }: { ids: string[] }) {
   );
 }
 
+function AuditDetailView({ row }: { row: AuditRow }) {
+  const detail = row.detail ?? {};
+  const entries = (Object.keys(AUDIT_DETAIL_LABELS) as Array<keyof typeof AUDIT_DETAIL_LABELS>)
+    .filter((key) => detail[key] !== undefined)
+    .map((key) => {
+      const value = detail[key]!;
+      return { label: AUDIT_DETAIL_LABELS[key], value: Array.isArray(value) ? value.join(", ") : String(value) };
+    });
+  return (
+    <Box display="flex" flexDirection="column" gap="spacing.5">
+      <MetaList
+        minColumnWidth={180}
+        items={[
+          { label: "Entry", value: row.id },
+          { label: "Category", value: row.category },
+          { label: "Target", value: <Target row={row} /> },
+          { label: "Result", value: row.result },
+          { label: "Policy result", value: row.policyResult ? <VerdictBadge result={row.policyResult} /> : "None" },
+          { label: "Approval source", value: row.approvalSource ? APPROVAL_SOURCE_LABELS[row.approvalSource] : "None" },
+          { label: "Evidence", value: <Evidence ids={row.evidenceIds ?? []} /> },
+        ]}
+      />
+      {entries.length > 0 ? (
+        <Box display="flex" flexDirection="column" gap="spacing.2">
+          <Text size="small" weight="semibold">Invocation detail</Text>
+          <MetaList minColumnWidth={180} items={entries} />
+        </Box>
+      ) : (
+        <Text size="xsmall" color="surface.text.gray.muted">No invocation detail was recorded for this entry.</Text>
+      )}
+    </Box>
+  );
+}
+
 export function AuditLogPage() {
   const [filters, setFilters] = usePreference<AuditFilters>("audit-filters", DEFAULT_AUDIT_FILTERS);
   const state = useModel((services, asOf) => ({
@@ -80,12 +121,24 @@ export function AuditLogPage() {
   }));
   const visible = useMemo(() => (state.status === "ready" ? filterAudit(state.model.rows, filters) : []), [state, filters]);
 
+  const [openId, setOpenId] = useState<string | null>(null);
+  const exportJson = () => {
+    const payload = auditExport(visible, new Date().toISOString());
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `payment-integrity-audit-${payload.exportedAt.slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
   const header = (
     <PageHeader
       title="Audit Log"
       description="Every detection, recommendation, policy evaluation, decision, action and verification, newest first. Entries cannot be edited or deleted."
+      {...(state.status === "ready" ? { actions: <Button variant="secondary" size="small" onClick={exportJson} isDisabled={visible.length === 0}>Export JSON</Button> } : {})}
     />
   );
+  const open = state.status === "ready" ? state.model.rows.find((r) => r.id === openId) : undefined;
   if (state.status === "loading") return <>{header}<PageSkeleton rows={1} /></>;
   if (state.status === "error") return <>{header}<PageError message={state.message} /></>;
 
@@ -137,7 +190,7 @@ export function AuditLogPage() {
             data={{ nodes: visible }}
             rowDensity="compact"
             isHeaderSticky
-            gridTemplateColumns="118px 132px minmax(150px, 1.2fr) 92px 150px 154px 100px minmax(180px, 2fr)"
+            gridTemplateColumns="118px 150px minmax(170px, 1.3fr) 96px minmax(220px, 2fr) 96px"
             pagination={<TablePagination defaultPageSize={50} showPageSizePicker showPageNumberSelector />}
           >
             {(items) => (
@@ -148,10 +201,8 @@ export function AuditLogPage() {
                     <TableHeaderCell>Actor</TableHeaderCell>
                     <TableHeaderCell>Action</TableHeaderCell>
                     <TableHeaderCell>Target</TableHeaderCell>
-                    <TableHeaderCell>Evidence</TableHeaderCell>
-                    <TableHeaderCell>Policy result</TableHeaderCell>
-                    <TableHeaderCell>Approval source</TableHeaderCell>
                     <TableHeaderCell>Outcome</TableHeaderCell>
+                    <TableHeaderCell>Details</TableHeaderCell>
                   </TableHeaderRow>
                 </TableHeader>
                 <TableBody>
@@ -173,18 +224,14 @@ export function AuditLogPage() {
                         <Target row={row} />
                       </TableCell>
                       <TableCell>
-                        <Evidence ids={row.evidenceIds ?? []} />
-                      </TableCell>
-                      <TableCell>
-                        {row.policyResult ? <VerdictBadge result={row.policyResult} /> : <Text size="small" color="surface.text.gray.muted">–</Text>}
-                      </TableCell>
-                      <TableCell>
-                        <Text size="small">{row.approvalSource ? APPROVAL_SOURCE_LABELS[row.approvalSource] : "–"}</Text>
-                      </TableCell>
-                      <TableCell>
                         <Box paddingY="spacing.2">
                           <Text size="small">{row.result}</Text>
                         </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="tertiary" size="xsmall" accessibilityLabel={`Details for ${row.action} at ${formatIstShort(row.occurredAt, state.now)}`} onClick={() => setOpenId(row.id)}>
+                          View
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -195,8 +242,12 @@ export function AuditLogPage() {
         )}
       </Surface>
       <Text size="xsmall" color="surface.text.gray.muted" marginTop="spacing.3">
-        {visible.length} of {state.model.rows.length} entries. The log is append-only.
+        {visible.length} of {state.model.rows.length} entries. The log is append-only. Export JSON downloads the filtered entries.
       </Text>
+      <Drawer isOpen={open !== undefined} onDismiss={() => setOpenId(null)} accessibilityLabel={open ? `Audit entry ${open.id}` : "Audit entry"}>
+        <DrawerHeader title={open?.action ?? ""} subtitle={open ? `${formatIstShort(open.occurredAt, state.now)} IST · ${open.actor}` : ""} />
+        <DrawerBody>{open ? <AuditDetailView row={open} /> : null}</DrawerBody>
+      </Drawer>
     </>
   );
 }

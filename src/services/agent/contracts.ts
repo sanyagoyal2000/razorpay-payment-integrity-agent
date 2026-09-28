@@ -107,4 +107,6 @@ export type AgentGateway = {
   draftMessage(input: MessageDraftInput): Promise<unknown>;
   draftContract(input: ContractDraftInput): Promise<unknown>;
   explainAutonomy(input: AutonomyInput): Promise<unknown>;
+  /** What serves these calls, for the audit log, e.g. "claude-opus-5 via Claude CLI". */
+  describe?(): Promise<string>;
 };

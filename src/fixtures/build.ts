@@ -34,11 +34,12 @@ import type {
   Product,
   WebhookDelivery,
 } from "@/domain/types";
+import { fulfilmentVocabulary } from "@/domain/fulfilment";
 import { ACTORS } from "@/domain/types";
 import { formatINR } from "@/domain/money";
 import { addDaysToDate, addSeconds, istDate, istTime, istToIso } from "@/domain/time";
 import { toRecommendation } from "@/services/investigation/recommendation";
-import { ACTIONS } from "@/services/policy/actions";
+import { actionLabel } from "@/services/policy/actions";
 import {
   buildActionPolicies,
   buildContracts,
@@ -277,16 +278,17 @@ export function buildDataset(): Dataset {
       chain.outcomeEvents.push(e);
       return e;
     };
-    const usesEnrolment = contract.fulfilmentService === "enrolment-service";
+    // Course and seat purchases record the fulfilment request itself; other services report only results.
+    const fulfil = fulfilmentVocabulary(contract.fulfilmentService);
+    const logsRequest = contract.fulfilmentService === "enrolment-service" || contract.fulfilmentService === "booking-service";
     const plan = input.outcome;
-    if (plan.kind !== "none" && usesEnrolment && !input.webhookNeverDelivered) {
-      outcome("enrolment.requested", "pending", addSeconds(outcomeBase, 1), undefined, { endpoint: "/enroll" });
+    if (plan.kind !== "none" && logsRequest && !input.webhookNeverDelivered) {
+      outcome(fulfil.requested, "pending", addSeconds(outcomeBase, 1), undefined, { endpoint: fulfil.endpoint });
     }
     if (plan.kind === "confirmed") {
       outcome(contract.expectedOutcome, "completed", addSeconds(capturedAt, plan.afterSeconds), 200);
     } else if (plan.kind === "failed") {
-      const failType = contract.expectedOutcome === "booking_confirmed" ? "booking.failed" : "enrolment.failed";
-      outcome(failType, "failed", addSeconds(capturedAt, plan.afterSeconds), plan.responseCode, { endpoint: "/enroll" });
+      outcome(fulfil.failed, "failed", addSeconds(capturedAt, plan.afterSeconds), plan.responseCode, { endpoint: fulfil.endpoint });
     } else if (plan.kind === "pending") {
       outcome(contract.expectedOutcome, "pending", addSeconds(outcomeBase, 1));
     }
@@ -403,7 +405,7 @@ export function buildDataset(): Dataset {
         targetType: "case",
         targetId: id,
         caseId: id,
-        result: `${ACTIONS[c.recommendation.action].label} (confidence ${Math.round(input.investigation.confidence * 100)}%)`,
+        result: `${actionLabel(c.recommendation.action, contractById(c.outcomeContractId))} (confidence ${Math.round(input.investigation.confidence * 100)}%)`,
         evidenceIds: input.investigation.evidenceIds,
         approvalSource: "not_required",
         ...(input.incidentId ? { incidentId: input.incidentId } : {}),
@@ -456,7 +458,7 @@ export function buildDataset(): Dataset {
       targetType: "case",
       targetId: c.id,
       caseId: c.id,
-      result: ACTIONS[opts.action].label,
+      result: actionLabel(opts.action, contractById(c.outcomeContractId)),
       policyResult: opts.approvalSource === "merchant" ? "requires_approval" : "allowed",
       approvalSource: opts.approvalSource,
       evidenceIds: c.recommendation?.evidenceIds ?? [],
@@ -480,14 +482,15 @@ export function buildDataset(): Dataset {
       chain.deliveries.push(replay);
       actionEventIds.push(replay.id);
     } else {
+      const fulfil = fulfilmentVocabulary(contractById(c.outcomeContractId).fulfilmentService);
       const request: MerchantOutcomeEvent = {
         id: uid("ll_evt", 12),
         merchantOrderId: chain.order.id,
         source: "learnloop",
-        type: "enrolment.requested",
+        type: fulfil.requested,
         status: "pending",
         occurredAt: started,
-        metadata: { endpoint: "/enroll", initiatedBy: "payment_integrity" },
+        metadata: { endpoint: fulfil.endpoint, initiatedBy: "payment_integrity" },
       };
       outcomeEvents.push(request);
       actionEventIds.push(request.id);
@@ -759,7 +762,7 @@ export function buildDataset(): Dataset {
     if (editedIndexes.has(index)) {
       // Merchant edited the action to wait; the outcome then arrived on its own.
       c.decisions.push({ decidedAt: decisionAt, actor: OPERATOR.name, kind: "edited", action: "wait", edited: true, reason: "LearnLoop engineering confirmed a queued enrolment retry" });
-      audit({ occurredAt: decisionAt, actor: OPERATOR.name, action: "Edited recommendation", targetType: "case", targetId: c.id, caseId: c.id, result: "Retry provisioning → Wait and re-check", approvalSource: "merchant", evidenceIds: investigation.evidenceIds });
+      audit({ occurredAt: decisionAt, actor: OPERATOR.name, action: "Edited recommendation", targetType: "case", targetId: c.id, caseId: c.id, result: "Retry enrolment → Wait and re-check", approvalSource: "merchant", evidenceIds: investigation.evidenceIds });
       resolveByArrival(c, chain, addSeconds(decisionAt, rng.int(3, 9) * 60));
     } else {
       resolveByAction(c, chain, { action: "retry_provisioning", approvedAt: decisionAt, approvalSource: "merchant", outcomeLatencySeconds: rng.int(3, 8) });
@@ -1357,6 +1360,10 @@ export function buildDataset(): Dataset {
 
   // Records were appended per scenario; the audit log reads chronologically.
   auditEvents.sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+
+  // One affected customer has unsubscribed from email, so messaging has to respect opt-outs.
+  const optedOut = cases.filter((c) => c.incidentId === "INC-0017" && c.type === "missing_outcome")[7]!;
+  customers.find((c) => c.id === optedOut.customerId)!.emailOptOut = true;
 
   const dailyStats = buildDailyStats(rng, cases, payments, at);
   const allTimestamps = [

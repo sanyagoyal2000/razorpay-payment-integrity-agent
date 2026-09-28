@@ -1,3 +1,5 @@
+import { FULFILMENT_REQUEST_TYPES } from "@/domain/fulfilment";
+import { maskedContact } from "@/services/privacy";
 import type { ActionType, CaseStatus, CaseType, Execution, IntegrityCase, PolicyVerdict } from "@/domain/types";
 import { ACTORS } from "@/domain/types";
 import { istDate } from "@/domain/time";
@@ -5,7 +7,7 @@ import type { Repositories } from "@/repositories";
 import { customerStatus } from "@/services/customerStatus";
 import { decisionOption, EDIT_ACTIONS, isOpenForDecision, REFUSAL_ACTIONS, type DecisionOption } from "@/services/decisions";
 import { isAtRisk } from "@/services/metrics/cases";
-import { ACTIONS, serviceLabel } from "@/services/policy/actions";
+import { actionLabel, serviceLabel } from "@/services/policy/actions";
 import { evaluateCase, requireContract } from "@/services/policy/currentState";
 import { assessCase, planBulkRecovery } from "@/services/recovery/groups";
 import { describeCaseInvestigation } from "@/services/agent";
@@ -67,7 +69,7 @@ export function caseRows(repos: Repositories, asOf: string): CaseRow[] {
         typeLabel: CASE_TYPE_LABELS[c.type],
         amount: c.amountAtRisk,
         detectedAt: c.detectedAt,
-        recommendation: c.recommendation ? ACTIONS[c.recommendation.action].label : c.status === "observing" ? "None: observing" : "None",
+        recommendation: c.recommendation ? actionLabel(c.recommendation.action, repos.config.contract(c.outcomeContractId)) : c.status === "observing" ? "None: observing" : "None",
         policyState: verdict?.result ?? "not_applicable",
         policyLabel: verdict ? (verdict.result === "requires_approval" && verdict.approvalScope === "bulk" ? "Eligible after approval" : POLICY_LABELS[verdict.result]) : "–",
         bulkEligible: assessment?.group === "safe",
@@ -200,6 +202,13 @@ function outcomeTitle(type: string, responseCode?: number): string {
   const titles: Record<string, string> = {
     "enrolment.requested": "Enrolment requested",
     "enrolment.failed": "Enrolment request failed",
+    "booking.requested": "Booking requested",
+    "membership.activation_requested": "Membership activation requested",
+    "membership.activation_failed": "Membership activation failed",
+    "wallet.credit_requested": "Wallet credit requested",
+    "wallet.credit_failed": "Wallet credit failed",
+    "plan.upgrade_requested": "Plan upgrade requested",
+    "plan.upgrade_failed": "Plan upgrade failed",
     course_access_granted: "Course access granted",
     course_access_revoked: "Course access revoked",
     inventory_changed: "Seat inventory changed",
@@ -237,7 +246,7 @@ export function caseTimeline(repos: Repositories, c: IntegrityCase, asOf: string
       });
     }
     for (const e of repos.outcomes.events(payment.merchantOrderId)) {
-      if (e.status === "pending" && e.type !== "enrolment.requested" && e.type !== contract.expectedOutcome) continue;
+      if (e.status === "pending" && !FULFILMENT_REQUEST_TYPES.has(e.type) && e.type !== contract.expectedOutcome) continue;
       entries.push({
         id: e.id,
         at: e.occurredAt,
@@ -319,7 +328,8 @@ export function caseDetail(repos: Repositories, caseId: string, asOf: string) {
     caseData: c,
     typeLabel: CASE_TYPE_LABELS[c.type],
     payment,
-    customer,
+    // Contact details are masked; the full values are shown only through an audited reveal.
+    customer: { id: customer.id, name: customer.name, ...maskedContact(repos, customer.id), emailOptOut: customer.emailOptOut === true },
     order,
     product,
     contract,

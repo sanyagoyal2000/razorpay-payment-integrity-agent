@@ -8,7 +8,7 @@ import type {
 } from "@/domain/types";
 import { formatINR } from "@/domain/money";
 import { formatIstDateTime } from "@/domain/time";
-import { ACTIONS, requiredScope, serviceLabel } from "./actions";
+import { ACTIONS, actionLabel, requiredScope, serviceLabel } from "./actions";
 
 type Check = PolicyCheck;
 
@@ -149,7 +149,7 @@ export function evaluatePolicy(
   if (kind !== "escalation" && kind !== "refund_draft") {
     checks.push(
       s.idempotency.keyAvailable
-        ? pass("idempotency_key_available", "Idempotency key available", `No previous execution of ${definition.label.toLowerCase()} for ${s.payment.id}.`)
+        ? pass("idempotency_key_available", "Idempotency key available", `No previous execution of ${actionLabel(action.action, s.contract).toLowerCase()} for ${s.payment.id}.`)
         : fail("idempotency_key_available", "Idempotency key available", `${definition.label} was already executed for ${s.payment.id}; it will not run twice.`),
     );
   }
@@ -213,8 +213,8 @@ export function evaluatePolicy(
   const mode: ActionMode | undefined = definition.policyAction ? s.actionModes[definition.policyAction] : undefined;
   checks.push(
     mode === "disabled"
-      ? fail("action_enabled", "Action enabled", `${definition.label} is disabled in Automations.`)
-      : pass("action_enabled", "Action enabled", `${definition.label} mode: ${modeLabel(mode)}.`),
+      ? fail("action_enabled", "Action enabled", `${actionLabel(action.action, s.contract)} is disabled in Automations.`)
+      : pass("action_enabled", "Action enabled", `${actionLabel(action.action, s.contract)}: ${modeLabel(mode)} in Automations.`),
   );
   if (kind === "communication" && s.controls.requireApprovalForCustomerCommunication) {
     checks.push(pass("customer_communication_approval", "Customer communication approval", "Global control requires approval before messaging customers."));

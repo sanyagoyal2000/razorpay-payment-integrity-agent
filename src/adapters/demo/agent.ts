@@ -15,5 +15,6 @@ export function createDemoAgentGateway(lookup: (id: string) => unknown, isAvaila
     draftMessage: async (input) => draftMessageByRule(input),
     draftContract: async (input) => draftContractByRule(input),
     explainAutonomy: async (input) => explainAutonomyByRule(input),
+    describe: async () => "Deterministic fixtures (offline)",
   };
 }

@@ -1,4 +1,5 @@
 import type {
+  AuditDetail,
   IntegrityCase,
   Investigation,
   InvestigationRun,
@@ -24,15 +25,18 @@ import {
   buildIncidentInvestigationInput,
   investigateCase,
   investigateIncident,
+  type CaseInvestigationInput,
   type EvidenceItem,
+  type IncidentInvestigationInput,
   type InvestigationResult,
 } from "@/services/investigation";
+import { AGENT_VERSION, fingerprint, POLICY_VERSION } from "@/services/versions";
 import { toRecommendation } from "@/services/investigation/recommendation";
 import type { AutonomyEligibility } from "@/services/autonomyEligibility";
 import { assessAutonomy, type AutonomyAction } from "@/services/configuration";
 import type { AutonomyEvidence } from "@/services/metrics/autonomy";
 import { isAtRisk } from "@/services/metrics/cases";
-import { ACTIONS, POLICY_ACTION_LABELS } from "@/services/policy/actions";
+import { actionLabel, POLICY_ACTION_LABELS } from "@/services/policy/actions";
 import { evaluateCase, requireContract } from "@/services/policy/currentState";
 import { groupIncidentCases } from "@/services/recovery/groups";
 import {
@@ -90,7 +94,7 @@ const VERDICT_WORDS: Record<PolicyVerdict["result"], string> = {
 
 function casePreparingDetail(repos: Repositories, c: IntegrityCase, asOf: string): string {
   if (!c.recommendation) return "No recommendation; the case is not awaiting a decision.";
-  const label = ACTIONS[c.recommendation.action].label;
+  const label = actionLabel(c.recommendation.action, repos.config.contract(c.outcomeContractId));
   if (!isAtRisk(c)) return `Recommended ${label.toLowerCase()}.`;
   const verdict = evaluateCase(repos, c, c.recommendation, asOf);
   return `Recommended ${label.toLowerCase()}; ${VERDICT_WORDS[verdict.result]}.`;
@@ -174,7 +178,39 @@ export function describeIncidentInvestigation(repos: Repositories, incidentId: s
  * only while the case is awaiting a decision; policy is always re-evaluated
  * before anything executes.
  */
-export async function reinvestigateCase(deps: AgentDeps, caseId: string, onProgress: (p: InvestigationProgress) => void = () => undefined) {
+export type InvestigationTrigger = { trigger?: "merchant" | "system" };
+
+/** Audit detail for one investigator run: what it read, what served it, and fingerprints of input and output. */
+async function investigationDetail(
+  deps: AgentDeps,
+  input: CaseInvestigationInput | IncidentInvestigationInput,
+  result: InvestigationResult,
+  trigger: "merchant" | "system",
+): Promise<AuditDetail> {
+  const producedBy =
+    result.status === "valid"
+      ? ((await deps.agent.describe?.()) ?? "Payment Integrity Agent")
+      : result.status === "invalid"
+        ? "Deterministic fallback: investigator output failed validation"
+        : "Deterministic fallback: investigator unavailable";
+  return {
+    invocationId: deps.repos.nextId("inv"),
+    trigger,
+    agentVersion: AGENT_VERSION,
+    policyVersion: POLICY_VERSION,
+    sources: Object.keys(countSources(input.evidence)),
+    producedBy,
+    inputFingerprint: fingerprint(input),
+    outputFingerprint: fingerprint(result.investigation),
+  };
+}
+
+export async function reinvestigateCase(
+  deps: AgentDeps,
+  caseId: string,
+  onProgress: (p: InvestigationProgress) => void = () => undefined,
+  { trigger = "merchant" }: InvestigationTrigger = {},
+) {
   const stages: InvestigationStage[] = [];
   const report = (stage: InvestigationStage) => {
     stages.push(stage);
@@ -200,7 +236,9 @@ export async function reinvestigateCase(deps: AgentDeps, caseId: string, onProgr
   });
   report(result.status === "valid" ? preparingStage(casePreparingDetail(deps.repos, updated, at)) : failedPreparingStage());
   const saved = deps.repos.cases.save({ ...updated, investigationRun: runRecord(input.evidence, result, at, { serviceHealth: health, stages }) });
+  const detail = await investigationDetail(deps, input, result, trigger);
   deps.repos.audit.append({
+    detail,
     id: deps.repos.nextId("aud"),
     occurredAt: at,
     actor: ACTORS.agent,
@@ -224,7 +262,12 @@ export async function reinvestigateCase(deps: AgentDeps, caseId: string, onProgr
  * invalid or unavailable one is reported through the stages and the audit
  * log, and the previous validated findings are kept.
  */
-export async function reinvestigateIncident(deps: AgentDeps, incidentId: string, onProgress: (p: InvestigationProgress) => void = () => undefined) {
+export async function reinvestigateIncident(
+  deps: AgentDeps,
+  incidentId: string,
+  onProgress: (p: InvestigationProgress) => void = () => undefined,
+  { trigger = "merchant" }: InvestigationTrigger = {},
+) {
   const stages: InvestigationStage[] = [];
   const report = (stage: InvestigationStage) => {
     stages.push(stage);
@@ -246,7 +289,9 @@ export async function reinvestigateIncident(deps: AgentDeps, incidentId: string,
   } else {
     report(failedPreparingStage(incident.investigation ? "Output not used; the previous validated findings are kept for your review." : ESCALATION_PREPARED));
   }
+  const detail = await investigationDetail(deps, input, result, trigger);
   deps.repos.audit.append({
+    detail,
     id: deps.repos.nextId("aud"),
     occurredAt: at,
     actor: ACTORS.agent,

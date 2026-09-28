@@ -9,14 +9,15 @@ import type { AgentGateway, AgentTask } from "@/services/agent/contracts";
  * validation here too.
  */
 export function createLiveAgentGateway(fallback: AgentGateway, fetchImpl: typeof fetch = (...args) => fetch(...args)): AgentGateway {
-  let live: Promise<boolean> | undefined;
-  const isLive = () => {
-    live ??= fetchImpl("/api/agent/status")
-      .then((r) => (r.ok ? (r.json() as Promise<{ live?: boolean }>) : { live: false }))
-      .then((body) => body.live === true)
-      .catch(() => false);
-    return live;
+  type Status = { live?: boolean; model?: string; provider?: string };
+  let status: Promise<Status> | undefined;
+  const getStatus = () => {
+    status ??= fetchImpl("/api/agent/status")
+      .then((r) => (r.ok ? (r.json() as Promise<Status>) : { live: false }))
+      .catch(() => ({ live: false }));
+    return status;
   };
+  const isLive = async () => (await getStatus()).live === true;
   const call = async <I>(task: AgentTask, input: I, fallbackCall: (input: I) => Promise<unknown>): Promise<unknown> => {
     if (!(await isLive())) return fallbackCall(input);
     const response = await fetchImpl(`/api/agent/${task}`, {
@@ -35,5 +36,10 @@ export function createLiveAgentGateway(fallback: AgentGateway, fetchImpl: typeof
     draftMessage: (input) => call("draft-message", input, fallback.draftMessage),
     draftContract: (input) => call("draft-contract", input, fallback.draftContract),
     explainAutonomy: (input) => call("explain-autonomy", input, fallback.explainAutonomy),
+    describe: async () => {
+      const s = await getStatus();
+      if (s.live === true) return `${s.model ?? "Claude"} via ${s.provider ?? "live agent"}`;
+      return (await fallback.describe?.()) ?? "Deterministic fallback";
+    },
   };
 }

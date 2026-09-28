@@ -74,6 +74,6 @@ export function promoteOverdueObservations(repos: Repositories, asOf: string): s
 export async function checkObservations(deps: AgentDeps): Promise<string[]> {
   const promoted = promoteOverdueObservations(deps.repos, deps.clock.now().toISOString());
   const uninvestigated = deps.repos.cases.list().filter((c) => c.status === "open" && !c.investigation && !c.investigationRun);
-  for (const c of uninvestigated) await reinvestigateCase(deps, c.id);
+  for (const c of uninvestigated) await reinvestigateCase(deps, c.id, undefined, { trigger: "system" });
   return promoted;
 }

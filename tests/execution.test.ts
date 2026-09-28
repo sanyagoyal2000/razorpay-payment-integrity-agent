@@ -39,7 +39,7 @@ describe("execution state machine", () => {
     expect(env.repos.outcomes.events(env.repos.payments.get(c.paymentId)!.merchantOrderId).find((e) => e.id === granted)?.type).toBe("course_access_granted");
 
     const actions = env.repos.audit.forCase(c.id).map((e) => e.action);
-    for (const action of ["Approved recovery", "Re-checked policy before execution", "Retry provisioning: request sent", "Verified outcome", "Resolved case"]) {
+    for (const action of ["Approved recovery", "Re-checked policy before execution", "Retry enrolment: request sent", "Verified outcome", "Resolved case"]) {
       expect(actions).toContain(action);
     }
   });

@@ -15,7 +15,8 @@ All types are in `src/domain/types.ts`. Types from the specification keep its fi
 | Type | Purpose |
 |---|---|
 | `MerchantOrder` | The LearnLoop order, keyed by `merchant_order_id` (e.g. `LL-4301232`). |
-| `MerchantOutcomeEvent` | Fulfilment events. **Extended** beyond course access with `booking_confirmed`, `booking.failed`, `membership_activated`, `wallet_credited` and `plan_upgraded`, so the non-course contracts have outcomes. |
+| `Customer` | **Extended** with `emailOptOut`. Opted-out customers are never messaged; one fixture customer in INC-0017 is opted out. Operations views show email and phone masked (`domain/privacy.ts`). |
+| `MerchantOutcomeEvent` | Fulfilment events. Request and failure event types follow each contract's fulfilment service (`domain/fulfilment.ts`): enrolment, booking, membership activation, wallet credit, plan upgrade. **Extended** beyond course access with `booking_confirmed`, `booking.failed`, `membership_activated`, `wallet_credited` and `plan_upgraded`, so the non-course contracts have outcomes. |
 | `ObservabilityEvent` | **Added.** LearnLoop Observability: `deploy.completed` (v2.3), `service.errors_detected`, `service.recovered`. This is the only source for mentioning the deployment. |
 | `ScheduledPurchase` | **Added.** Healthy purchases after the fixture horizon. They become visible as real time passes, which feeds "Monitor the next 50 purchases". |
 
@@ -32,7 +33,8 @@ All types are in `src/domain/types.ts`. Types from the specification keep its fi
 | `Recommendation` | The action currently proposed; `origin` is investigation, rule fallback or merchant edit. |
 | `PolicyVerdict` / `PolicyCheck` | The spec's shape, **extended** with the action evaluated, `approvalScope` (`bulk` / `individual`) and each check's `enforcement` (`hard` blocks, `review` requires individual approval). |
 | `Execution` | One run of the state machine: steps with times, idempotency key, the verdict from the pre-execution re-check, the receipt, and any failure. |
-| `AuditEvent` | Append-only. **Extended** with policy result, approval source, and case and incident links. |
+| `AuditEvent` | Append-only. **Extended** with policy result, approval source, and case and incident links, plus an optional `detail` (`AuditDetail`): invocation ID, trigger, agent and policy versions, sources read, what produced the result, input and output fingerprints, idempotency key, execution state and failure. It never holds customer contact details or model reasoning. |
+| `InvestigationRun` | **Extended** with `casesCompared`, `serviceHealth` and `stages`: the observable stage log. `eventsExamined` counts events only; cases are counted separately. |
 | `ActionPolicy`, `GlobalControls`, `Integration`, `ConnectorLog`, `SystemFlags` | Automations modes, global limits and the kill switch, connections and scopes, connector errors, and simulated dependency health. |
 | `DailyOutcomeStat` | Aggregates for high-volume healthy traffic (about 2,000 course purchases a day). Each stat carries the IDs of its cases, so completion rates reconcile with the case list exactly. |
 

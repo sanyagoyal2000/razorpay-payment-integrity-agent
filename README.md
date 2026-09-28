@@ -59,6 +59,35 @@ tests/               Policy, execution, investigation, fixture and reconciliatio
 - The fixtures also hold a fixed stream of healthy purchases after the latest event. They become visible as real time passes, which is how "Monitor the next 50 matching purchases" makes progress.
 - Changes are persisted as an overlay on top of the fixtures (`localStorage`, loaded client-side only).
 
+## What needs attention
+
+The Overview opens with a briefing that answers "What needs my attention today?". It is built from active incidents, validated findings, service health, recovery groups under current policy, system blockers and data freshness. Incidents are ranked by:
+1. capture deadline
+2. severity
+3. revenue at risk
+4. customers at risk
+5. age
+
+It covers these states:
+- one or several incidents
+- investigation in progress
+- a failing service
+- stale data or another system-wide block
+- investigator unavailable
+- nothing to do
+
+Its buttons only navigate; recovery is approved on the incident.
+
+Incident pages put the decision first:
+1. status and required decision
+2. what happened
+3. "Why the agent was needed": what the fixed rule found, what the investigation added, and the safe and held cases, with "How this is calculated"
+4. recovery
+5. investigation detail
+6. evidence
+7. containment
+8. history
+
 ## The Payment Integrity Agent (AI)
 
 The agent investigates, drafts and explains. It never executes: the deterministic policy engine and a person decide what runs.
@@ -68,7 +97,7 @@ The agent investigates, drafts and explains. It never executes: the deterministi
 | Investigate a case or incident | "Investigation" panels on case detail and the incident workspace, with **Re-investigate** | Zod-validated structured output. Every cited event ID, including those inside each hypothesis, is checked against the events actually sent; unknown IDs are removed and the removal is shown. Invalid output or an unreachable model produces an escalation, not an action. |
 | Draft customer messages | "Contact customer" on inventory-conflict cases; "Notify affected customers" on incidents | A deterministic check blocks confidence scores, webhooks/HTTP codes, policies, AI/agent mentions and system internals. Nothing is sent until a person approves the text. |
 | Draft Outcome Contracts | Outcome Contracts → New contract → "Draft fields" | Fields are validated against the catalogue and global limits; assumptions and corrections are listed for review. |
-| Explain earned autonomy | Automations → Earned autonomy | Suggestions are clamped to global limits. Automation changes only when a person switches it on. |
+| Explain earned autonomy | Automations → Earned autonomy | Eligibility is decided by fixed criteria over verified outcomes, not approvals. The explanation cannot override it, and suggestions are clamped to global limits. Automation changes only after explicit, audited confirmation. |
 
 **Where agent requests go.** Requests run server-side from `/api/agent/*` route handlers. Nothing model-related runs in the browser.
 
@@ -82,9 +111,19 @@ The agent investigates, drafts and explains. It never executes: the deterministi
 
   This uses the SDK's structured outputs (`messages.parse` with Zod schemas) on `claude-opus-5`, a 60-second timeout, and Anthropic's server-side refusal fallback (`fallbacks: "default"`).
 
-Both paths validate output with the same Zod schemas and guardrails. If neither is available, or a request fails, the app uses deterministic fixture investigations and rule-based drafts, so it works fully offline. The product UI does not show which path produced a result.
+Both paths validate output with the same Zod schemas and guardrails. If neither is available, or a request fails, the app uses deterministic fixture investigations and rule-based drafts, so it works fully offline. The main product views do not show which path produced a result. Each Audit Log entry's detail records it (model and provider, or the deterministic fallback), along with the sources read and fingerprints of the input and output.
+
+Investigations report five observable stages as each operation completes. Afterwards, "How this investigation was produced" shows events, sources, cases compared, service health, causes evaluated and citations checked. No model reasoning is shown.
+
+**Investigator validation** (Developer settings → Open investigator validation) compares the investigator with a fixed-rule baseline on 40 labelled synthetic scenarios, using committed outputs captured from the real investigator (`yarn evaluation:capture`). See [Evaluation, autonomy and observable work](docs/EVALUATION_AND_AUTONOMY.md) for what it does and does not show.
 
 The model receives only what each task needs: payment and outcome events for the case, never customer names, emails or phone numbers.
+
+## Privacy
+
+- Operations views show customer email and phone masked. **Show contact details** reveals them for one case, for the Payments Operations Manager role only, and records the reveal in the audit log.
+- Customer messages go by email only. Before sending, the dialog shows the channel, the consent basis (transactional), the recipient count, opt-outs (excluded, never messaged), whether the text is the contract template or free-form, and whether approval is required.
+- The agent never receives customer names, emails or phone numbers. Audit entries store no contact details, and **Export JSON** on the Audit Log downloads the filtered entries in a machine-readable form.
 
 ## Customer page
 
@@ -122,3 +161,4 @@ Rules detect. AI investigates. Policy validates. APIs execute. Outcomes verify.
 - [AI and policy boundaries](docs/AI_AND_POLICY.md): what the agent sees and produces, guardrails, providers, and the policy engine
 - [Simulated integrations and non-goals](docs/INTEGRATIONS_AND_NON_GOALS.md)
 - [Acceptance criteria](docs/ACCEPTANCE.md): each of the specification's 20 criteria mapped to its implementation and tests
+- [Evaluation, autonomy and observable work](docs/EVALUATION_AND_AUTONOMY.md): investigator validation, the autonomy eligibility formula, and how observable progress differs from chain-of-thought

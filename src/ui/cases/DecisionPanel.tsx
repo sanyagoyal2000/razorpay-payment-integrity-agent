@@ -23,10 +23,11 @@ import { OPERATOR } from "@/fixtures/catalogue";
 import type { AppServices } from "@/services/container";
 import { applyDecision, DecisionError, MIN_REJECTION_REASON, rejectRecommendation, type DecisionOption } from "@/services/decisions";
 import { runExecution } from "@/services/execution";
-import { ACTIONS } from "@/services/policy/actions";
+import { actionLabel } from "@/services/policy/actions";
 import type { CaseDetailModel } from "@/services/views/cases";
 import { Surface } from "@/ui/components/Surface";
 import { draftCustomerMessage, messageInputForCase } from "@/services/agent";
+import { communicationSummary } from "@/services/communication";
 import { MessageDraftModal } from "@/ui/agent/MessageDraftModal";
 import { ExecutionProgress } from "./ExecutionProgress";
 import { PolicyVerdictSection } from "./PolicyVerdictSection";
@@ -156,7 +157,7 @@ export function DecisionPanel({ model, services }: { model: CaseDetailModel; ser
           {recommendation ? (
             <>
               <Row label="Proposed action">
-                <Text size="small" weight="semibold">{ACTIONS[recommendation.action].label}</Text>
+                <Text size="small" weight="semibold">{actionLabel(recommendation.action, model.contract)}</Text>
               </Row>
               <Row label="Summary">
                 <Text size="small">{recommendation.summary}</Text>
@@ -209,7 +210,7 @@ export function DecisionPanel({ model, services }: { model: CaseDetailModel; ser
               <Text size="xsmall" color="surface.text.gray.muted" marginBottom="spacing.2">
                 Re-checked at {istTime(model.latestExecution.verdict.evaluatedAt)} IST, immediately before execution.
               </Text>
-              <PolicyVerdictSection verdict={model.latestExecution.verdict} actionLabel={ACTIONS[model.latestExecution.action].label} refusal={false} />
+              <PolicyVerdictSection verdict={model.latestExecution.verdict} actionLabel={actionLabel(model.latestExecution.action, model.contract)} refusal={false} />
             </>
           ) : model.recordedPolicyResult ? (
             <Text size="small" color="surface.text.gray.subtle">
@@ -305,7 +306,7 @@ export function DecisionPanel({ model, services }: { model: CaseDetailModel; ser
       <MessageDraftModal
         isOpen={dialog?.kind === "message"}
         title="Contact customer"
-        recipients={model.customer.name}
+        summarize={(text) => communicationSummary(services.repos, [c.customerId], text, model.contract.customerNotificationTemplate.replace("{product}", model.product?.name ?? "your purchase"))}
         loadDraft={() => draftCustomerMessage(services.agent, messageInputForCase(services.repos, c))}
         onSend={(message) => run("notify_customer", "", message)}
         onDismiss={close}

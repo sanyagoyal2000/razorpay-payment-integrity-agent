@@ -119,7 +119,7 @@ export function actionPolicyRows(repos: Repositories) {
 // ---------------------------------------------------------------------------
 
 const WRITE_SCOPE_ACTIONS: Record<string, string> = {
-  grant_course_access: "Retry provisioning",
+  grant_course_access: "Retry enrolment",
   capture_payment: "Capture payment",
   replay_webhook: "Replay webhook",
   send_customer_message: "Notify customer",
@@ -158,7 +158,7 @@ export function integrationRows(repos: Repositories, asOf: string): IntegrationR
   const attempts = sum(stats.map((s) => s.webhookAttempts));
   const failures = sum(stats.map((s) => s.webhookFailures));
   const coursePayments = sum(stats.filter((s) => s.contractId === "ctr_course_purchase").map((s) => s.paymentsCaptured));
-  const enrolFailures = outcomeEvents.filter((e) => (e.type === "enrolment.failed" || e.type === "booking.failed") && e.occurredAt >= weekAgo && e.occurredAt <= asOf).length;
+  const enrolFailures = outcomeEvents.filter((e) => e.type === "enrolment.failed" && e.occurredAt >= weekAgo && e.occurredAt <= asOf).length;
   const pct = (n: number, d: number) => (d === 0 ? "No traffic" : `${((n / d) * 100).toFixed(2)}% errors (${n} of ${d.toLocaleString("en-IN")}), 7 days`);
   const logSummary = (id: IntegrationId) => {
     const own = logs.filter((l) => l.integrationId === id);

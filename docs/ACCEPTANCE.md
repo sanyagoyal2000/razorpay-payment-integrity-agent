@@ -34,3 +34,18 @@ Each criterion from the specification, where it is implemented, and the automate
 | Exact arithmetic from real course prices | `fixtures.test.ts`, `reconciliation.test.ts` |
 | Single footer disclaimer; text wordmark | App shell |
 | No hydration warnings or console errors | Production browser runs on every route |
+
+## Additions from the implementation brief
+
+| Requirement | Where | Covered by |
+|---|---|---|
+| Proactive briefing (one or several incidents, investigating, unhealthy service, blocker, investigator unavailable, clear) with a deterministic priority | `views/briefing.ts`, Overview | `briefing.test.ts` |
+| "Why the agent was needed", every figure derived, with failure states | `views/agentContribution.ts`, incident page | `briefing.test.ts` |
+| Decision before deep evidence on incident pages | `IncidentWorkspacePage` | `briefing.test.ts` (section order) |
+| Observable stages without chain-of-thought; failure never reported as success | `agent/progress.ts`, `InvestigationPanel` | `briefing.test.ts`, `agent.test.ts` |
+| Earned autonomy from verified outcomes; deterministic eligibility; audited confirmation | `autonomyEligibility.ts`, `metrics/autonomy.ts`, `EarnedAutonomy` | `autonomy.test.ts` |
+| Offline investigator validation with a fair baseline and development/holdout split | `evaluation/`, `/developer/evaluations` | `evaluation.test.ts` |
+| Contract-specific language; no enrolment terms on bookings | `actionLabel`, `domain/fulfilment.ts` | `configuration.test.ts` |
+| Masked contact details with audited reveal; communication details; opt-outs | `privacy.ts`, `communication.ts` | `privacy.test.ts`, `views.test.ts` |
+| Audit detail and machine-readable export | `AuditDetail`, `auditExport`, Audit Log drawer | `privacy.test.ts` |
+| No horizontal scroll at 1280 px on changed pages; mobile usable | Overview, incident, Automations, validation and Audit Log pages | Browser checks at 1280 px and 390 px |

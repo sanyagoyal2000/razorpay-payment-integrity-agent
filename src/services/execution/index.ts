@@ -7,12 +7,13 @@ import type {
   IntegrityCase,
   Recommendation,
 } from "@/domain/types";
-import { ACTORS } from "@/domain/types";
+import { ACTORS, type AuditDetail } from "@/domain/types";
+import { POLICY_VERSION } from "@/services/versions";
 import { secondsBetween, type Clock } from "@/domain/time";
 import type { MerchantAdapter, PaymentGateway } from "@/adapters/merchant/types";
 import type { Repositories } from "@/repositories";
 import { refreshIncident } from "@/services/incidents";
-import { ACTIONS } from "@/services/policy/actions";
+import { actionLabel } from "@/services/policy/actions";
 import { evaluateCase, idempotencyKey, requireContract } from "@/services/policy/currentState";
 import { planBulkRecovery } from "@/services/recovery/groups";
 import { verifyOutcome } from "@/services/verification";
@@ -69,13 +70,15 @@ export function approveAndStart(deps: ExecutionDeps, approval: Approval): Execut
   const c = repos.cases.get(approval.caseId);
   if (!c) throw new ExecutionError(`Case ${approval.caseId} not found`);
   if (!DECIDABLE_STATUSES.has(c.status)) throw new ExecutionError(`Case ${c.id} is ${c.status} and cannot be approved`);
-  if (!EXECUTABLE_ACTIONS.has(approval.action)) throw new ExecutionError(`${ACTIONS[approval.action].label} is not executed by the state machine`);
+  const contract = requireContract(repos, c.outcomeContractId);
+  const label = (action: ActionType) => actionLabel(action, contract);
+  if (!EXECUTABLE_ACTIONS.has(approval.action)) throw new ExecutionError(`${label(approval.action)} is not executed by the state machine`);
 
   const recommendation = recommendationFor(c, approval.action, now);
   const verdict = evaluateCase(repos, c, recommendation, now);
-  if (verdict.result === "blocked") throw new ExecutionError(`${ACTIONS[approval.action].label} is blocked by policy for ${c.id}`);
+  if (verdict.result === "blocked") throw new ExecutionError(`${label(approval.action)} is blocked by policy for ${c.id}`);
   if (approval.approvalSource === "policy_automatic" && verdict.result !== "allowed") {
-    throw new ExecutionError(`Policy does not allow automatic ${ACTIONS[approval.action].label.toLowerCase()} for ${c.id}`);
+    throw new ExecutionError(`Policy does not allow automatic ${label(approval.action).toLowerCase()} for ${c.id}`);
   }
 
   const edited = c.recommendation !== undefined && c.recommendation.action !== approval.action;
@@ -108,7 +111,8 @@ export function approveAndStart(deps: ExecutionDeps, approval: Approval): Execut
     targetId: c.id,
     caseId: c.id,
     ...(c.incidentId ? { incidentId: c.incidentId } : {}),
-    result: edited ? `${ACTIONS[approval.action].label} (edited from ${ACTIONS[c.recommendation!.action].label})` : ACTIONS[approval.action].label,
+    detail: executionDetail(execution),
+    result: edited ? `${label(approval.action)} (edited from ${label(c.recommendation!.action)})` : label(approval.action),
     evidenceIds: c.recommendation?.evidenceIds ?? [],
     policyResult: verdict.result,
     approvalSource: approval.approvalSource,
@@ -134,7 +138,7 @@ export function advanceExecution(deps: ExecutionDeps, executionId: string): Exec
   const now = clock.now().toISOString();
   const c = repos.cases.get(execution.caseId);
   if (!c) throw new ExecutionError(`Case ${execution.caseId} not found`);
-  const label = ACTIONS[execution.action].label;
+  const label = actionLabel(execution.action, requireContract(repos, c.outcomeContractId));
 
   switch (execution.status) {
     case "approval_recorded": {
@@ -312,13 +316,25 @@ function callAction(deps: ExecutionDeps, c: IntegrityCase, execution: Execution)
   }
 }
 
-function auditFor(c: IntegrityCase, execution: Execution) {
+function auditFor(c: IntegrityCase, execution: Execution, extra: Partial<AuditDetail> = {}) {
   return {
     targetType: "case" as const,
     targetId: c.id,
     caseId: c.id,
     ...(c.incidentId ? { incidentId: c.incidentId } : {}),
     approvalSource: execution.approvalSource,
+    detail: executionDetail(execution, extra),
+  };
+}
+
+function executionDetail(execution: Execution, extra: Partial<AuditDetail> = {}): AuditDetail {
+  return {
+    invocationId: execution.id,
+    trigger: execution.approvalSource === "merchant" ? "merchant" : "automatic_policy",
+    policyVersion: POLICY_VERSION,
+    idempotencyKey: execution.idempotencyKey,
+    state: execution.status,
+    ...extra,
   };
 }
 
@@ -345,7 +361,7 @@ function stop(deps: ExecutionDeps, execution: Execution, c: IntegrityCase, failu
     deps.repos.cases.save({ ...c, status: execution.priorCaseStatus, updatedAt: now });
   }
   deps.repos.audit.append({
-    ...auditFor(c, execution),
+    ...auditFor(c, next, { failure }),
     id: deps.repos.nextId("aud"),
     occurredAt: now,
     actor: ACTORS.policy,
@@ -369,7 +385,7 @@ function fail(deps: ExecutionDeps, execution: Execution, c: IntegrityCase, failu
     updatedAt: now,
   });
   deps.repos.audit.append({
-    ...auditFor(c, execution),
+    ...auditFor(c, next, { failure }),
     id: deps.repos.nextId("aud"),
     occurredAt: now,
     actor: ACTORS.agent,

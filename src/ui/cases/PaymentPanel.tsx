@@ -1,9 +1,12 @@
 "use client";
 
-import { Badge, Box, Code, Divider, Text } from "@razorpay/blade/components";
-import type { ReactNode } from "react";
+import { Badge, Box, Button, Code, Divider, Text } from "@razorpay/blade/components";
+import { useEffect, useState, type ReactNode } from "react";
 import { formatINR } from "@/domain/money";
 import { formatIstShort } from "@/domain/time";
+import { OPERATOR } from "@/fixtures/catalogue";
+import type { AppServices } from "@/services/container";
+import { revealCustomerContact } from "@/services/privacy";
 import type { CaseDetailModel } from "@/services/views/cases";
 import { AppLink } from "@/ui/components/AppLink";
 import { NoticeLabel } from "@/ui/components/badges";
@@ -36,15 +39,28 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-export function PaymentPanel({ model, now }: { model: CaseDetailModel; now: Date }) {
+export function PaymentPanel({ model, now, services }: { model: CaseDetailModel; now: Date; services: AppServices }) {
   const { payment, customer, contract, related, otherAttempts, customerView, caseData } = model;
+  const [revealed, setRevealed] = useState<{ email: string; phone: string } | null>(null);
+  useEffect(() => setRevealed(null), [caseData.id]);
+  const reveal = () => setRevealed(revealCustomerContact(services.repos, caseData.id, OPERATOR, new Date().toISOString()));
   const state = PAYMENT_STATE[payment.status] ?? { label: payment.status, color: "neutral" as const };
   return (
     <Surface title="Payment and customer">
       <Field label="Customer">
         <Text size="small" weight="semibold">{customer.name}</Text>
-        <Text size="xsmall" color="surface.text.gray.subtle">{customer.email}</Text>
-        <Text size="xsmall" color="surface.text.gray.subtle">{customer.phone}</Text>
+        <Text size="xsmall" color="surface.text.gray.subtle">{revealed?.email ?? customer.email}</Text>
+        <Text size="xsmall" color="surface.text.gray.subtle">{revealed?.phone ?? customer.phone}</Text>
+        {customer.emailOptOut ? <Text size="xsmall" color="surface.text.gray.muted">Opted out of email</Text> : null}
+        {revealed ? (
+          <Text size="xsmall" color="surface.text.gray.muted">Shown in full; recorded in the audit log.</Text>
+        ) : (
+          <Box>
+            <Button variant="tertiary" size="xsmall" accessibilityLabel={`Show full contact details for ${customer.name}`} onClick={reveal}>
+              Show contact details
+            </Button>
+          </Box>
+        )}
       </Field>
       <Divider />
       <Field label="Payment">

@@ -3,7 +3,7 @@ import { sum } from "@/domain/money";
 import type { Repositories } from "@/repositories";
 import { isAtRisk } from "@/services/metrics/cases";
 import { evaluateCase } from "@/services/policy/currentState";
-import { ACTIONS } from "@/services/policy/actions";
+import { actionLabel } from "@/services/policy/actions";
 
 export type RecoveryGroupId = "safe" | "duplicate_review" | "high_value" | "individual_review" | "blocked";
 
@@ -48,7 +48,7 @@ export function groupIncidentCases(repos: Repositories, incidentId: string, asOf
   return order
     .map((id): RecoveryGroup => {
       const members = assessments.filter((a) => a.group === id).map((a) => a.caseData);
-      const actions = [...new Set(members.map((c) => ACTIONS[c.recommendation!.action].label))];
+      const actions = [...new Set(members.map((c) => actionLabel(c.recommendation!.action, repos.config.contract(c.outcomeContractId))))];
       return {
         id,
         ...GROUP_META[id],

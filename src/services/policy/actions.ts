@@ -34,6 +34,7 @@ export const ACTIONS: Record<ActionType, ActionDefinition> = {
 
 const FULFILMENT_SCOPES: Record<string, string> = {
   "enrolment-service": "grant_course_access",
+  "booking-service": "confirm_booking",
   "membership-service": "activate_membership",
   "wallet-service": "credit_wallet",
   "billing-service": "upgrade_plan",
@@ -63,4 +64,34 @@ export function requiredScope(action: ActionType, contract: Pick<OutcomeContract
 export function serviceLabel(service: string): string {
   const name = service.replace(/-service$/, "").replace(/-/g, " ");
   return `${name.charAt(0).toUpperCase()}${name.slice(1)} service`;
+}
+
+/** What re-running fulfilment means for each Outcome Contract's promised outcome. */
+const FULFILMENT_LABELS: Record<string, string> = {
+  course_access_granted: "Retry enrolment",
+  booking_confirmed: "Reconfirm booking",
+  membership_activated: "Activate membership",
+  wallet_credited: "Credit wallet",
+  plan_upgraded: "Apply plan upgrade",
+};
+
+/** Duplicate payments: fulfil once against the original charge, then review the second. */
+const DUPLICATE_LABELS: Record<string, string> = {
+  course_access_granted: "Grant access once, review refund",
+  booking_confirmed: "Confirm booking once, review refund",
+  membership_activated: "Activate membership once, review refund",
+  wallet_credited: "Credit wallet once, review refund",
+  plan_upgraded: "Apply upgrade once, review refund",
+};
+
+/**
+ * An action's label in the language of the contract it acts on, so an event
+ * booking never reads as enrolment. Without a contract, the generic label.
+ */
+export function actionLabel(action: ActionType, contract?: Pick<OutcomeContract, "expectedOutcome">): string {
+  if (!contract) return ACTIONS[action].label;
+  const fulfil = FULFILMENT_LABELS[contract.expectedOutcome];
+  if (action === "retry_provisioning") return fulfil ?? "Retry fulfilment";
+  if (action === "review_duplicate") return DUPLICATE_LABELS[contract.expectedOutcome] ?? ACTIONS.review_duplicate.label;
+  return ACTIONS[action].label;
 }
