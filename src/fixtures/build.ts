@@ -910,7 +910,7 @@ export function buildDataset(): Dataset {
       orderStatus: "expired",
     });
     const authorizedAt = chain.authorized!.occurredAt;
-    chain.payment.captureDeadline = addSeconds(authorizedAt, 24 * 3600);
+    chain.payment.captureDeadline = captureDeadlineFor(chain.payment);
     const detectedAt = addSeconds(authorizedAt, 2);
     const investigation: Investigation = {
       summary: `The bank authorised the payment ${Math.round((Date.parse(authorizedAt) - Date.parse(orderAt)) / 60000)} minutes after checkout started, after the LearnLoop order had expired. It was not captured and will be refunded automatically if not captured by the deadline.`,
@@ -1231,7 +1231,7 @@ export function buildDataset(): Dataset {
     const orderAt = at(D, "13:31:10");
     const chain = buildChain({ customer: newCustomer(), product, orderCreatedAt: orderAt, authorizeAfter: 17 * 60 + 42, capture: false, outcome: { kind: "none" }, orderStatus: "expired" });
     const authorizedAt = chain.authorized!.occurredAt;
-    chain.payment.captureDeadline = addSeconds(authorizedAt, 24 * 3600);
+    chain.payment.captureDeadline = captureDeadlineFor(chain.payment);
     const investigation: Investigation = {
       summary: "The bank authorised the payment 17 minutes after checkout started, after the LearnLoop order had expired. It was not captured and will be refunded automatically if not captured by the deadline.",
       likelyCause: "Late bank authorisation after the checkout session expired.",
@@ -1325,6 +1325,16 @@ export function buildDataset(): Dataset {
     if (c.amountAtRisk > 5000) return "Amount above ₹5,000 automatic limit; individual approval required";
     return "All checks passed; retry provisioning is set to Suggest only";
   }
+}
+
+/**
+ * Razorpay refunds authorised payments that are not captured within 3 days of
+ * creation (https://razorpay.com/docs/payments/payments/capture-settings/).
+ */
+export const CAPTURE_WINDOW_SECONDS = 3 * 24 * 3600;
+
+function captureDeadlineFor(payment: Payment): string {
+  return addSeconds(payment.createdAt, CAPTURE_WINDOW_SECONDS);
 }
 
 function caseOpenedResult(type: CaseType): string {
