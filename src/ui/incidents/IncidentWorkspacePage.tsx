@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { reinvestigateIncident, type InvestigationProgress } from "@/services/agent";
 import { incidentWorkspace } from "@/services/views/incidents";
+import { ContextAuthorityView } from "@/ui/agent/ContextAuthority";
 import { InvestigationPanel } from "@/ui/agent/InvestigationPanel";
+import { LifecycleLabel } from "@/ui/agent/LifecycleLabel";
+import { Surface } from "@/ui/components/Surface";
 import { CaseListDrawer, type CaseListRequest } from "@/ui/components/CaseListDrawer";
 import { IncidentStatusBadge, SeverityLabel } from "@/ui/components/badges";
 import { PageHeader } from "@/ui/components/PageHeader";
@@ -59,6 +62,7 @@ export function IncidentWorkspacePage({ incidentId }: { incidentId: string }) {
           <Box display="flex" alignItems="center" gap="spacing.4" flexWrap="wrap">
             <IncidentStatusBadge status={incident.status} />
             <SeverityLabel severity={incident.severity} />
+            <LifecycleLabel lifecycle={model.lifecycle} />
           </Box>
         }
         meta={<IncidentSummary model={model} now={state.now} />}
@@ -85,6 +89,9 @@ export function IncidentWorkspacePage({ incidentId }: { incidentId: string }) {
           now={state.now}
           {...(incident.status !== "resolved" ? { onReinvestigate: (onProgress: (p: InvestigationProgress) => void) => reinvestigateIncident(state.services, incident.id, onProgress) } : {})}
         />
+        <Surface id="context-authority" title="Context & authority" description={`What the agent could read for this incident, and what it may do under the ${model.contract.name} Outcome Contract.`}>
+          <ContextAuthorityView model={model.authority} />
+        </Surface>
         <EvidenceSection groups={model.evidence} now={state.now} />
         <ContainmentSection model={model} services={state.services} now={state.now} />
         <HistorySection entries={model.history} now={state.now} />

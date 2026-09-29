@@ -20,7 +20,7 @@ export function WhatHappened({ model }: { model: IncidentWorkspaceModel }) {
               </Text>
             </>
           ) : null}
-          <Text size="small" color="surface.text.gray.muted">Outcome Contract</Text>
+          <Text size="small" color="surface.text.gray.muted">Merchant intent</Text>
           <Text size="small">
             {model.contract.name}: {model.contract.expectedOutcome} within {model.contract.deadlineSeconds / 60} minutes
           </Text>

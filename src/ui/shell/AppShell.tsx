@@ -8,6 +8,7 @@ import {
   MenuItem,
   MenuOverlay,
   Box,
+  Link,
   SideNav,
   SideNavBody,
   SideNavLink,
@@ -21,18 +22,42 @@ import {
   TopNavContent,
 } from "@razorpay/blade/components";
 import { usePathname, useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { MERCHANT, OPERATOR } from "@/fixtures/catalogue";
 import { BASE_PATH, isActive, NAV_ITEMS } from "./nav";
 import { SystemStatusBanner } from "./SystemStatusBanner";
+import { AgentDetailsDrawer } from "@/ui/agent/AgentDetailsDrawer";
+import { RayIdentity } from "@/ui/ray/RayIdentity";
 import { GlobalSearch } from "./GlobalSearch";
 import { RouterLink } from "./RouterLink";
 
 const TOP_NAV_HEIGHT = "56px";
 
-export function AppShell({ children }: { children: ReactNode }) {
+export type OfficialLogo = { src: string; width: number; height: number };
+
+const LOGO_HEIGHT = 22;
+
+/**
+ * Razorpay's official white wordmark, at its own aspect ratio. Until the
+ * official file is present, the temporary text treatment is kept rather than
+ * a recreated logo.
+ */
+function Wordmark({ logo }: { logo: OfficialLogo | null }) {
+  if (!logo) {
+    return (
+      <Text size="large" weight="semibold" color="surface.text.staticWhite.normal">
+        Razorpay
+      </Text>
+    );
+  }
+  // eslint-disable-next-line @next/next/no-img-element -- a fixed-size static brand asset; next/image adds nothing here.
+  return <img src={logo.src} alt="Razorpay" height={LOGO_HEIGHT} width={Math.round((LOGO_HEIGHT * logo.width) / logo.height)} style={{ display: "block", height: LOGO_HEIGHT, width: "auto" }} />;
+}
+
+export function AppShell({ children, logo = null }: { children: ReactNode; logo?: OfficialLogo | null }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [agentOpen, setAgentOpen] = useState(false);
   return (
     <Box display="flex" flexDirection="column" height="100vh" backgroundColor="surface.background.gray.subtle">
       {/* Raised above the top bar so the link is visible when focused. */}
@@ -41,9 +66,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       <TopNav>
         <TopNavBrand>
-          <Text size="large" weight="semibold" color="surface.text.staticWhite.normal">
-            Razorpay
-          </Text>
+          <Box display="flex" alignItems="center" gap="spacing.4">
+            <Wordmark logo={logo} />
+            <RayIdentity name="RAY AI" tone="dark" />
+          </Box>
         </TopNavBrand>
         <TopNavContent>
           <Box display={{ base: "none", l: "flex" }} alignItems="center" gap="spacing.3">
@@ -56,21 +82,30 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Text size="small" weight="semibold" color="surface.text.staticWhite.normal">
               Payment Integrity
             </Text>
+            <Link variant="button" color="white" size="small" onClick={() => setAgentOpen(true)}>
+              Agent details
+            </Link>
           </Box>
         </TopNavContent>
         <TopNavActions>
           <Box display="flex" alignItems="center" gap="spacing.4">
-            <GlobalSearch />
-            <Text size="small" color="surface.text.staticWhite.normal">
-              {MERCHANT.name}
-            </Text>
-            <Badge color="positive" size="small" emphasis="intense">
-              Live
-            </Badge>
+            {/* Search needs more room than a phone's top bar has; the Cases page keeps full search. */}
+            <Box display={{ base: "none", m: "block" }}>
+              <GlobalSearch />
+            </Box>
+            <Box display={{ base: "none", m: "flex" }} alignItems="center" gap="spacing.4">
+              <Text size="small" color="surface.text.staticWhite.normal">
+                {MERCHANT.name}
+              </Text>
+              <Badge color="positive" size="small" emphasis="intense">
+                Live
+              </Badge>
+            </Box>
             <Menu>
               <Avatar name={OPERATOR.name} size="small" color="primary" />
               <MenuOverlay>
                 <MenuHeader title={OPERATOR.name} subtitle={OPERATOR.role} />
+                <MenuItem title="Agent details" onClick={() => setAgentOpen(true)} />
                 <MenuItem title="Developer settings" onClick={() => router.push(`${BASE_PATH}/developer`)} />
               </MenuOverlay>
             </Menu>
@@ -107,6 +142,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <SystemStatusBanner />
             {children}
           </Box>
+          <AgentDetailsDrawer isOpen={agentOpen} onDismiss={() => setAgentOpen(false)} />
           <Box as="footer" paddingX="spacing.8" paddingY="spacing.4" borderTopWidth="thin" borderTopColor="surface.border.gray.muted">
             <Text size="xsmall" color="surface.text.gray.muted">
               Concept prototype built on simulated data. Not an official Razorpay product.

@@ -1,3 +1,4 @@
+import { grantedScopes } from "@/services/permissions";
 import type {
   ActionType,
   CurrentMerchantState,
@@ -69,8 +70,7 @@ export function buildCurrentState(
   const inventoryChange = events.filter((e) => e.type === "inventory_changed" && e.occurredAt <= asOf).at(-1);
   const replacement = inventoryChange?.metadata?.["replacementAvailable"];
 
-  const connected = repos.config.integrations().filter((i) => i.status === "connected");
-  const grantedScopes = connected.flatMap((i) => [...i.scopes.read, ...i.scopes.write]);
+  const granted = grantedScopes(repos);
   const outcomeIntegration = repos.config.integration("learnloop_enrolment");
 
   const key = idempotencyKey(payment.id, action);
@@ -102,7 +102,7 @@ export function buildCurrentState(
         }
       : { applicable: false },
     recordMatch: { method: "exact_key", confidence: 1 },
-    grantedScopes,
+    grantedScopes: granted,
     actionModes: repos.config.actionModes(),
     contract: {
       id: contract.id,

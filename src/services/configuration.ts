@@ -4,6 +4,7 @@ import { formatINR } from "@/domain/money";
 import type { Repositories } from "@/repositories";
 import { formatIstShort } from "@/domain/time";
 import { evaluateAutonomyEligibility, type AutonomyEligibility } from "@/services/autonomyEligibility";
+import { grantedScopes } from "@/services/permissions";
 import { earnedAutonomy, type AutonomyEvidence } from "@/services/metrics/autonomy";
 import { actionLabel, POLICY_ACTION_LABELS } from "@/services/policy/actions";
 import { modeLabel } from "@/services/policy/evaluatePolicy";
@@ -55,13 +56,9 @@ export type AutonomyAssessment = { evidence: AutonomyEvidence; eligibility: Auto
 /** Verified-outcome evidence plus the deterministic eligibility decision. */
 export function assessAutonomy(repos: Repositories, action: AutonomyAction = "retry_provisioning"): AutonomyAssessment {
   const evidence = earnedAutonomy(repos, action);
-  const grantedScopes = repos.config
-    .integrations()
-    .filter((i) => i.status === "connected")
-    .flatMap((i) => [...i.scopes.read, ...i.scopes.write]);
   return {
     evidence,
-    eligibility: evaluateAutonomyEligibility(evidence, repos.config.globalControls(), { contracts: repos.config.contracts(), grantedScopes }),
+    eligibility: evaluateAutonomyEligibility(evidence, repos.config.globalControls(), { contracts: repos.config.contracts(), grantedScopes: grantedScopes(repos) }),
   };
 }
 
@@ -319,7 +316,12 @@ export function setIntegrationConnected(repos: Repositories, id: IntegrationId, 
   if (!integration) throw new ConfigurationError("Integration not found");
   const status = connected ? "connected" : "revoked";
   if (integration.status === status) return integration;
-  const next = { ...integration, status, ...(connected ? { connectedAt: asOf } : {}) } as typeof integration;
+  // Reconnecting restores read context only; write authority must be granted again explicitly.
+  const next = {
+    ...integration,
+    status,
+    ...(connected ? { connectedAt: asOf, writeAuthority: integration.scopes.write.length > 0 ? "not_granted" : integration.writeAuthority } : {}),
+  } as typeof integration;
   repos.config.saveIntegration(next);
   audit(repos, {
     occurredAt: asOf,
@@ -328,8 +330,33 @@ export function setIntegrationConnected(repos: Repositories, id: IntegrationId, 
     targetType: "integration",
     targetId: id,
     result: connected
-      ? `${integration.name} reconnected with scopes ${[...integration.scopes.read, ...integration.scopes.write].join(", ")}`
+      ? `${integration.name} reconnected with read scopes ${integration.scopes.read.join(", ") || "none"}${integration.scopes.write.length > 0 ? "; write access not granted until approved separately" : ""}`
       : `${integration.name} revoked; actions needing ${integration.scopes.write.join(", ") || "its data"} are now blocked`,
   });
   return next;
+}
+
+/**
+ * Grants or removes an integration's write authority. Separate from the
+ * connection, so connecting a source never lets the agent act through it.
+ */
+export function setWriteAuthority(repos: Repositories, id: IntegrationId, granted: boolean, actor: string, asOf: string) {
+  const integration = repos.config.integration(id);
+  if (!integration) throw new ConfigurationError("Integration not found");
+  if (integration.scopes.write.length === 0) throw new ConfigurationError(`${integration.name} is read-only.`);
+  if (granted && integration.status !== "connected") throw new ConfigurationError(`Reconnect ${integration.name} before granting write access.`);
+  const current = integration.writeAuthority ?? "granted";
+  const next = granted ? "granted" : "not_granted";
+  if (current === next) return integration;
+  const saved = { ...integration, writeAuthority: next } as typeof integration;
+  repos.config.saveIntegration(saved);
+  audit(repos, {
+    occurredAt: asOf,
+    actor,
+    action: granted ? "Granted write access" : "Removed write access",
+    targetType: "integration",
+    targetId: id,
+    result: `${integration.name}: ${integration.scopes.write.join(", ")} ${granted ? "may now be used, subject to Automations modes and policy" : "can no longer be used"}`,
+  });
+  return saved;
 }

@@ -11,7 +11,7 @@ import {
   setActionMode,
   setAutomationPaused,
   setContractStatus,
-  setIntegrationConnected,
+  setIntegrationConnected, setWriteAuthority,
   validateContract,
 } from "@/services/configuration";
 import { evaluateCase } from "@/services/policy/currentState";
@@ -115,16 +115,22 @@ describe("Integrations", () => {
     expect(permissionModel(env.repos)).toMatchObject({ write: ["capture_payment", "replay_webhook", "grant_course_access", "send_customer_message", "create_incident", "post_message"] });
   });
 
-  it("revoking an integration makes its actions impossible until reconnected", () => {
+  it("revoking an integration makes its actions impossible; reconnecting restores context but not authority", () => {
     const env = setup();
     const c = env.safeCases[0]!;
     setIntegrationConnected(env.repos, "learnloop_enrolment", false, ACTORS.operator, NOW);
     expect(evaluateCase(env.repos, c, c.recommendation!, NOW).result).toBe("blocked");
     expect(permissionModel(env.repos).notGranted).toContain("grant_course_access");
     expect(actionPolicyRows(env.repos).find((r) => r.action === "retry_provisioning")!.permissionMissing).toBe("grant_course_access");
+
     setIntegrationConnected(env.repos, "learnloop_enrolment", true, ACTORS.operator, NOW);
+    expect(permissionModel(env.repos).read).toContain("course_access_status");
+    expect(permissionModel(env.repos).write).not.toContain("grant_course_access");
+    expect(evaluateCase(env.repos, c, c.recommendation!, NOW).result).toBe("blocked");
+
+    setWriteAuthority(env.repos, "learnloop_enrolment", true, ACTORS.operator, NOW);
     expect(evaluateCase(env.repos, c, c.recommendation!, NOW).result).toBe("requires_approval");
-    expect(env.repos.audit.list().slice(-2).map((e) => e.action)).toEqual(["Revoked integration", "Reconnected integration"]);
+    expect(env.repos.audit.list().slice(-3).map((e) => e.action)).toEqual(["Revoked integration", "Reconnected integration", "Granted write access"]);
   });
 });
 

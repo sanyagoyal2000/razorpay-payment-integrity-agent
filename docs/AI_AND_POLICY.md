@@ -64,6 +64,10 @@ The AI cannot bypass this: recommendations are inputs to policy, never instructi
 
 Explanations that reach the merchant use each contract's own language, for example "Retry enrolment", "Reconfirm booking" or "Activate membership". The Automations entry keeps the generic name "Retry provisioning", because it covers every contract.
 
+## Context and authority
+
+The agent may investigate broadly within connected, readable context. Acting is narrow: it needs a write grant for the integration, an Automations mode that allows it, a passing deterministic policy check, limits on amount and confidence, an audit entry and a verified Outcome Receipt. Model confidence and merchant agreement never unlock automation on their own.
+
 ## Earned autonomy
 
 `evaluateAutonomyEligibility` decides, from verified outcomes only, whether limited automation may be suggested. It requires:

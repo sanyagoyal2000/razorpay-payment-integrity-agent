@@ -1,3 +1,4 @@
+import { authorityScopes, contextScopes, hasWriteAuthority } from "@/services/permissions";
 import type { ActionMode, Integration, IntegrationId, OutcomeContract, PolicyAction } from "@/domain/types";
 import { sum } from "@/domain/money";
 import { addDaysToDate, istDate, median, MS_PER_DAY } from "@/domain/time";
@@ -91,7 +92,7 @@ export const MODE_OPTIONS: Array<{ value: ActionMode; label: string; description
 ];
 
 export function actionPolicyRows(repos: Repositories) {
-  const scopes = new Set(repos.config.integrations().filter((i) => i.status === "connected").flatMap((i) => i.scopes.write));
+  const scopes = new Set(authorityScopes(repos));
   const needs: Partial<Record<PolicyAction, string>> = {
     retry_provisioning: "grant_course_access",
     replay_webhook: "replay_webhook",
@@ -170,7 +171,7 @@ export function integrationRows(repos: Repositories, asOf: string): IntegrationR
       ...i,
       errorSummary:
         i.id === "razorpay_payments" ? pct(failures, attempts) : i.id === "learnloop_enrolment" ? pct(enrolFailures, coursePayments) : logSummary(i.id),
-      actionsAllowed: i.status === "connected" ? i.scopes.write.map((s) => WRITE_SCOPE_ACTIONS[s] ?? s) : [],
+      actionsAllowed: hasWriteAuthority(i) ? i.scopes.write.map((s) => WRITE_SCOPE_ACTIONS[s] ?? s) : [],
     };
     const last = lastSuccess[i.id];
     if (last) row.lastSuccessfulEventAt = last;
@@ -202,11 +203,11 @@ export function integrationHealth(repos: Repositories, asOf: string) {
 /** Scopes Payment Integrity can use right now, across connected integrations. */
 export function permissionModel(repos: Repositories) {
   const connected = repos.config.integrations().filter((i) => i.status === "connected");
-  const revoked = repos.config.integrations().filter((i) => i.status !== "connected");
+  const withoutAuthority = repos.config.integrations().filter((i) => !hasWriteAuthority(i));
   const unique = (xs: string[]) => [...new Set(xs)];
   return {
-    read: unique(connected.flatMap((i) => i.scopes.read)),
-    write: unique(connected.flatMap((i) => i.scopes.write)),
-    notGranted: unique([...connected.flatMap((i) => i.scopes.notGranted), ...revoked.flatMap((i) => [...i.scopes.write])]),
+    read: contextScopes(repos),
+    write: authorityScopes(repos),
+    notGranted: unique([...connected.flatMap((i) => i.scopes.notGranted), ...withoutAuthority.flatMap((i) => [...i.scopes.write])]),
   };
 }

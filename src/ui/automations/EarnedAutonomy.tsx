@@ -29,6 +29,7 @@ import { CASE_TYPE_LABELS } from "@/services/views/overview";
 import type { CaseListRequest } from "@/ui/components/CaseListDrawer";
 import { MetaList } from "@/ui/components/MetaList";
 import { Surface } from "@/ui/components/Surface";
+import { RayIdentity } from "@/ui/ray/RayIdentity";
 import { BASE_PATH } from "@/ui/shell/nav";
 
 const ACTION = "retry_provisioning" as const;
@@ -187,7 +188,7 @@ export function EarnedAutonomy({
         <Box borderTopWidth="thin" borderTopColor="surface.border.gray.muted" paddingTop="spacing.5" display="flex" flexDirection="column" gap="spacing.3">
           <Box display="flex" justifyContent="space-between" alignItems="center" gap="spacing.3">
             <Box>
-              <Text size="small" weight="semibold">Agent&apos;s explanation</Text>
+              <RayIdentity label="Agent's explanation" />
               <Text size="xsmall" color="surface.text.gray.muted">Explains the evidence. It cannot change the decision above.</Text>
             </Box>
             <Button variant="tertiary" size="small" onClick={() => load(true)} isDisabled={loading}>Review again</Button>

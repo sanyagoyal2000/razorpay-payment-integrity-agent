@@ -1,11 +1,13 @@
 "use client";
 
-import { Box, Button, Heading, Indicator, Text } from "@razorpay/blade/components";
+import { Box, Button, Indicator, Text } from "@razorpay/blade/components";
 import { useRouter } from "next/navigation";
 import { formatIstShort, formatRelative } from "@/domain/time";
 import type { BriefingAction, BriefingTarget, ProactiveBriefingModel } from "@/services/views/briefing";
 import { IncidentStatusBadge } from "@/ui/components/badges";
+import { LifecycleLabel } from "@/ui/agent/LifecycleLabel";
 import { MetaList } from "@/ui/components/MetaList";
+import { RaySurface } from "@/ui/ray/RaySurface";
 import { BASE_PATH, incidentHref } from "@/ui/shell/nav";
 
 export function briefingHref(target: BriefingTarget): string {
@@ -24,30 +26,22 @@ export function ProactiveBriefing({ model, now }: { model: ProactiveBriefingMode
   const featured = model.featured;
 
   return (
-    <section aria-labelledby="briefing-heading">
-      <Box
-        backgroundColor="surface.background.gray.intense"
-        borderWidth="thin"
-        borderColor={clear ? "surface.border.gray.muted" : "surface.border.gray.normal"}
-        borderRadius="medium"
-        padding={{ base: "spacing.6", m: "spacing.7" }}
-        display="flex"
-        flexDirection="column"
-        gap="spacing.5"
-      >
-        <Box display="flex" flexDirection="column" gap="spacing.3">
-          <Box display="flex" alignItems="center" gap="spacing.2">
-            <Indicator color={clear ? "positive" : "notice"} emphasis="intense" size="medium" accessibilityLabel="" />
-            <Text size="small" weight="semibold" color="surface.text.gray.subtle">{model.eyebrow}</Text>
-          </Box>
-          <div id="briefing-heading">
-            <Heading as="h2" size="large" weight="semibold">
-              {model.heading}
-            </Heading>
-          </div>
-          <Box maxWidth="760px">
-            <Text size="medium" color="surface.text.gray.normal">{model.body}</Text>
-          </Box>
+    <RaySurface
+      id="briefing"
+      identity="Proactive briefing"
+      ambient
+      titleSize="large"
+      title={model.heading}
+      description={
+        <Box as="span" display="inline-flex" alignItems="center" gap="spacing.2">
+          <Indicator color={clear ? "positive" : "notice"} emphasis="intense" size="small" accessibilityLabel="" />
+          <Text as="span" size="small" weight="semibold" color="surface.text.gray.subtle">{model.eyebrow}</Text>
+        </Box>
+      }
+    >
+      <Box display="flex" flexDirection="column" gap="spacing.5">
+        <Box maxWidth="760px">
+          <Text size="medium" color="surface.text.gray.normal">{model.body}</Text>
         </Box>
 
         {featured && !clear ? (
@@ -79,12 +73,15 @@ export function ProactiveBriefing({ model, now }: { model: ProactiveBriefingMode
               <Button key={action.label} variant="secondary" onClick={go(action)}>{action.label}</Button>
             ))}
           </Box>
-          <Text size="xsmall" color="surface.text.gray.muted">
-            {clear ? "Last monitored" : "Data refreshed"} {formatRelative(model.lastRefresh, now)}
-            {model.lastInvestigatedAt ? ` · Last investigated ${formatIstShort(model.lastInvestigatedAt, now)} IST` : ""}
-          </Text>
+          <Box display="flex" flexDirection="column" alignItems="flex-end" gap="spacing.1">
+            <LifecycleLabel lifecycle={model.lifecycle} />
+            <Text size="xsmall" color="surface.text.gray.muted">
+              {clear ? "Last monitored" : "Data refreshed"} {formatRelative(model.lastRefresh, now)}
+              {model.lastInvestigatedAt ? ` · Last investigated ${formatIstShort(model.lastInvestigatedAt, now)} IST` : ""}
+            </Text>
+          </Box>
         </Box>
       </Box>
-    </section>
+    </RaySurface>
   );
 }

@@ -40,7 +40,7 @@ export function ContractsPage() {
   const header = (
     <PageHeader
       title="Outcome Contracts"
-      description="What each kind of successful payment must produce, how long to wait for it, and how to recover safely."
+      description="Your intent for each kind of payment, in machine-readable form: the outcome the customer should get, the deadline, how it is verified, which recoveries are allowed, and the limits that apply. An Outcome Receipt is the proof that the outcome happened."
       actions={
         <Button variant="primary" icon={PlusIcon} onClick={() => router.push(`${BASE_PATH}/contracts/new`)}>
           New contract

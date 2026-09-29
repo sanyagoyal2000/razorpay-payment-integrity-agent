@@ -8,6 +8,7 @@ import { POLICY_ACTION_LABELS, serviceLabel } from "@/services/policy/actions";
 import { modeLabel } from "@/services/policy/evaluatePolicy";
 import { assessCase, groupIncidentCases } from "@/services/recovery/groups";
 import { serviceHealth } from "@/services/policy/currentState";
+import { agentLifecycle } from "@/services/lifecycle";
 import { SYSTEMIC_CHECKS, systemicBlocker } from "./systemStatus";
 
 export const CASE_TYPE_LABELS: Record<IntegrityCase["type"], string> = {
@@ -24,10 +25,14 @@ export function lastDataRefresh(repos: Repositories, asOf: string): string {
   return synced <= asOf ? synced : asOf;
 }
 
-export function agentStatus(repos: Repositories): { label: string; detail: string } {
+/** The agent's derived lifecycle state, with a note when automated investigation is unavailable. */
+export function agentStatus(repos: Repositories, asOf: string): { label: string; detail: string } {
+  const lifecycle = agentLifecycle(repos, asOf);
   const flags = repos.config.flags();
-  if (!flags.investigationAvailable) return { label: "Monitoring", detail: "Automated investigation unavailable. Deterministic detection remains active." };
-  return { label: "Monitoring", detail: "Detection, investigation and verification are running." };
+  return {
+    label: lifecycle.label,
+    detail: flags.investigationAvailable ? lifecycle.reason : `${lifecycle.reason} Automated investigation unavailable; deterministic detection remains active.`,
+  };
 }
 
 export function automationStatus(repos: Repositories): { label: string; paused: boolean; detail: string } {
@@ -277,7 +282,7 @@ export function overviewModel(repos: Repositories, asOf: string) {
   const metrics = primaryMetrics(repos, asOf);
   return {
     lastRefresh: lastDataRefresh(repos, asOf),
-    agent: agentStatus(repos),
+    agent: agentStatus(repos, asOf),
     automation: automationStatus(repos),
     metrics,
     incidents: activeIncidentRows(repos, asOf),

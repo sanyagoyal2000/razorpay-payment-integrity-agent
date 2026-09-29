@@ -4,11 +4,13 @@ import { Alert, Box, Button, Collapsible, CollapsibleBody, CollapsibleLink, Head
 import type { AgentContribution } from "@/services/views/agentContribution";
 import type { CaseListRequest } from "@/ui/components/CaseListDrawer";
 import { Surface } from "@/ui/components/Surface";
+import { RayIdentity } from "@/ui/ray/RayIdentity";
+import { RAY } from "@/ui/ray/theme";
 
-function Column({ label, text }: { label: string; text: string }) {
+function Column({ label, text, ai = false }: { label: string; text: string; ai?: boolean }) {
   return (
-    <Box padding="spacing.4" borderWidth="thin" borderColor="surface.border.gray.muted" borderRadius="medium">
-      <Text size="small" weight="semibold" marginBottom="spacing.1">{label}</Text>
+    <Box padding="spacing.4" borderWidth="thin" borderColor="surface.border.gray.muted" borderRadius="medium" {...(ai ? { backgroundColor: RAY.surfaceSubtle } : {})}>
+      <Box marginBottom="spacing.1">{ai ? <RayIdentity label={label} /> : <Text size="small" weight="semibold">{label}</Text>}</Box>
       <Text size="small" color="surface.text.gray.subtle">{text}</Text>
     </Box>
   );
@@ -32,7 +34,7 @@ export function WhyAgentNeeded({ contribution, onShowCases }: { contribution: Ag
 
         <Box display="grid" gridTemplateColumns={{ base: "1fr", m: "1fr 1fr" }} gap="spacing.4">
           <Column label="Fixed rule" text={contribution.comparison.fixedRule} />
-          <Column label="AI investigator" text={contribution.comparison.agent} />
+          <Column label="AI investigator" text={contribution.comparison.agent} ai />
         </Box>
 
         <Box display="grid" gridTemplateColumns="repeat(auto-fit, minmax(160px, 1fr))" gap="spacing.4">

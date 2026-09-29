@@ -66,3 +66,11 @@ Wiring lives in `src/services/container.ts`.
 - Razorpay Blade 12.127.0 with styled-components 5 (SSR registry in `src/app/registry.tsx`) on React 18.
 - Recharts 3.7.0 is used for the one trend chart, coloured with Blade tokens.
 - A local patch (`patches/`) fixes three Blade Table and Checkbox accessibility bugs.
+
+## Agent Studio layer
+
+- **Permissions** (`services/permissions.ts`): context (read scopes of connected integrations) and authority (write scopes that also have an explicit write grant) come from separate records. Reconnecting an integration restores context only; write access is granted with `setWriteAuthority`, and the grant is audited.
+- **Lifecycle** (`services/lifecycle.ts`): Monitoring, Investigating, Awaiting approval, Executing, Verifying outcome, Resolved or Blocked. It is derived each time from executions, investigations, policy verdicts, receipts, service health and system blockers, and is never stored.
+- **Agent details** (`views/agentProfile.ts`): the agent's purpose, its lifecycle state, connected systems, permission mode, outcome metrics, and Context & authority for each contract.
+- **RAY visual layer** (`ui/ray/`): `RayIdentity`, `RaySurface`, `RayProgress` and `RayInsight`. Colours live only in `ui/ray/theme.ts`, mapped to Blade's "on sea" and "sea"/"cloud" tokens; the one custom value (the mint border) is a prototype approximation. RAY green marks AI identity and AI work only, never success. Buttons stay on Blade's standard variants.
+- **Brand**: the shell uses Razorpay's official white wordmark from `public/brand/` when the file is present, sized from its PNG header. Otherwise it shows plain text.

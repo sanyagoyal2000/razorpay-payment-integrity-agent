@@ -153,7 +153,7 @@ export function ContractEditorPage({ contractId }: { contractId?: string }) {
       <PageHeader
         title={title}
         crumbs={crumbs}
-        description={existing ? existing.paymentType : "Describe what a successful payment must produce. The agent can draft the fields for you to review."}
+        description={existing ? `${existing.paymentType}. Your machine-readable intent for these payments.` : "State your intent for a kind of payment: what it must produce, by when, how it is verified and how it may be recovered. The agent can draft the fields for you to review."}
         actions={
           existing && existing.status !== "draft" ? (
             <Button
@@ -201,7 +201,7 @@ export function ContractEditorPage({ contractId }: { contractId?: string }) {
             </Surface>
           ) : null}
 
-          <Surface title="Contract">
+          <Surface title="Merchant intent" description="Expected outcome, deadline, verification source, compatible recovery, and the value, timing, inventory and permission constraints.">
             <Box display="flex" flexDirection="column" gap="spacing.5">
               <Box display="grid" gridTemplateColumns={{ base: "1fr", m: "1fr 1fr" }} gap="spacing.5">
                 <TextInput label="Contract name" value={form.name} onChange={({ value }) => set("name", value ?? "")} {...err("name")} />

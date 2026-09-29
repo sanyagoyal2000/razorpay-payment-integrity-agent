@@ -208,8 +208,8 @@ export function buildIntegrations(at: (daysBeforeAnchor: number, time: string) =
       purpose: "Merchant order records used to match payments to purchases",
       status: "connected",
       access: "read_only",
-      scopes: { read: ["order_status"], write: [], notGranted: ["delete_order", "change_product"] },
-      dataAccessed: ["Order status", "Product purchased", "Customer reference"],
+      scopes: { read: ["order_status", "inventory_status"], write: [], notGranted: ["delete_order", "change_product"] },
+      dataAccessed: ["Order status", "Product purchased", "Customer reference", "Seat inventory and capacity"],
       connectedAt: at(41, "10:15:00"),
     },
     {

@@ -59,6 +59,14 @@ tests/               Policy, execution, investigation, fixture and reconciliatio
 - The fixtures also hold a fixed stream of healthy purchases after the latest event. They become visible as real time passes, which is how "Monitor the next 50 matching purchases" makes progress.
 - Changes are persisted as an overlay on top of the fixtures (`localStorage`, loaded client-side only).
 
+## Positioning
+
+Payment Integrity is presented as a specialist Agent Studio worker: *a specialist Agent Studio worker that continuously protects the gap between a successful payment and the merchant's intended customer outcome.* It is a concept prototype aligned with Razorpay's intent-driven direction, not an announced or available Razorpay product. Strategic reference: an AIM Network interview with Razorpay CPO Khilan Haria (https://www.youtube.com/watch?v=Rr1nUlyRqJg). It informed the positioning and is not a product specification.
+- **Agent details** (top bar or avatar menu) shows its purpose, lifecycle state, connected systems, permission mode, outcome metrics, and Context & authority for each contract.
+- An **Outcome Contract** is the merchant's machine-readable intent for a payment. An **Outcome Receipt** is proof that the outcome happened.
+- The **RAY AI** identity (mint) marks AI-assisted content only.
+- The top bar uses Razorpay's official white wordmark from `public/brand/razorpay-wordmark-white.png` (from razorpay.com/newsroom/brand-assets, subject to Razorpay's Usage Agreement) when that file is present, and plain text otherwise.
+
 ## What needs attention
 
 The Overview opens with a briefing that answers "What needs my attention today?". It is built from active incidents, validated findings, service health, recovery groups under current policy, system blockers and data freshness. Incidents are ranked by:

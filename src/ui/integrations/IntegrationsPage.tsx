@@ -4,7 +4,7 @@ import { Badge, Box, Button, Code, Divider, Modal, ModalBody, ModalFooter, Modal
 import { Fragment, useState } from "react";
 import { formatIstShort, formatRelative } from "@/domain/time";
 import { OPERATOR } from "@/fixtures/catalogue";
-import { setIntegrationConnected } from "@/services/configuration";
+import { setIntegrationConnected, setWriteAuthority } from "@/services/configuration";
 import { integrationHealth, integrationRows, permissionModel, type IntegrationRow } from "@/services/views/configuration";
 import { PageHeader } from "@/ui/components/PageHeader";
 import { PageError, PageSkeleton } from "@/ui/components/states";
@@ -39,6 +39,7 @@ export function IntegrationsPage() {
     permissions: permissionModel(services.repos),
   }));
   const [pending, setPending] = useState<IntegrationRow | null>(null);
+  const [pendingWrite, setPendingWrite] = useState<IntegrationRow | null>(null);
   const header = <PageHeader title="Integrations" description="The systems Payment Integrity reads from and acts through, what each may do, and how healthy each connection is." />;
   if (state.status === "loading") return <>{header}<PageSkeleton rows={2} /></>;
   if (state.status === "error") return <>{header}<PageError message={state.message} /></>;
@@ -49,8 +50,16 @@ export function IntegrationsPage() {
     if (!pending) return;
     const reconnect = pending.status !== "connected";
     setIntegrationConnected(state.services.repos, pending.id, reconnect, OPERATOR.name, new Date().toISOString());
-    toast.show({ color: reconnect ? "positive" : "notice", content: `${pending.name} ${reconnect ? "reconnected" : "revoked"}.` });
+    toast.show({ color: reconnect ? "positive" : "notice", content: `${pending.name} ${reconnect ? "reconnected with read access; grant write access separately" : "revoked"}.` });
     setPending(null);
+  };
+  const writeGranted = (row: IntegrationRow) => row.writeAuthority !== "not_granted";
+  const confirmWrite = () => {
+    if (!pendingWrite) return;
+    const grant = !writeGranted(pendingWrite);
+    setWriteAuthority(state.services.repos, pendingWrite.id, grant, OPERATOR.name, new Date().toISOString());
+    toast.show({ color: grant ? "positive" : "notice", content: `Write access to ${pendingWrite.name} ${grant ? "granted" : "removed"}.` });
+    setPendingWrite(null);
   };
 
   const indicators: Array<{ label: string; value: string; detail: string }> = [
@@ -111,6 +120,14 @@ export function IntegrationsPage() {
                   </Field>
                   <Field label="Actions allowed">
                     <Text size="small">{row.actionsAllowed.length === 0 ? "None" : row.actionsAllowed.join(", ")}</Text>
+                    {row.scopes.write.length > 0 && row.status === "connected" ? (
+                      <Box display="flex" alignItems="center" gap="spacing.2" flexWrap="wrap">
+                        <Text size="xsmall" color="surface.text.gray.muted">Write access {writeGranted(row) ? "granted" : "not granted"}</Text>
+                        <Button variant="tertiary" size="xsmall" onClick={() => setPendingWrite(row)}>
+                          {writeGranted(row) ? "Remove write access" : "Grant write access"}
+                        </Button>
+                      </Box>
+                    ) : null}
                   </Field>
                 </Box>
                 <Box display="grid" gridTemplateColumns={{ base: "1fr", m: "repeat(3, 1fr)" }} gap="spacing.5">
@@ -144,7 +161,7 @@ export function IntegrationsPage() {
           <Text size="small">
             {pending?.status === "connected"
               ? `Payment Integrity loses ${[...(pending?.scopes.read ?? []), ...(pending?.scopes.write ?? [])].join(", ")}. ${pending?.actionsAllowed.length ? `${pending.actionsAllowed.join(", ")} will be blocked by policy.` : ""} Detection on other data continues.`
-              : `Restores ${[...(pending?.scopes.read ?? []), ...(pending?.scopes.write ?? [])].join(", ")}.`}
+              : `Restores read access (${pending?.scopes.read.join(", ") || "none"}). ${pending?.scopes.write.length ? "Write access stays off until you grant it separately." : ""}`}
           </Text>
         </ModalBody>
         <ModalFooter>
@@ -152,6 +169,27 @@ export function IntegrationsPage() {
             <Button variant="secondary" onClick={() => setPending(null)}>Cancel</Button>
             <Button variant="primary" color={pending?.status === "connected" ? "negative" : "primary"} onClick={confirm}>
               {pending?.status === "connected" ? "Revoke" : "Reconnect"}
+            </Button>
+          </Box>
+        </ModalFooter>
+      </Modal>
+
+      <Modal isOpen={pendingWrite !== null} onDismiss={() => setPendingWrite(null)} size="small" accessibilityLabel="Change write access">
+        <ModalHeader title={pendingWrite ? `${writeGranted(pendingWrite) ? "Remove" : "Grant"} write access to ${pendingWrite.name}?` : ""} />
+        <ModalBody>
+          <Text size="small">
+            {pendingWrite
+              ? writeGranted(pendingWrite)
+                ? `Payment Integrity can no longer use ${pendingWrite.scopes.write.join(", ")}. It keeps read access.`
+                : `Payment Integrity may use ${pendingWrite.scopes.write.join(", ")}, still subject to each action's Automations mode and policy. Recorded in the audit log.`
+              : ""}
+          </Text>
+        </ModalBody>
+        <ModalFooter>
+          <Box display="flex" justifyContent="flex-end" gap="spacing.3">
+            <Button variant="secondary" onClick={() => setPendingWrite(null)}>Cancel</Button>
+            <Button variant="primary" color={pendingWrite && writeGranted(pendingWrite) ? "negative" : "primary"} onClick={confirmWrite}>
+              {pendingWrite && writeGranted(pendingWrite) ? "Remove write access" : "Grant write access"}
             </Button>
           </Box>
         </ModalFooter>

@@ -29,6 +29,7 @@ import { Surface } from "@/ui/components/Surface";
 import { draftCustomerMessage, messageInputForCase } from "@/services/agent";
 import { communicationSummary } from "@/services/communication";
 import { MessageDraftModal } from "@/ui/agent/MessageDraftModal";
+import { RayIdentity } from "@/ui/ray/RayIdentity";
 import { ExecutionProgress } from "./ExecutionProgress";
 import { PolicyVerdictSection } from "./PolicyVerdictSection";
 
@@ -42,10 +43,10 @@ const OUTCOME_LABELS: Record<string, string> = {
 
 type Dialog = { kind: "edit" } | { kind: "reject" } | { kind: "escalate" } | { kind: "message" } | { kind: "confirm"; option: DecisionOption } | null;
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, ai = false, children }: { title: string; ai?: boolean; children: ReactNode }) {
   return (
     <Box>
-      <Text size="small" weight="semibold" marginBottom="spacing.3">{title}</Text>
+      <Box marginBottom="spacing.3">{ai ? <RayIdentity label={title} /> : <Text size="small" weight="semibold">{title}</Text>}</Box>
       {children}
     </Box>
   );
@@ -153,7 +154,7 @@ export function DecisionPanel({ model, services }: { model: CaseDetailModel; ser
           </Section>
         ) : null}
 
-        <Section title="Agent recommendation">
+        <Section title="Agent recommendation" ai>
           {recommendation ? (
             <>
               <Row label="Proposed action">

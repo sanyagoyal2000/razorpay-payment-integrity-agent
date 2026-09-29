@@ -306,6 +306,12 @@ export type Integration = {
   status: "connected" | "revoked";
   access: "read_only" | "scoped_write";
   scopes: { read: string[]; write: string[]; notGranted: string[] };
+  /**
+   * Authority to use the write scopes, recorded separately from the connection.
+   * Connecting (or reconnecting) restores read context only; write authority
+   * must be granted explicitly. Undefined means granted (fixture default).
+   */
+  writeAuthority?: "granted" | "not_granted";
   dataAccessed: string[];
   connectedAt: ISODateTime;
 };

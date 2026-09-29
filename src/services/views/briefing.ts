@@ -3,6 +3,7 @@ import { formatINR, sum } from "@/domain/money";
 import type { Repositories } from "@/repositories";
 import { describeIncidentInvestigation } from "@/services/agent";
 import { healthResult } from "@/services/agent/progress";
+import { agentLifecycle, type Lifecycle } from "@/services/lifecycle";
 import { statusLabel } from "@/services/incidents";
 import { incidentTotals, isAtRisk } from "@/services/metrics/cases";
 import { serviceLabel } from "@/services/policy/actions";
@@ -47,6 +48,8 @@ export type ProactiveBriefingModel = {
   secondaryActions: BriefingAction[];
   lastRefresh: string;
   lastInvestigatedAt?: string;
+  /** Supporting context: the agent's current lifecycle state. */
+  lifecycle: Lifecycle;
 };
 
 const BLOCKER_PRECEDENCE: StatusNotice["id"][] = ["policy_service", "stale", "outcome_verification", "automation_paused"];
@@ -153,7 +156,7 @@ export function proactiveBriefing(repos: Repositories, asOf: string): ProactiveB
   const atRisk = repos.cases.list().filter((c) => c.incidentId !== undefined && activeIds.has(c.incidentId) && isAtRisk(c));
   const totalAtRisk = sum(atRisk.map((c) => c.amountAtRisk));
   const totalCustomers = new Set(atRisk.map((c) => c.customerId)).size;
-  const base = { incidentCount: ranked.length, totalAtRisk, totalCustomers, lastRefresh };
+  const base = { incidentCount: ranked.length, totalAtRisk, totalCustomers, lastRefresh, lifecycle: agentLifecycle(repos, asOf) };
 
   const top = ranked[0];
   if (!top) {

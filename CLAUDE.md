@@ -33,7 +33,7 @@ Add an integration: **LearnLoop Observability** (deploy events, service error lo
 - Add a test asserting every displayed aggregate equals the sum of its underlying cases, before and after resolving the 38 safe cases (remaining ₹30,495).
 
 ### Disclaimer
-Put exactly one line in the footer of the admin shell (small, muted): "Concept prototype built on simulated data. Not an official Razorpay product." No other prototype labels in the UI. Use a text wordmark, not Razorpay's logo file.
+Put exactly one line in the footer of the admin shell (small, muted): "Concept prototype built on simulated data. Not an official Razorpay product." No other prototype labels in the UI. Use Razorpay's official white wordmark, obtained only from https://razorpay.com/newsroom/brand-assets/ and subject to Razorpay's Usage Agreement, stored at `public/brand/razorpay-wordmark-white.png` and shown at its own aspect ratio. Never redraw, recolour or typeset a substitute logo; until the official file is present, the shell falls back to the plain text "Razorpay".
 
 ### Next.js and localStorage
 Load persisted state client-side only (after mount), so server and client renders match. The app must have zero hydration warnings or console errors.

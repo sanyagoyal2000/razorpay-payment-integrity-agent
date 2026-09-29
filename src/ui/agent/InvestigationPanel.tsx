@@ -12,50 +12,23 @@ import {
   HelpCircleIcon,
   MinusCircleIcon,
   RefreshIcon,
-  StepGroup,
-  StepItem,
-  StepItemIndicator,
   Text,
   useToast,
 } from "@razorpay/blade/components";
 import { Fragment, useState } from "react";
 import { formatIstShort } from "@/domain/time";
-import type { InvestigationStage } from "@/domain/types";
 import type { InvestigationProgress } from "@/services/agent";
-import { STAGE_ORDER, stageTitle } from "@/services/agent/progress";
 import type { InvestigationProduction, InvestigationView } from "@/services/views/investigation";
 import { MetaList } from "@/ui/components/MetaList";
-import { Surface } from "@/ui/components/Surface";
+import { RayInsight } from "@/ui/ray/RayInsight";
+import { RayProgress } from "@/ui/ray/RayProgress";
+import { RaySurface } from "@/ui/ray/RaySurface";
 
 const VERDICTS = {
   supported: { label: "Supported", icon: CheckIcon },
   ruled_out: { label: "Ruled out", icon: MinusCircleIcon },
   inconclusive: { label: "Inconclusive", icon: HelpCircleIcon },
 } as const;
-
-/** Stage marker colour: completed operations are positive, failed ones notice, skipped ones neutral. */
-const STAGE_COLOR = { complete: "positive", failed: "notice", skipped: "neutral" } as const;
-
-function StageList({ stages, subject, pending }: { stages: InvestigationStage[]; subject: "case" | "incident"; pending: boolean }) {
-  return (
-    <StepGroup orientation={pending ? "horizontal" : "vertical"} size="medium">
-      {STAGE_ORDER.map((step, index) => {
-        const reached = stages.find((s) => s.step === step);
-        const current = pending && !reached && index === stages.length;
-        return (
-          <StepItem
-            key={step}
-            title={stageTitle(step, subject)}
-            {...(reached ? { description: reached.detail } : current ? { description: "In progress" } : {})}
-            stepProgress={reached ? "full" : current ? "start" : "none"}
-            isDisabled={!reached && !current}
-            marker={<StepItemIndicator color={reached ? STAGE_COLOR[reached.status] : current ? "information" : "neutral"} />}
-          />
-        );
-      })}
-    </StepGroup>
-  );
-}
 
 function Production({ production, subject, now }: { production: InvestigationProduction; subject: "case" | "incident"; now: Date }) {
   const { hypotheses } = production;
@@ -88,7 +61,7 @@ function Production({ production, subject, now }: { production: InvestigationPro
               },
             ]}
           />
-          {production.stages.length > 0 ? <StageList stages={production.stages} subject={subject} pending={false} /> : null}
+          {production.stages.length > 0 ? <RayProgress stages={production.stages} subject={subject} pending={false} /> : null}
           <Text size="xsmall" color="surface.text.gray.muted">
             Stages record operations that ran and what they found. The investigator&apos;s private reasoning is not stored or shown.
           </Text>
@@ -138,10 +111,11 @@ export function InvestigationPanel({
   const runInfo = view?.run;
 
   return (
-    <Surface
+    <RaySurface
       id="investigation"
+      identity="Payment Integrity Agent"
       title="Investigation"
-      description={runInfo ? `By Payment Integrity Agent · ${formatIstShort(runInfo.at, now)} IST` : "By Payment Integrity Agent"}
+      description={runInfo ? `Investigated ${formatIstShort(runInfo.at, now)} IST` : undefined}
       actions={
         onReinvestigate ? (
           <Button variant="secondary" size="small" icon={RefreshIcon} isLoading={running} isDisabled={running} onClick={run}>
@@ -153,7 +127,7 @@ export function InvestigationPanel({
       {progress !== null ? (
         <Box marginBottom="spacing.5">
           <div role="status" aria-live="polite">
-            <StageList stages={progress} subject={subject} pending />
+            <RayProgress stages={progress} subject={subject} pending />
           </div>
         </Box>
       ) : null}
@@ -164,10 +138,10 @@ export function InvestigationPanel({
         </Text>
       ) : (
         <Box display="flex" flexDirection="column" gap="spacing.5">
-          <Box>
+          <RayInsight validated={(runInfo?.status ?? "valid") === "valid"} {...(runInfo ? { citations: runInfo.citationsChecked } : {})}>
             <Text size="small" color="surface.text.gray.muted">Likely cause · {Math.round(view.confidence * 100)}% confidence</Text>
             <Text size="medium" weight="semibold">{view.likelyCause}</Text>
-          </Box>
+          </RayInsight>
 
           {view.hypotheses.length > 0 ? (
             <Box>
@@ -219,6 +193,6 @@ export function InvestigationPanel({
           {view.production ? <Production production={view.production} subject={subject} now={now} /> : null}
         </Box>
       )}
-    </Surface>
+    </RaySurface>
   );
 }

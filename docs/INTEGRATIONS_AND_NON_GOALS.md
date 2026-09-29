@@ -11,7 +11,7 @@ No real Razorpay, LearnLoop, messaging or Slack calls are made. Each integration
 | Slack incident management | Write `create_incident`, `post_message` | Escalations and engineering incidents are recorded with references, not posted. |
 | LearnLoop Observability | Read-only | Deploy events and service errors or recoveries in fixtures; the source for "deployment v2.3". |
 
-Revoking an integration removes its scopes, and policy then blocks every action that needs them.
+Revoking an integration removes its scopes, and policy then blocks every action that needs them. Reconnecting restores read context only: write access must be granted again separately on the Integrations page, and that grant is audited.
 
 The event-booking contract is fulfilled by LearnLoop's booking service, which has no connected integration. Its `confirm_booking` scope is therefore not granted, so booking retries are always blocked by policy and come to a person. Membership activation (`activate_membership`) works the same way.
 

@@ -35,6 +35,7 @@ All types are in `src/domain/types.ts`. Types from the specification keep its fi
 | `Execution` | One run of the state machine: steps with times, idempotency key, the verdict from the pre-execution re-check, the receipt, and any failure. |
 | `AuditEvent` | Append-only. **Extended** with policy result, approval source, and case and incident links, plus an optional `detail` (`AuditDetail`): invocation ID, trigger, agent and policy versions, sources read, what produced the result, input and output fingerprints, idempotency key, execution state and failure. It never holds customer contact details or model reasoning. |
 | `InvestigationRun` | **Extended** with `casesCompared`, `serviceHealth` and `stages`: the observable stage log. `eventsExamined` counts events only; cases are counted separately. |
+| `Integration.writeAuthority` | **Added.** Write authority is recorded separately from the connection. Reconnecting sets it to `not_granted`; only an explicit, audited grant restores it. Undefined means granted. |
 | `ActionPolicy`, `GlobalControls`, `Integration`, `ConnectorLog`, `SystemFlags` | Automations modes, global limits and the kill switch, connections and scopes, connector errors, and simulated dependency health. |
 | `DailyOutcomeStat` | Aggregates for high-volume healthy traffic (about 2,000 course purchases a day). Each stat carries the IDs of its cases, so completion rates reconcile with the case list exactly. |
 

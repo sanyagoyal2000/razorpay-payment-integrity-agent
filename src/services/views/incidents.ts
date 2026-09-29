@@ -8,7 +8,9 @@ import { actionLabel, serviceLabel } from "@/services/policy/actions";
 import { requireContract, serviceHealth } from "@/services/policy/currentState";
 import { groupIncidentCases, planBulkRecovery, type RecoveryGroupId } from "@/services/recovery/groups";
 import { describeIncidentInvestigation } from "@/services/agent";
+import { incidentLifecycle } from "@/services/lifecycle";
 import { agentContribution } from "./agentContribution";
+import { contextAndAuthority } from "./agentProfile";
 import { groupEvidence } from "./evidence";
 import { investigationView } from "./investigation";
 import { requiredDecision } from "./overview";
@@ -250,6 +252,8 @@ export function incidentWorkspace(repos: Repositories, incidentId: string, asOf:
     investigation: investigationView(repos, incident.investigation, describeIncidentInvestigation(repos, incident.id, asOf), "incident"),
     uncertainties: incident.investigation?.uncertainties ?? [],
     contribution: agentContribution(repos, incident, asOf),
+    lifecycle: incidentLifecycle(repos, incident, asOf),
+    authority: contextAndAuthority(repos, contract),
     groups: groupIncidentCases(repos, incident.id, asOf),
     containment: containmentOptions(repos, incident, asOf),
     notification: notificationPreview(repos, incident),
