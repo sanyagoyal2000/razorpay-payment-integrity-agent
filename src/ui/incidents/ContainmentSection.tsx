@@ -46,6 +46,7 @@ export function ContainmentSection({ model, services, now }: { model: IncidentWo
 
   return (
     <Surface
+      id="containment"
       title="Containment"
       description="Decisions that limit further impact. Payments and checkout are never paused."
     >

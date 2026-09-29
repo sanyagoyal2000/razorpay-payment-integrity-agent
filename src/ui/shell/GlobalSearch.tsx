@@ -25,7 +25,7 @@ export function GlobalSearch() {
       <Box width="240px">
         <SearchInput
           accessibilityLabel="Search by payment ID, order ID, customer name, email or phone"
-          placeholder="Search payments or customers"
+          placeholder="Search payments"
           value={value}
           size="medium"
           onChange={({ value: next }) => setValue(next ?? "")}

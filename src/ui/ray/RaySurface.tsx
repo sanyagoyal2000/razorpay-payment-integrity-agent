@@ -14,6 +14,7 @@ export function RaySurface({
   id,
   title,
   identity,
+  identityName,
   description,
   actions,
   ambient = false,
@@ -22,7 +23,10 @@ export function RaySurface({
 }: {
   id?: string;
   title?: ReactNode;
+  /** Label after "RAY ·", e.g. "Proactive briefing". */
   identity?: string;
+  /** A complete identity instead, e.g. "RAY investigation". */
+  identityName?: string;
   description?: ReactNode;
   actions?: ReactNode;
   ambient?: boolean;
@@ -40,11 +44,11 @@ export function RaySurface({
           overflow: "hidden",
         }}
       >
-        {title || identity ? (
+        {title || identity || identityName ? (
           <div style={ambient ? { background: `linear-gradient(100deg, ${RAY_VALUES.glowStart} 0%, ${RAY_VALUES.glowEnd} 100%)` } : undefined}>
             <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap="spacing.4" paddingX="spacing.6" paddingTop="spacing.5" paddingBottom={ambient ? "spacing.4" : "spacing.0"}>
               <Box display="flex" flexDirection="column" gap="spacing.1">
-                {identity ? <RayIdentity label={identity} /> : null}
+                {identityName ? <RayIdentity name={identityName} /> : identity ? <RayIdentity label={identity} /> : null}
                 {title ? (
                   <div {...(headingId ? { id: headingId } : {})}>
                     <Heading as="h2" size={titleSize} weight="semibold">

@@ -174,7 +174,7 @@ export function proactiveBriefing(repos: Repositories, asOf: string): ProactiveB
   const run = describeIncidentInvestigation(repos, top.id, asOf);
   const withRun = { ...base, featured, ...(run ? { lastInvestigatedAt: run.at } : {}) };
   const multiple = ranked.length > 1;
-  const exposure = `${formatINR(featured.revenueAtRisk)} across ${plural(featured.customers, "customer", "customers")} is at risk.`;
+  const exposure = `${formatINR(featured.revenueAtRisk)} across ${plural(featured.customers, "customer", "customers")} is at risk in ${top.id}.`;
   const totalExposure = `${formatINR(totalAtRisk)} across ${plural(totalCustomers, "customer", "customers")} is at risk in ${ranked.length} incidents. Highest priority: ${top.title}.`;
   const view: BriefingAction = { label: "View incident", target: { kind: "incident", incidentId: top.id } };
   const allIncidents: BriefingAction[] = multiple ? [{ label: "View all incidents", target: { kind: "incidents" } }] : [];

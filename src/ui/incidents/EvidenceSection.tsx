@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Code, Divider, Text } from "@razorpay/blade/components";
+import { Box, Code, Collapsible, CollapsibleBody, CollapsibleLink, Divider, Text } from "@razorpay/blade/components";
 import { Fragment } from "react";
 import { formatIstShort } from "@/domain/time";
 import type { IncidentWorkspaceModel } from "@/services/views/incidents";
@@ -12,18 +12,17 @@ export function EvidenceSection({ groups, now }: { groups: IncidentWorkspaceMode
     <Surface
       id="evidence"
       title="Evidence"
-      description={`${count} events from Razorpay, LearnLoop and LearnLoop Observability. Every item is a recorded event; nothing here is inferred.`}
+      description={`${count} key events cited by the investigation, grouped by what they show. Every item is a recorded event; nothing here is inferred.`}
     >
       {count === 0 ? (
         <Text size="small" color="surface.text.gray.muted">No evidence has been recorded for this incident.</Text>
       ) : (
         <Box display="flex" flexDirection="column" gap="spacing.5">
           {groups.map((group) => (
-            <Box key={group.label}>
-              <Text size="small" weight="semibold" marginBottom="spacing.2">
-                {group.label}
-              </Text>
-              <Box borderWidth="thin" borderColor="surface.border.gray.muted" borderRadius="medium">
+            <Collapsible key={group.label} defaultIsExpanded={group.items.length <= 3}>
+              <CollapsibleLink size="small">{`${group.label} (${group.items.length})`}</CollapsibleLink>
+              <CollapsibleBody width="100%">
+              <Box borderWidth="thin" borderColor="surface.border.gray.muted" borderRadius="medium" marginTop="spacing.2">
                 {group.items.map((item, index) => (
                   <Fragment key={item.id}>
                     {index > 0 ? <Divider /> : null}
@@ -41,7 +40,8 @@ export function EvidenceSection({ groups, now }: { groups: IncidentWorkspaceMode
                   </Fragment>
                 ))}
               </Box>
-            </Box>
+              </CollapsibleBody>
+            </Collapsible>
           ))}
         </Box>
       )}

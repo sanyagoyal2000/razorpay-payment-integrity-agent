@@ -3,14 +3,12 @@
 import { Alert, Box, Button, Collapsible, CollapsibleBody, CollapsibleLink, Heading, List, ListItem, Text } from "@razorpay/blade/components";
 import type { AgentContribution } from "@/services/views/agentContribution";
 import type { CaseListRequest } from "@/ui/components/CaseListDrawer";
-import { Surface } from "@/ui/components/Surface";
-import { RayIdentity } from "@/ui/ray/RayIdentity";
 import { RAY } from "@/ui/ray/theme";
 
 function Column({ label, text, ai = false }: { label: string; text: string; ai?: boolean }) {
   return (
     <Box padding="spacing.4" borderWidth="thin" borderColor="surface.border.gray.muted" borderRadius="medium" {...(ai ? { backgroundColor: RAY.surfaceSubtle } : {})}>
-      <Box marginBottom="spacing.1">{ai ? <RayIdentity label={label} /> : <Text size="small" weight="semibold">{label}</Text>}</Box>
+      <Text size="small" weight="semibold" marginBottom="spacing.1">{label}</Text>
       <Text size="small" color="surface.text.gray.subtle">{text}</Text>
     </Box>
   );
@@ -18,15 +16,11 @@ function Column({ label, text, ai = false }: { label: string; text: string; ai?:
 
 /**
  * What the fixed rule found and what the investigation added. Every figure
- * comes from the AgentContribution view model.
+ * comes from the AgentContribution view model. Shown inside "See how RAY
+ * investigated" rather than in the main decision flow.
  */
-export function WhyAgentNeeded({ contribution, onShowCases }: { contribution: AgentContribution; onShowCases: (request: CaseListRequest) => void }) {
+export function ContributionDetails({ contribution, onShowCases }: { contribution: AgentContribution; onShowCases: (request: CaseListRequest) => void }) {
   return (
-    <Surface
-      id="why-agent"
-      title="Why the agent was needed"
-      description="Detection found the symptom. The agent connected the evidence, evaluated possible causes, and prepared a safe decision."
-    >
       <Box display="flex" flexDirection="column" gap="spacing.5">
         {contribution.notice ? (
           <Alert color="notice" title="No usable investigation" description={contribution.notice} isDismissible={false} isFullWidth />
@@ -72,6 +66,5 @@ export function WhyAgentNeeded({ contribution, onShowCases }: { contribution: Ag
           </CollapsibleBody>
         </Collapsible>
       </Box>
-    </Surface>
   );
 }

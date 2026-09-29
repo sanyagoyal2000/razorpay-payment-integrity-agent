@@ -113,7 +113,6 @@ export function InvestigationPanel({
   return (
     <RaySurface
       id="investigation"
-      identity="Payment Integrity Agent"
       title="Investigation"
       description={runInfo ? `Investigated ${formatIstShort(runInfo.at, now)} IST` : undefined}
       actions={

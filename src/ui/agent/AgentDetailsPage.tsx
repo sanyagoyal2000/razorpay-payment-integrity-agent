@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Chip, ChipGroup, Text } from "@razorpay/blade/components";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { agentProfile, contextAndAuthority } from "@/services/views/agentProfile";
 import { MetaList } from "@/ui/components/MetaList";
 import { PageHeader } from "@/ui/components/PageHeader";
@@ -15,11 +15,22 @@ import { LifecycleLabel } from "./LifecycleLabel";
 /** Agent details: the specialist job, its current state, connected systems, authority and outcome. */
 export function AgentDetailsPage() {
   const [contractId, setContractId] = useState<string | null>(null);
+  // "View permissions" on an incident links here with ?contract=…#context-authority.
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("contract");
+    if (requested) setContractId(requested);
+  }, []);
   const state = useModel((services, asOf) => {
     const profile = agentProfile(services.repos, asOf);
     const selected = services.repos.config.contract(contractId ?? profile.contracts[0]?.id ?? "") ?? services.repos.config.contracts()[0]!;
     return { profile, authority: contextAndAuthority(services.repos, selected), selectedId: selected.id };
   }, [contractId]);
+  const ready = state.status === "ready";
+  useEffect(() => {
+    if (!ready || !window.location.hash) return;
+    const id = window.location.hash.slice(1);
+    window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: "start" }), 50);
+  }, [ready]);
   const header = <PageHeader title="Agent details" description="What the Payment Integrity Agent does, what it can read, and what it may do on your behalf." />;
   if (state.status === "loading") return <>{header}<PageSkeleton rows={2} /></>;
   if (state.status === "error") return <>{header}<PageError message={state.message} /></>;

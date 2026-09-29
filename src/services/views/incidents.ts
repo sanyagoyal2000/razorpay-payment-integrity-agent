@@ -12,6 +12,7 @@ import { suggestedQuestions } from "@/services/agent/askSuggestions";
 import { incidentLifecycle } from "@/services/lifecycle";
 import { agentContribution } from "./agentContribution";
 import { contextAndAuthority } from "./agentProfile";
+import { decisionSummary, evidenceCounts, recommendationReasons, recoveryAuthority, recoveryConfidence } from "./incidentDecision";
 import { groupEvidence } from "./evidence";
 import { investigationView } from "./investigation";
 import { requiredDecision } from "./overview";
@@ -225,6 +226,41 @@ export function recoveryPlan(repos: Repositories, incident: IncidentRecord, sele
   };
 }
 
+// ---------------------------------------------------------------------------
+// Compact recovery plan
+// ---------------------------------------------------------------------------
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+export const AUTOMATION_EVIDENCE_HREF = "/payment-integrity/automations#earned-autonomy";
+
+export type RecoveryFacts = { facts: string[]; ifItFails: string[]; learning: string };
+
+/** The four facts that matter before approving, with failure behaviour kept one click away. */
+export function recoveryFacts(repos: Repositories, incident: IncidentRecord, selected: readonly RecoveryGroupId[], asOf: string): RecoveryFacts {
+  const contract = requireContract(repos, incident.outcomeContractId);
+  const plan = recoveryPlan(repos, incident, selected, asOf);
+  const label = actionLabel(contract.safeRecoveryAction, contract);
+  const notifies = !/No message is sent/.test(plan.communication);
+  const deadline = contract.deadlineSeconds >= 60 ? plural(Math.round(contract.deadlineSeconds / 60), "minute", "minutes") : plural(contract.deadlineSeconds, "second", "seconds");
+  return {
+    facts: [
+      `${plural(plan.customers, "customer", "customers")} · ${formatINR(plan.revenueAddressed)}`,
+      `${label} once for each payment`,
+      notifies ? "Customers are notified automatically once the outcome is confirmed" : "No customer message will be sent",
+      `Success requires ${contract.expectedOutcome}`,
+    ],
+    ifItFails: [
+      `Wait up to ${deadline} (the Outcome Contract verification window) for ${contract.expectedOutcome}.`,
+      "Escalate the case to you if the Outcome Receipt does not arrive.",
+      "Never retry indefinitely: each payment gets one request.",
+      "Never change the payment.",
+      "Idempotency keys prevent a second request for the same payment.",
+    ],
+    learning: `Verified outcomes from this recovery will update ${label.toLowerCase()} automation eligibility.`,
+  };
+}
+
 export function incidentWorkspace(repos: Repositories, incidentId: string, asOf: string) {
   const incident = repos.incidents.get(incidentId);
   if (!incident) return undefined;
@@ -256,6 +292,11 @@ export function incidentWorkspace(repos: Repositories, incidentId: string, asOf:
     lifecycle: incidentLifecycle(repos, incident, asOf),
     authority: contextAndAuthority(repos, contract),
     askSuggestions: suggestedQuestions(repos, incident.id, asOf),
+    decision: decisionSummary(repos, incident, asOf, new Date(asOf)),
+    reasons: recommendationReasons(repos, incident, asOf),
+    recoveryAuthority: recoveryAuthority(repos, incident, asOf),
+    confidence: recoveryConfidence(repos, incident, asOf),
+    evidenceCounts: evidenceCounts(repos, incident, asOf, groupEvidence(repos, evidenceIds)),
     groups: groupIncidentCases(repos, incident.id, asOf),
     containment: containmentOptions(repos, incident, asOf),
     notification: notificationPreview(repos, incident),

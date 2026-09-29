@@ -29,7 +29,7 @@ Each criterion from the specification, where it is implemented, and the automate
 
 | Requirement | Covered by |
 |---|---|
-| Value delivered (trailing 30 days), each figure linked to its cases, with a calculation tooltip | Overview; `reconciliation.test.ts` |
+| Verified business impact (last 30 days; the spec's "Value delivered"), each figure linked to its cases, with a calculation tooltip | Overview; `reconciliation.test.ts` |
 | Deploy evidence from LearnLoop Observability (`deploy.completed` v2.3) | `fixtures.test.ts` |
 | Exact arithmetic from real course prices | `fixtures.test.ts`, `reconciliation.test.ts` |
 | Single footer disclaimer; official Razorpay wordmark (text fallback until the file is present) | App shell |
@@ -64,3 +64,4 @@ Each criterion from the specification, where it is implemented, and the automate
 | Transactional CTAs keep Blade styling? | Buttons use Blade variants only | `agentStudio.test.ts` (static checks) |
 | Connecting a source never grants write access | `services/permissions.ts`, `setWriteAuthority` | `configuration.test.ts`, `agentStudio.test.ts` |
 | Ask RAY: incident-scoped, cites visible evidence, same source permissions, prepares but never executes | `services/agent/ask.ts`, `AskRayDrawer` | `askRay.test.ts` |
+| Incident in three URL-backed tabs, decision first, details behind disclosure | `IncidentWorkspacePage`, `views/incidentDecision.ts` | `incidentTabs.test.ts` |

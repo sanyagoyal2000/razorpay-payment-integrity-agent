@@ -71,7 +71,7 @@ export function caseRows(repos: Repositories, asOf: string): CaseRow[] {
         detectedAt: c.detectedAt,
         recommendation: c.recommendation ? actionLabel(c.recommendation.action, repos.config.contract(c.outcomeContractId)) : c.status === "observing" ? "None: observing" : "None",
         policyState: verdict?.result ?? "not_applicable",
-        policyLabel: verdict ? (verdict.result === "requires_approval" && verdict.approvalScope === "bulk" ? "Eligible after approval" : POLICY_LABELS[verdict.result]) : "–",
+        policyLabel: verdict ? (verdict.result === "requires_approval" && verdict.approvalScope === "bulk" ? "Approval required" : POLICY_LABELS[verdict.result]) : "–",
         bulkEligible: assessment?.group === "safe",
         status: c.status,
       };

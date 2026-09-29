@@ -87,15 +87,25 @@ It covers these states:
 
 Its buttons only navigate; recovery is approved on the incident.
 
-Incident pages put the decision first:
-1. status and required decision
-2. what happened
-3. "Why the agent was needed": what the fixed rule found, what the investigation added, and the safe and held cases, with "How this is calculated"
-4. recovery
-5. investigation detail
-6. evidence
-7. containment
-8. history
+Incident pages have three local tabs, kept in the URL (`?tab=investigation` or `?tab=evidence`; Decision is the default), so refresh, Back and deep links keep the tab:
+- **Decision:**
+  - a 20-second summary: who is affected, what is at risk, the validated cause, and the recommendation with its exclusions
+  - "Review N recoveries", "View investigation" and "Ask RAY"
+  - a status line
+  - What happened and the merchant intent
+  - recovery groups, with investigation confidence and why approval is required, and a four-fact plan ("What happens if recovery fails?" is one click away, with a link to the automation evidence)
+  - containment
+- **Investigation:**
+  - "Why RAY recommends this": reasons derived from evidence and eligibility, with "See how RAY investigated" holding the fixed-rule and investigator figures
+  - the investigation (likely cause, causes considered, stages, and how it was produced)
+  - uncertainties
+  - a one-line authority summary, with "View permissions" (Agent details) and "View policy checks"
+  - Ask RAY
+- **Evidence & history:**
+  - four counts: events analysed, citations validated, key events shown and connected sources
+  - grouped, collapsible key events
+  - the full incident history
+  - incident details with a link to the Audit Log filtered to this incident
 
 ## The Payment Integrity Agent (AI)
 

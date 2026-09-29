@@ -156,14 +156,6 @@ describe("Why the agent was needed", () => {
       expect(source, file).not.toMatch(/1,82,457|1,51,962|30,495|\b373\b|\b416\b/);
     }
   });
-
-  it("places the decision before deep evidence on the incident page", () => {
-    const source = fs.readFileSync(path.join(__dirname, "../src/ui/incidents/IncidentWorkspacePage.tsx"), "utf8");
-    const order = ["<WhatHappened", "<WhyAgentNeeded", "<RecoverySection", "<InvestigationPanel", "<EvidenceSection", "<ContainmentSection", "<HistorySection"];
-    const positions = order.map((tag) => source.indexOf(tag));
-    expect(positions.every((p) => p > 0)).toBe(true);
-    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
-  });
 });
 
 describe("Observable investigation stages", () => {

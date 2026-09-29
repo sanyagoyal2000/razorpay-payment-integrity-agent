@@ -8,11 +8,11 @@ import { IncidentStatusBadge } from "@/ui/components/badges";
 import { LifecycleLabel } from "@/ui/agent/LifecycleLabel";
 import { MetaList } from "@/ui/components/MetaList";
 import { RaySurface } from "@/ui/ray/RaySurface";
-import { BASE_PATH, incidentHref } from "@/ui/shell/nav";
+import { BASE_PATH, incidentSectionHref } from "@/ui/shell/nav";
 
 export function briefingHref(target: BriefingTarget): string {
   if (target.kind === "incidents") return `${BASE_PATH}/incidents${target.filter ? `?status=${target.filter}` : ""}`;
-  return `${incidentHref(target.incidentId)}${target.section ? `#${target.section}` : ""}`;
+  return incidentSectionHref(target.incidentId, target.section);
 }
 
 /**

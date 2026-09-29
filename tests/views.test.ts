@@ -78,11 +78,12 @@ describe("Incident workspace", () => {
     expect(workspace.evidence.map((g) => g.label)).toEqual([
       "Deployment",
       "Service errors",
-      "Payment capture events",
-      "Successful webhook responses",
-      "Failed fulfilment calls",
+      "Payment captures",
+      "Webhook deliveries",
+      "Fulfilment failures",
       "Missing Outcome Receipts",
-      "Endpoint recovery",
+      "Service recovery",
+      "Successful post-recovery outcomes",
       "Similar case sequences",
     ]);
     expect(workspace.evidence[0]!.items[0]!.title).toBe("deploy.completed v2.3 · enrolment-service");

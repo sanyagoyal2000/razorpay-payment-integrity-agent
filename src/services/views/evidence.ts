@@ -31,12 +31,12 @@ export type EvidenceItem = {
 export const EVIDENCE_GROUPS: Array<{ label: string; kinds: EvidenceKind[] }> = [
   { label: "Deployment", kinds: ["deploy"] },
   { label: "Service errors", kinds: ["service_errors"] },
-  { label: "Payment capture events", kinds: ["payment_captured", "payment_event"] },
-  { label: "Successful webhook responses", kinds: ["webhook_accepted"] },
-  { label: "Failed webhook deliveries", kinds: ["webhook_failed"] },
-  { label: "Failed fulfilment calls", kinds: ["outcome_failed"] },
+  { label: "Payment captures", kinds: ["payment_captured", "payment_event"] },
+  { label: "Webhook deliveries", kinds: ["webhook_accepted", "webhook_failed"] },
+  { label: "Fulfilment failures", kinds: ["outcome_failed"] },
   { label: "Missing Outcome Receipts", kinds: ["receipt_missing"] },
-  { label: "Endpoint recovery", kinds: ["service_recovered", "outcome_completed"] },
+  { label: "Service recovery", kinds: ["service_recovered"] },
+  { label: "Successful post-recovery outcomes", kinds: ["outcome_completed"] },
   { label: "Similar case sequences", kinds: ["similar_case"] },
   { label: "Other merchant events", kinds: ["outcome_event", "receipt_confirmed"] },
 ];

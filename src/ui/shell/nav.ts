@@ -11,6 +11,8 @@ import {
   type IconComponent,
 } from "@razorpay/blade/components";
 
+import { incidentSectionHref } from "@/services/views/incidentDecision";
+
 export const BASE_PATH = "/payment-integrity";
 
 export type NavItem = { title: string; href: string; icon: IconComponent; exact?: boolean };
@@ -45,6 +47,8 @@ export function activeProductTab(pathname: string): ProductTab["href"] | undefin
 
 export const caseHref = (caseId: string) => `${BASE_PATH}/cases/${caseId}`;
 export const incidentHref = (incidentId: string) => `${BASE_PATH}/incidents/${incidentId}`;
+
+export { incidentSectionHref };
 
 export function isActive(item: NavItem, pathname: string): boolean {
   return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);

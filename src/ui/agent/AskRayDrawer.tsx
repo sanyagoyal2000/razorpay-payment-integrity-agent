@@ -8,7 +8,7 @@ import type { AppServices } from "@/services/container";
 import { AppLink } from "@/ui/components/AppLink";
 import { RayIdentity } from "@/ui/ray/RayIdentity";
 import { RAY } from "@/ui/ray/theme";
-import { caseHref, incidentHref } from "@/ui/shell/nav";
+import { caseHref, incidentSectionHref } from "@/ui/shell/nav";
 
 const NEXT_STEPS: Record<AskResult["nextStep"], { label: string; section: string } | null> = {
   review_recovery: { label: "Review recovery", section: "recovery" },
@@ -54,7 +54,7 @@ function Answer({ result, incidentId, onNavigate }: { result: AskResult; inciden
       ) : null}
       {next ? (
         <Box>
-          <Button variant="secondary" size="small" onClick={() => onNavigate(`${incidentHref(incidentId)}#${next.section}`)}>{next.label}</Button>
+          <Button variant="secondary" size="small" onClick={() => onNavigate(incidentSectionHref(incidentId, next.section))}>{next.label}</Button>
         </Box>
       ) : null}
     </Box>
@@ -105,13 +105,10 @@ export function AskRayDrawer({
     }
   };
   const navigate = (href: string) => {
-    const [path, id] = href.split("#");
+    const id = href.split("#")[1];
     onDismiss();
-    if (path !== window.location.pathname) {
-      router.push(href);
-      return;
-    }
-    window.history.replaceState(null, "", href);
+    // The tab lives in the URL, so a push switches it and keeps browser history.
+    router.push(href, { scroll: false });
     if (!id) return;
     // The drawer returns focus to its trigger when it finishes closing, which scrolls back up.
     // Scroll only once it has left the page.

@@ -21,7 +21,7 @@ import {
   Tooltip,
   TooltipInteractiveWrapper,
 } from "@razorpay/blade/components";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatIstShort } from "@/domain/time";
 import {
   APPROVAL_SOURCE_LABELS,
@@ -114,7 +114,15 @@ function AuditDetailView({ row }: { row: AuditRow }) {
 }
 
 export function AuditLogPage() {
-  const [filters, setFilters] = usePreference<AuditFilters>("audit-filters", DEFAULT_AUDIT_FILTERS);
+  const [filters, setFilters, filtersLoaded] = usePreference<AuditFilters>("audit-filters", DEFAULT_AUDIT_FILTERS);
+  // A link such as "View in Audit Log" on an incident presets the incident filter.
+  useEffect(() => {
+    if (!filtersLoaded) return;
+    const incident = new URLSearchParams(window.location.search).get("incident");
+    if (incident) setFilters({ ...DEFAULT_AUDIT_FILTERS, incidentIds: [incident] });
+    // Applied once, when saved filters have loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersLoaded]);
   const state = useModel((services, asOf) => ({
     rows: auditRows(services.repos, asOf),
     incidents: services.repos.incidents.list().map((i) => ({ value: i.id, label: `${i.id}: ${i.title}` })),

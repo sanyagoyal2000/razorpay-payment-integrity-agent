@@ -4,7 +4,14 @@ import {
   Box,
   Button,
   Checkbox,
+  Collapsible,
+  CollapsibleBody,
+  CollapsibleLink,
   Divider,
+  IconButton,
+  InfoIcon,
+  List,
+  ListItem,
   Modal,
   ModalBody,
   ModalFooter,
@@ -18,6 +25,7 @@ import {
   TableHeaderRow,
   TableRow,
   Text,
+  Tooltip,
   useToast,
 } from "@razorpay/blade/components";
 import { useMemo, useState } from "react";
@@ -26,7 +34,8 @@ import { formatINR } from "@/domain/money";
 import type { AppServices } from "@/services/container";
 import { approveBulk, isTerminal, runExecutions } from "@/services/execution";
 import type { RecoveryGroupId } from "@/services/recovery/groups";
-import { recoveryPlan, type IncidentWorkspaceModel } from "@/services/views/incidents";
+import { AUTOMATION_EVIDENCE_HREF, recoveryFacts, recoveryPlan, type IncidentWorkspaceModel } from "@/services/views/incidents";
+import { AppLink } from "@/ui/components/AppLink";
 import type { CaseListRequest } from "@/ui/components/CaseListDrawer";
 import { Money } from "@/ui/components/Money";
 import { Surface } from "@/ui/components/Surface";
@@ -48,6 +57,8 @@ export function RecoverySection({
   const [confirming, setConfirming] = useState(false);
   const [runIds, setRunIds] = useState<string[]>([]);
   const plan = useMemo(() => recoveryPlan(services.repos, model.incident, selected, asOf), [services, model, selected, asOf]);
+  const facts = useMemo(() => recoveryFacts(services.repos, model.incident, selected, asOf), [services, model, selected, asOf]);
+  const { confidence } = model;
 
   const runs = runIds.map((id) => services.repos.executions.get(id)).filter((e) => e !== undefined);
   const running = runs.some((e) => !isTerminal(e));
@@ -94,6 +105,20 @@ export function RecoverySection({
         </Text>
       ) : (
         <Box display="grid" gridTemplateColumns="minmax(0px, 1fr)" gap="spacing.6" alignItems="start">
+          <Box display="flex" alignItems="center" gap="spacing.2" flexWrap="wrap">
+            {confidence.investigation !== undefined ? (
+              <Text size="small" weight="semibold">{Math.round(confidence.investigation * 100)}% investigation confidence</Text>
+            ) : (
+              <Text size="small" weight="semibold">No validated investigation yet</Text>
+            )}
+            <Tooltip content={confidence.explanation} placement="top">
+              <IconButton icon={InfoIcon} size="small" accessibilityLabel="How confidence and approval relate" onClick={() => undefined} />
+            </Tooltip>
+            <Text size="xsmall" color="surface.text.gray.muted">
+              {confidence.recommendation !== undefined ? `Lowest case recommendation confidence ${Math.round(confidence.recommendation * 100)}% · ` : ""}
+              Automatic execution needs {Math.round(confidence.automaticThreshold * 100)}% · {confidence.mode} in Automations
+            </Text>
+          </Box>
           <Box minWidth="0px" overflowX="auto">
             <Table data={{ nodes: model.groups }} rowDensity="normal" gridTemplateColumns="minmax(190px, 2fr) 64px 104px minmax(150px, 1.5fr) 190px">
               {(items) => (
@@ -147,17 +172,28 @@ export function RecoverySection({
             </Table>
           </Box>
           <Box borderWidth="thin" borderColor="surface.border.gray.muted" borderRadius="medium" padding="spacing.5" backgroundColor="surface.background.gray.moderate">
-            <Text size="medium" weight="semibold" marginBottom="spacing.4">Recovery plan</Text>
-            <PlanRow label="Customers affected" value={String(plan.customers)} />
-            <PlanRow label="Revenue addressed" value={formatINR(plan.revenueAddressed)} />
-            <PlanRow label="Actions" value={plan.actions} />
-            <PlanRow
-              label="Cases excluded"
-              value={plan.excluded.length === 0 ? "None" : `${plan.excluded.length}: ${summariseExclusions(plan.excluded)}`}
-            />
-            <PlanRow label="Customer communication" value={plan.communication} />
-            <PlanRow label="Verification" value={plan.verification} />
-            <PlanRow label="If it fails" value={plan.escalation} />
+            <Text size="medium" weight="semibold" marginBottom="spacing.3">Recovery plan</Text>
+            <Box display="flex" flexDirection="column" gap="spacing.2">
+              {facts.facts.map((fact) => (
+                <Text key={fact} size="small">{fact}</Text>
+              ))}
+            </Box>
+            <Box marginTop="spacing.3">
+              <Collapsible>
+                <CollapsibleLink size="small">What happens if recovery fails?</CollapsibleLink>
+                <CollapsibleBody>
+                  <List size="small">
+                    {facts.ifItFails.map((line) => (
+                      <ListItem key={line}>{line}</ListItem>
+                    ))}
+                  </List>
+                </CollapsibleBody>
+              </Collapsible>
+            </Box>
+            <Box marginTop="spacing.3" display="flex" gap="spacing.2" flexWrap="wrap" alignItems="center">
+              <Text size="xsmall" color="surface.text.gray.muted">{facts.learning}</Text>
+              <AppLink href={AUTOMATION_EVIDENCE_HREF} size="xsmall">View automation evidence</AppLink>
+            </Box>
             <Divider marginY="spacing.4" />
             {runs.length > 0 ? (
               <Box marginBottom="spacing.4">
@@ -213,15 +249,6 @@ export function RecoverySection({
         </ModalFooter>
       </Modal>
     </Surface>
-  );
-}
-
-function PlanRow({ label, value }: { label: string; value: string }) {
-  return (
-    <Box display="grid" gridTemplateColumns="140px 1fr" gap="spacing.3" paddingY="spacing.2">
-      <Text size="small" color="surface.text.gray.muted">{label}</Text>
-      <Text size="small">{value}</Text>
-    </Box>
   );
 }
 

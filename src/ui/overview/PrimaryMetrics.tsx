@@ -57,14 +57,14 @@ export function PrimaryMetrics({ metrics, onShowCases }: { metrics: Metrics; onS
       borderRadius="medium"
     >
       <Metric
-        label="Revenue currently at risk"
+        label="Revenue at risk across all open cases"
         value={<MoneyHeading value={metrics.revenueAtRisk.value} />}
-        footnote={`${metrics.revenueAtRisk.caseIds.length} open cases`}
+        footnote={`Across ${metrics.revenueAtRisk.caseIds.length} open cases, in incidents and on their own`}
         action={{
           label: "View cases",
           onClick: () =>
             onShowCases({
-              title: "Revenue currently at risk",
+              title: "Revenue at risk across all open cases",
               explanation: "Open, review-required, approved, executing and escalated cases. Observed cases are not yet at risk.",
               caseIds: metrics.revenueAtRisk.caseIds,
             }),

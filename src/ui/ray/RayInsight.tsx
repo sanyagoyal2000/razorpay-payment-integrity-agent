@@ -2,7 +2,6 @@
 
 import { Box, Text } from "@razorpay/blade/components";
 import type { ReactNode } from "react";
-import { RayIdentity } from "./RayIdentity";
 import { RAY } from "./theme";
 
 /**
@@ -13,7 +12,10 @@ export function RayInsight({ validated, citations, children }: { validated: bool
   return (
     <Box backgroundColor={RAY.surfaceSubtle} borderRadius="medium" padding="spacing.4" display="flex" flexDirection="column" gap="spacing.2">
       <Box display="flex" alignItems="center" gap="spacing.3" flexWrap="wrap">
-        <RayIdentity label={validated ? "Evidence-validated finding" : "Finding not validated"} size="xsmall" />
+        {/* The surrounding RAY surface already carries the identity; label the finding once, without repeating it. */}
+        <Text size="xsmall" weight="semibold" color={validated ? RAY.accent : "surface.text.gray.subtle"}>
+          {validated ? "Evidence-validated finding" : "Finding not validated"}
+        </Text>
         {validated && citations !== undefined ? (
           <Text size="xsmall" color="surface.text.gray.muted">
             {citations} {citations === 1 ? "citation" : "citations"} checked

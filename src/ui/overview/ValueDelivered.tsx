@@ -42,7 +42,7 @@ export function ValueDelivered({ value, onShowCases }: { value: Value; onShowCas
   const median = value.medianDetectionToVerifiedSeconds.value;
   return (
     <Surface
-      title="Value delivered (trailing 30 days)"
+      title="Verified business impact (last 30 days)"
       description="Counts only cases that would otherwise have been refunded automatically or raised by the customer."
     >
       <Box display="grid" gridTemplateColumns={{ base: "repeat(2, 1fr)", l: "repeat(4, 1fr)" }} gap="spacing.4">

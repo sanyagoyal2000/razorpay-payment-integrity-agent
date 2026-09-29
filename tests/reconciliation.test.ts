@@ -56,7 +56,7 @@ describe("aggregate reconciliation", () => {
     expect(totals.refundExposure).toBe(10_497);
     const groups = groupIncidentCases(env.repos, "INC-0017", env.clock.now().toISOString());
     expect(groups.map((g) => [g.id, g.caseIds.length, g.value, g.policy])).toEqual([
-      ["safe", 38, 151_962, "Eligible after approval"],
+      ["safe", 38, 151_962, "Approval required"],
       ["duplicate_review", 3, 10_497, "Manual review"],
       ["high_value", 2, 19_998, "Approval required"],
     ]);

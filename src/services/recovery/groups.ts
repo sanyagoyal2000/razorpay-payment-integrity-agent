@@ -18,7 +18,7 @@ export type RecoveryGroup = {
 };
 
 const GROUP_META: Record<RecoveryGroupId, { label: string; policy: string }> = {
-  safe: { label: "Safe to recover", policy: "Eligible after approval" },
+  safe: { label: "Safe to recover", policy: "Approval required" },
   duplicate_review: { label: "Duplicate review", policy: "Manual review" },
   high_value: { label: "High value", policy: "Approval required" },
   individual_review: { label: "Needs individual review", policy: "Approval required" },

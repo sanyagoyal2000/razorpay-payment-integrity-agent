@@ -20,7 +20,7 @@ const dash = <Text size="small" color="surface.text.gray.muted">–</Text>;
 
 export function HistorySection({ entries, now }: { entries: HistoryEntry[]; now: Date }) {
   return (
-    <Surface title="Incident history" description="Case count, exposure, root-cause confidence, system health and decisions, newest first" padded={false}>
+    <Surface id="history" title="Incident history" description="Case count, exposure, root-cause confidence, system health and decisions, newest first" padded={false}>
       <Table data={{ nodes: entries }} rowDensity="compact" gridTemplateColumns="120px minmax(280px, 3fr) 80px 120px 110px 110px minmax(120px, 1fr)">
         {(items) => (
           <>

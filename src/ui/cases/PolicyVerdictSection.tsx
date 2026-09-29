@@ -50,7 +50,7 @@ export function PolicyVerdictSection({
         <Text size="small" color="surface.text.gray.subtle">For {actionLabel.toLowerCase()}</Text>
         <VerdictBadge
           result={verdict.result}
-          {...(verdict.result === "requires_approval" && verdict.approvalScope === "bulk" ? { label: "Eligible after approval" } : {})}
+          {...(verdict.result === "requires_approval" && verdict.approvalScope === "bulk" ? { label: "Approval required" } : {})}
         />
       </Box>
       {[...failing, ...passing].map((check, index) => (
