@@ -54,7 +54,7 @@ Each criterion from the specification, where it is implemented, and the automate
 
 | Question the product must answer | Where | Covered by |
 |---|---|---|
-| What specialist job is this agent responsible for? | Agent details (top bar, avatar menu): purpose, state, connected systems, permission mode, outcome metric | `agentStudio.test.ts` |
+| What specialist job is this agent responsible for? | Agent details tab (`/payment-integrity/agent`; in the account menu on phones): purpose, state, connected systems, permission mode, outcome metric | `agentStudio.test.ts` |
 | What context did it use for this incident? | Incident page → Context & authority; "How this investigation was produced" | `agentStudio.test.ts` |
 | What actions is it allowed to take, and which need approval? | Context & authority: Suggest only / Approval required / Automatic within limits / Not permitted, per contract | `agentStudio.test.ts` |
 | What lifecycle state is it in? | Briefing, incident header, agent details; derived, never stored | `agentStudio.test.ts` |

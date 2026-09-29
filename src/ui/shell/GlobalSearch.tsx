@@ -22,12 +22,12 @@ export function GlobalSearch() {
         submit();
       }}
     >
-      <Box width={{ base: "240px", l: "340px" }}>
+      <Box width="240px">
         <SearchInput
-        accessibilityLabel="Search payments and customers"
-        placeholder="Payment ID, order ID, name, email or phone"
-        value={value}
-        size="medium"
+          accessibilityLabel="Search by payment ID, order ID, customer name, email or phone"
+          placeholder="Search payments or customers"
+          value={value}
+          size="medium"
           onChange={({ value: next }) => setValue(next ?? "")}
           onClearButtonClick={() => setValue("")}
         />

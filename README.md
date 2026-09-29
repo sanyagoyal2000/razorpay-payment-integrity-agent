@@ -62,7 +62,8 @@ tests/               Policy, execution, investigation, fixture and reconciliatio
 ## Positioning
 
 Payment Integrity is presented as a specialist Agent Studio worker: *a specialist Agent Studio worker that continuously protects the gap between a successful payment and the merchant's intended customer outcome.* It is a concept prototype aligned with Razorpay's intent-driven direction, not an announced or available Razorpay product. Strategic reference: an AIM Network interview with Razorpay CPO Khilan Haria (https://www.youtube.com/watch?v=Rr1nUlyRqJg). It informed the positioning and is not a product specification.
-- **Agent details** (top bar or avatar menu) shows its purpose, lifecycle state, connected systems, permission mode, outcome metrics, and Context & authority for each contract.
+- **Top bar product tabs** follow Razorpay's pattern, using Blade `TabNav`: **Payment Integrity** (the workspace) and **Agent details** (`/payment-integrity/agent`), each with a leading Blade icon. The selected tab comes from the route: it is bright, with a blue indicator, and `aria-current`. The other is muted. The search box collapses before the tabs do; below 768 px both tabs move into the account menu, labelled.
+- **Agent details** shows its purpose, lifecycle state, connected systems, permission mode, outcome metrics, and Context & authority for each contract.
 - An **Outcome Contract** is the merchant's machine-readable intent for a payment. An **Outcome Receipt** is proof that the outcome happened.
 - The **RAY AI** identity (mint) marks AI-assisted content only.
 - The top bar uses Razorpay's official wordmark (`public/brand/razorpay.svg`, subject to Razorpay's Usage Agreement) in a reversed copy, `razorpay-wordmark-white.svg`: the navy text is recoloured white so it reads on black, and the blue mark is unchanged. If the file is missing, the top bar shows plain text.

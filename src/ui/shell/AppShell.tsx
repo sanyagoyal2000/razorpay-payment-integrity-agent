@@ -8,7 +8,7 @@ import {
   MenuItem,
   MenuOverlay,
   Box,
-  Link,
+  ChevronDownIcon,
   SideNav,
   SideNavBody,
   SideNavLink,
@@ -16,17 +16,19 @@ import {
   SkipNavContent,
   SkipNavLink,
   Text,
+  TabNav,
+  TabNavItem,
+  TabNavItems,
   TopNav,
   TopNavActions,
   TopNavBrand,
   TopNavContent,
 } from "@razorpay/blade/components";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { MERCHANT, OPERATOR } from "@/fixtures/catalogue";
-import { BASE_PATH, isActive, NAV_ITEMS } from "./nav";
+import { activeProductTab, BASE_PATH, isActive, NAV_ITEMS, PRODUCT_TABS } from "./nav";
 import { SystemStatusBanner } from "./SystemStatusBanner";
-import { AgentDetailsDrawer } from "@/ui/agent/AgentDetailsDrawer";
 import { RayIdentity } from "@/ui/ray/RayIdentity";
 import { GlobalSearch } from "./GlobalSearch";
 import { RouterLink } from "./RouterLink";
@@ -57,14 +59,14 @@ function Wordmark({ logo }: { logo: OfficialLogo | null }) {
 export function AppShell({ children, logo = null }: { children: ReactNode; logo?: OfficialLogo | null }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [agentOpen, setAgentOpen] = useState(false);
   return (
     <Box display="flex" flexDirection="column" height="100vh" backgroundColor="surface.background.gray.subtle">
       {/* Raised above the top bar so the link is visible when focused. */}
       <div style={{ position: "relative", zIndex: 2000 }}>
         <SkipNavLink _hasBackground />
       </div>
-      <TopNav>
+      {/* One spacing step less side padding at tablet widths, so both product tabs fit without "More". */}
+      <TopNav paddingX={{ base: "spacing.4", m: "spacing.2", xl: "spacing.3" }}>
         <TopNavBrand>
           <Box display="flex" alignItems="center" gap="spacing.4">
             <Wordmark logo={logo} />
@@ -72,22 +74,47 @@ export function AppShell({ children, logo = null }: { children: ReactNode; logo?
           </Box>
         </TopNavBrand>
         <TopNavContent>
-          <Box display={{ base: "none", l: "flex" }} alignItems="center" gap="spacing.3">
-            <Text size="small" weight="semibold" color="surface.text.staticWhite.normal">
-              Payment Integrity
-            </Text>
-            <Link variant="button" color="white" size="small" onClick={() => setAgentOpen(true)}>
-              Agent details
-            </Link>
+          {/* Below tablet width the tabs move into the account menu, with their labels. */}
+          <Box display={{ base: "none", m: "flex" }} flex="1" width="100%" minWidth="0px">
+          <TabNav items={PRODUCT_TABS.map((tab) => ({ ...tab, isActive: activeProductTab(pathname) === tab.href }))}>
+            {({ items, overflowingItems }) => (
+              <>
+                <TabNavItems>
+                  {items.map((item) => (
+                    // Selection comes from the current route on every render, not from TabNav's stored items.
+                    <TabNavItem key={item.title} title={item.title} href={item.href} icon={item.icon} isActive={activeProductTab(pathname) === item.href} as={RouterLink} />
+                  ))}
+                </TabNavItems>
+                {overflowingItems.length > 0 ? (
+                  <Menu openInteraction="click">
+                    <TabNavItem title="More" accessibilityLabel="More product tabs" trailing={<ChevronDownIcon size="medium" />} />
+                    <MenuOverlay>
+                      {overflowingItems.map((item) => {
+                        const Icon = PRODUCT_TABS.find((tab) => tab.href === item.href)?.icon;
+                        return (
+                          <MenuItem
+                            key={item.title}
+                            title={item.title}
+                            {...(Icon ? { leading: <Icon size="medium" /> } : {})}
+                            onClick={() => item.href && router.push(item.href)}
+                          />
+                        );
+                      })}
+                    </MenuOverlay>
+                  </Menu>
+                ) : null}
+              </>
+            )}
+          </TabNav>
           </Box>
         </TopNavContent>
         <TopNavActions>
           <Box display="flex" alignItems="center" gap="spacing.4">
-            {/* Search needs more room than a phone's top bar has; the Cases page keeps full search. */}
-            <Box display={{ base: "none", m: "block" }}>
+            {/* Search collapses before the product tabs do; "Search cases" in the account menu replaces it. */}
+            <Box display={{ base: "none", xl: "block" }}>
               <GlobalSearch />
             </Box>
-            <Box display={{ base: "none", m: "flex" }} alignItems="center" gap="spacing.4">
+            <Box display={{ base: "none", l: "flex" }} alignItems="center" gap="spacing.4">
               <Text size="small" color="surface.text.staticWhite.normal">
                 {MERCHANT.name}
               </Text>
@@ -98,8 +125,17 @@ export function AppShell({ children, logo = null }: { children: ReactNode; logo?
             <Menu>
               <Avatar name={OPERATOR.name} size="small" color="primary" />
               <MenuOverlay>
-                <MenuHeader title={OPERATOR.name} subtitle={OPERATOR.role} />
-                <MenuItem title="Agent details" onClick={() => setAgentOpen(true)} />
+                <MenuHeader title={OPERATOR.name} subtitle={`${OPERATOR.role} · ${MERCHANT.name} (Live)`} />
+                {PRODUCT_TABS.map((tab) => (
+                  <MenuItem
+                    key={tab.href}
+                    title={tab.title}
+                    leading={<tab.icon size="medium" />}
+                    {...(activeProductTab(pathname) === tab.href ? { description: "Current page" } : {})}
+                    onClick={() => router.push(tab.href)}
+                  />
+                ))}
+                <MenuItem title="Search cases" onClick={() => router.push(`${BASE_PATH}/cases`)} />
                 <MenuItem title="Developer settings" onClick={() => router.push(`${BASE_PATH}/developer`)} />
               </MenuOverlay>
             </Menu>
@@ -136,7 +172,6 @@ export function AppShell({ children, logo = null }: { children: ReactNode; logo?
             <SystemStatusBanner />
             {children}
           </Box>
-          <AgentDetailsDrawer isOpen={agentOpen} onDismiss={() => setAgentOpen(false)} />
           <Box as="footer" paddingX="spacing.8" paddingY="spacing.4" borderTopWidth="thin" borderTopColor="surface.border.gray.muted">
             <Text size="xsmall" color="surface.text.gray.muted">
               Concept prototype built on simulated data. Not an official Razorpay product.
