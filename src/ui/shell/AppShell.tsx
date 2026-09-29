@@ -38,7 +38,7 @@ export type OfficialLogo = { src: string; width: number; height: number };
 const LOGO_HEIGHT = 22;
 
 /**
- * Razorpay's official white wordmark, at its own aspect ratio. Until the
+ * Razorpay's official wordmark, reversed for the black bar, at its own aspect ratio. Until the
  * official file is present, the temporary text treatment is kept rather than
  * a recreated logo.
  */

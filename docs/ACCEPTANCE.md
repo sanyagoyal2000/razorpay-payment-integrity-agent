@@ -59,7 +59,7 @@ Each criterion from the specification, where it is implemented, and the automate
 | What actions is it allowed to take, and which need approval? | Context & authority: Suggest only / Approval required / Automatic within limits / Not permitted, per contract | `agentStudio.test.ts` |
 | What lifecycle state is it in? | Briefing, incident header, agent details; derived, never stored | `agentStudio.test.ts` |
 | What verified outcome did it produce? | Agent details (GMV resolved before refund or dispute), Value delivered, Recovered metric | `agentStudio.test.ts`, `reconciliation.test.ts` |
-| Official Razorpay asset, not recreated text? | `public/brand/razorpay-wordmark-white.png` when present; plain text otherwise | Browser check |
+| Official Razorpay asset, not recreated text? | `public/brand/razorpay-wordmark-white.svg` (the official SVG with its text reversed to white); plain text if missing | Browser check |
 | RAY green limited to AI identity? | `ui/ray/*`; colours only in `ui/ray/theme.ts` | `agentStudio.test.ts` (static checks) |
 | Transactional CTAs keep Blade styling? | Buttons use Blade variants only | `agentStudio.test.ts` (static checks) |
 | Connecting a source never grants write access | `services/permissions.ts`, `setWriteAuthority` | `configuration.test.ts`, `agentStudio.test.ts` |

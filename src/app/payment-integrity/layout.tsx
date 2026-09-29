@@ -3,18 +3,19 @@ import path from "node:path";
 import type { ReactNode } from "react";
 import { AppShell, type OfficialLogo } from "@/ui/shell/AppShell";
 
-const LOGO_FILE = "brand/razorpay-wordmark-white.png";
-
 /**
- * Razorpay's official white wordmark, if it has been placed in /public/brand.
- * Its size is read from the PNG header so the aspect ratio is preserved.
+ * Razorpay's official wordmark in its reversed (white text) form for the black
+ * top bar: public/brand/razorpay.svg with only the navy text recoloured white.
  */
+const LOGO_FILE = "brand/razorpay-wordmark-white.svg";
+
+/** The wordmark and its intrinsic size from the SVG viewBox, so the aspect ratio is preserved. */
 function officialLogo(): OfficialLogo | null {
   const file = path.join(process.cwd(), "public", LOGO_FILE);
   if (!existsSync(file)) return null;
-  const png = readFileSync(file);
-  if (png.length < 24 || png.toString("ascii", 1, 4) !== "PNG") return null;
-  return { src: `/${LOGO_FILE}`, width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
+  const viewBox = /viewBox="\s*[\d.-]+\s+[\d.-]+\s+([\d.]+)\s+([\d.]+)\s*"/.exec(readFileSync(file, "utf8"));
+  if (!viewBox) return null;
+  return { src: `/${LOGO_FILE}`, width: Number(viewBox[1]), height: Number(viewBox[2]) };
 }
 
 export default function PaymentIntegrityLayout({ children }: { children: ReactNode }) {

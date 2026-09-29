@@ -65,7 +65,7 @@ Payment Integrity is presented as a specialist Agent Studio worker: *a specialis
 - **Agent details** (top bar or avatar menu) shows its purpose, lifecycle state, connected systems, permission mode, outcome metrics, and Context & authority for each contract.
 - An **Outcome Contract** is the merchant's machine-readable intent for a payment. An **Outcome Receipt** is proof that the outcome happened.
 - The **RAY AI** identity (mint) marks AI-assisted content only.
-- The top bar uses Razorpay's official white wordmark from `public/brand/razorpay-wordmark-white.png` (from razorpay.com/newsroom/brand-assets, subject to Razorpay's Usage Agreement) when that file is present, and plain text otherwise.
+- The top bar uses Razorpay's official wordmark (`public/brand/razorpay.svg`, subject to Razorpay's Usage Agreement) in a reversed copy, `razorpay-wordmark-white.svg`: the navy text is recoloured white so it reads on black, and the blue mark is unchanged. If the file is missing, the top bar shows plain text.
 
 ## What needs attention
 
