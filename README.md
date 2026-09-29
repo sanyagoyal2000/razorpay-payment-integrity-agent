@@ -123,6 +123,8 @@ Both paths validate output with the same Zod schemas and guardrails. If neither 
 
 Investigations report five observable stages as each operation completes. Afterwards, "How this investigation was produced" shows events, sources, cases compared, service health, causes evaluated and citations checked. No model reasoning is shown.
 
+**Ask RAY** (incident page → Ask RAY) answers questions about that incident only. It offers suggested questions worded from the current state (for example "Why are 5 cases held?"). Each answer cites the evidence, cases or product facts it rests on and can link to recovery, the investigation or the evidence. It never approves or executes anything; actions still go through policy and your approval. Offline, the same three kinds of question are answered deterministically from product facts.
+
 **Investigator validation** (Developer settings → Open investigator validation) compares the investigator with a fixed-rule baseline on 40 labelled synthetic scenarios, using committed outputs captured from the real investigator (`yarn evaluation:capture`). See [Evaluation, autonomy and observable work](docs/EVALUATION_AND_AUTONOMY.md) for what it does and does not show.
 
 The model receives only what each task needs: payment and outcome events for the case, never customer names, emails or phone numbers.

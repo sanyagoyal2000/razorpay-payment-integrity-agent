@@ -36,6 +36,7 @@ export function createLiveAgentGateway(fallback: AgentGateway, fetchImpl: typeof
     draftMessage: (input) => call("draft-message", input, fallback.draftMessage),
     draftContract: (input) => call("draft-contract", input, fallback.draftContract),
     explainAutonomy: (input) => call("explain-autonomy", input, fallback.explainAutonomy),
+    askIncident: (input) => call("ask-incident", input, fallback.askIncident),
     describe: async () => {
       const s = await getStatus();
       if (s.live === true) return `${s.model ?? "Claude"} via ${s.provider ?? "live agent"}`;

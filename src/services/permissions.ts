@@ -19,3 +19,24 @@ export function authorityScopes(repos: Repositories): string[] {
 export function grantedScopes(repos: Repositories): string[] {
   return [...new Set([...contextScopes(repos), ...authorityScopes(repos)])];
 }
+
+/** Read scopes that let the agent see each evidence source. Payment Integrity's own records are always visible. */
+const SOURCE_SCOPES: Record<string, string[] | undefined> = {
+  razorpay: ["payment_status", "order_status"],
+  "razorpay:webhook": ["webhook_deliveries"],
+  learnloop: ["course_access_status", "order_status", "inventory_status"],
+  learnloop_observability: ["deploy_events", "service_error_logs"],
+};
+
+/**
+ * Filters evidence to sources the agent may currently read. Used for every
+ * investigator and Ask RAY input, so both see exactly the same context.
+ */
+export function permittedEvidence<T extends { source: string; type: string }>(repos: Repositories, items: readonly T[]): T[] {
+  const readable = new Set(contextScopes(repos));
+  return items.filter((item) => {
+    const key = item.source === "razorpay" && item.type.startsWith("webhook.") ? "razorpay:webhook" : item.source;
+    const scopes = SOURCE_SCOPES[key];
+    return scopes === undefined || scopes.some((s) => readable.has(s));
+  });
+}

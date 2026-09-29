@@ -1,5 +1,5 @@
 import type { AgentGateway } from "@/services/agent/contracts";
-import { draftContractByRule, draftMessageByRule, explainAutonomyByRule } from "@/services/agent/rules";
+import { askByRule, draftContractByRule, draftMessageByRule, explainAutonomyByRule } from "@/services/agent/rules";
 import { createFixtureInvestigationAdapter } from "./investigation";
 
 /**
@@ -15,6 +15,7 @@ export function createDemoAgentGateway(lookup: (id: string) => unknown, isAvaila
     draftMessage: async (input) => draftMessageByRule(input),
     draftContract: async (input) => draftContractByRule(input),
     explainAutonomy: async (input) => explainAutonomyByRule(input),
+    askIncident: async (input) => askByRule(input),
     describe: async () => "Deterministic fixtures (offline)",
   };
 }

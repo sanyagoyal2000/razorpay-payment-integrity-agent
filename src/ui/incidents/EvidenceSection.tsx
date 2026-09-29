@@ -10,6 +10,7 @@ export function EvidenceSection({ groups, now }: { groups: IncidentWorkspaceMode
   const count = groups.reduce((n, g) => n + g.items.length, 0);
   return (
     <Surface
+      id="evidence"
       title="Evidence"
       description={`${count} events from Razorpay, LearnLoop and LearnLoop Observability. Every item is a recorded event; nothing here is inferred.`}
     >

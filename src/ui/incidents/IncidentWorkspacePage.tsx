@@ -1,11 +1,12 @@
 "use client";
 
-import { Alert, Box, Button } from "@razorpay/blade/components";
+import { Alert, Box, Button, SparklesIcon } from "@razorpay/blade/components";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { reinvestigateIncident, type InvestigationProgress } from "@/services/agent";
 import { incidentWorkspace } from "@/services/views/incidents";
 import { ContextAuthorityView } from "@/ui/agent/ContextAuthority";
+import { AskRayDrawer } from "@/ui/agent/AskRayDrawer";
 import { InvestigationPanel } from "@/ui/agent/InvestigationPanel";
 import { LifecycleLabel } from "@/ui/agent/LifecycleLabel";
 import { Surface } from "@/ui/components/Surface";
@@ -28,6 +29,7 @@ export function IncidentWorkspacePage({ incidentId }: { incidentId: string }) {
   const router = useRouter();
   const state = useModel((services, asOf) => incidentWorkspace(services.repos, incidentId, asOf) ?? null, [incidentId]);
   const [drawer, setDrawer] = useState<CaseListRequest | null>(null);
+  const [askOpen, setAskOpen] = useState(false);
   const crumbs = [{ label: "Incidents", href: `${BASE_PATH}/incidents` }, { label: incidentId }];
   const ready = state.status === "ready" && state.model !== null;
   // Sections render after data loads, so jump to a linked section (#recovery, #investigation) once they exist.
@@ -66,6 +68,11 @@ export function IncidentWorkspacePage({ incidentId }: { incidentId: string }) {
           </Box>
         }
         meta={<IncidentSummary model={model} now={state.now} />}
+        actions={
+          <Button variant="secondary" size="small" icon={SparklesIcon} onClick={() => setAskOpen(true)}>
+            Ask RAY
+          </Button>
+        }
       />
       <Box display="flex" flexDirection="column" gap="spacing.6">
         {incident.status !== "resolved" ? (
@@ -97,6 +104,7 @@ export function IncidentWorkspacePage({ incidentId }: { incidentId: string }) {
         <HistorySection entries={model.history} now={state.now} />
       </Box>
       <CaseListDrawer request={drawer} onDismiss={() => setDrawer(null)} />
+      <AskRayDrawer isOpen={askOpen} onDismiss={() => setAskOpen(false)} incidentId={incident.id} suggestions={model.askSuggestions} services={state.services} />
     </>
   );
 }

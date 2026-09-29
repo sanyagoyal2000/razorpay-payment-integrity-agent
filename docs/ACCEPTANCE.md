@@ -63,3 +63,4 @@ Each criterion from the specification, where it is implemented, and the automate
 | RAY green limited to AI identity? | `ui/ray/*`; colours only in `ui/ray/theme.ts` | `agentStudio.test.ts` (static checks) |
 | Transactional CTAs keep Blade styling? | Buttons use Blade variants only | `agentStudio.test.ts` (static checks) |
 | Connecting a source never grants write access | `services/permissions.ts`, `setWriteAuthority` | `configuration.test.ts`, `agentStudio.test.ts` |
+| Ask RAY: incident-scoped, cites visible evidence, same source permissions, prepares but never executes | `services/agent/ask.ts`, `AskRayDrawer` | `askRay.test.ts` |

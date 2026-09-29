@@ -1,5 +1,7 @@
 import "server-only";
 import {
+  askAnswerSchema,
+  askIncidentInputSchema,
   autonomyExplanationSchema,
   autonomyInputSchema,
   contractDraftInputSchema,
@@ -96,6 +98,21 @@ Only state facts from the input. Do not promise timelines or refunds that are no
 - maxAutomaticValue must not exceed the global maximum.
 - Prefer conservative defaults (review duplicates; inventory checks for anything with limited seats or stock).
 - List every choice the description did not state in assumptions.`,
+        prompt: JSON.stringify(input),
+      }),
+  },
+  "ask-incident": {
+    input: askIncidentInputSchema,
+    run: (input: z.infer<typeof askIncidentInputSchema>) =>
+      structuredCall({
+        schema: askAnswerSchema,
+        effort: "medium",
+        system: `${PRODUCT_CONTEXT}\n\nAnswer a payments operations manager's question about ONE incident, using only the supplied evidence (event ids), case ids and facts (fact ids).
+- Cite every claim by exact id in citedIds. Never invent ids; uncited claims are removed.
+- The facts are computed by the product from current policy: use them for anything about recovery groups, what approval would do, limits or verification. Do not contradict them.
+- You cannot execute, approve, refund, capture or message anyone. If the question asks you to act, explain what would happen and set nextStep to where the manager can act (review_recovery, view_investigation or view_evidence).
+- If the question is not about this incident or cannot be answered from the evidence and facts, set inScope to false and say what you can answer instead.
+- At most 120 words. Plain operational English. Times in the evidence are UTC; do not restate clock times. No customer personal data.`,
         prompt: JSON.stringify(input),
       }),
   },

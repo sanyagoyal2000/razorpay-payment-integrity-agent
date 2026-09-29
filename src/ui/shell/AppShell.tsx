@@ -73,12 +73,6 @@ export function AppShell({ children, logo = null }: { children: ReactNode; logo?
         </TopNavBrand>
         <TopNavContent>
           <Box display={{ base: "none", l: "flex" }} alignItems="center" gap="spacing.3">
-            <Text size="small" color="surface.text.staticWhite.muted">
-              Agent Studio
-            </Text>
-            <Text size="small" color="surface.text.staticWhite.muted" aria-hidden>
-              /
-            </Text>
             <Text size="small" weight="semibold" color="surface.text.staticWhite.normal">
               Payment Integrity
             </Text>

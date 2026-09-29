@@ -8,6 +8,7 @@ import { actionLabel, serviceLabel } from "@/services/policy/actions";
 import { requireContract, serviceHealth } from "@/services/policy/currentState";
 import { groupIncidentCases, planBulkRecovery, type RecoveryGroupId } from "@/services/recovery/groups";
 import { describeIncidentInvestigation } from "@/services/agent";
+import { suggestedQuestions } from "@/services/agent/askSuggestions";
 import { incidentLifecycle } from "@/services/lifecycle";
 import { agentContribution } from "./agentContribution";
 import { contextAndAuthority } from "./agentProfile";
@@ -254,6 +255,7 @@ export function incidentWorkspace(repos: Repositories, incidentId: string, asOf:
     contribution: agentContribution(repos, incident, asOf),
     lifecycle: incidentLifecycle(repos, incident, asOf),
     authority: contextAndAuthority(repos, contract),
+    askSuggestions: suggestedQuestions(repos, incident.id, asOf),
     groups: groupIncidentCases(repos, incident.id, asOf),
     containment: containmentOptions(repos, incident, asOf),
     notification: notificationPreview(repos, incident),

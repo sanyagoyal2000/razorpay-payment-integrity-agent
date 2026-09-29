@@ -1,5 +1,6 @@
 import type { Investigation } from "@/domain/types";
 import type { Repositories } from "@/repositories";
+import { permittedEvidence } from "@/services/permissions";
 import { requireContract } from "@/services/policy/currentState";
 import { investigationSchema } from "./schema";
 
@@ -153,7 +154,7 @@ export function buildCaseInvestigationInput(repos: Repositories, caseId: string)
     contract: { name: contract.name, expectedOutcome: contract.expectedOutcome, deadlineSeconds: contract.deadlineSeconds },
     payment: { id: payment.id, amount: payment.amount, method: payment.method, status: payment.status },
     merchantOrderId: payment.merchantOrderId,
-    evidence: caseEvidence(repos, caseId),
+    evidence: permittedEvidence(repos, caseEvidence(repos, caseId)),
   };
 }
 
@@ -176,6 +177,6 @@ export function buildIncidentInvestigationInput(repos: Repositories, incidentId:
     incidentId,
     contract: { name: contract.name, expectedOutcome: contract.expectedOutcome, deadlineSeconds: contract.deadlineSeconds },
     caseIds: incident.caseIds,
-    evidence: [...evidence.values()].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt)),
+    evidence: permittedEvidence(repos, [...evidence.values()]).sort((a, b) => a.occurredAt.localeCompare(b.occurredAt)),
   };
 }

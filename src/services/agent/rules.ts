@@ -1,5 +1,7 @@
 import { formatINR } from "@/domain/money";
 import type {
+  AskAnswer,
+  AskIncidentInput,
   AutonomyExplanation,
   AutonomyInput,
   ContractDraft,
@@ -104,5 +106,50 @@ export function explainAutonomyByRule(input: AutonomyInput): AutonomyExplanation
     suggestedMode: input.eligible ? "automatic_below_threshold" : "suggest_only",
     suggestedMaxValue: input.maxAutomaticValue,
     suggestedMinimumConfidence,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Ask RAY (offline): deterministic answers from the supplied facts and evidence
+// ---------------------------------------------------------------------------
+
+/**
+ * Answers the three supported question kinds from the product's own facts and
+ * evidence. Anything else is reported as out of scope rather than guessed.
+ */
+export function askByRule(input: AskIncidentInput): AskAnswer {
+  const q = input.question.toLowerCase();
+  const facts = (prefix: string) => input.facts.filter((f) => f.id.startsWith(prefix));
+  if (/\bheld\b|\bhold|individual review|excluded|why .*(not|aren't|are not).*(bulk|recover)/.test(q)) {
+    const held = facts("fact:held");
+    if (held.length === 0) return { inScope: true, answer: "No cases are held for individual review right now.", citedIds: facts("fact:safe").map((f) => f.id), nextStep: "review_recovery" };
+    return { inScope: true, answer: held.map((f) => f.statement).join(" "), citedIds: held.map((f) => f.id), nextStep: "review_recovery" };
+  }
+  if (/deploy|release|\bv\d+(\.\d+)+|what changed/.test(q)) {
+    const signals = input.evidence.filter((e) => e.source === "learnloop_observability");
+    if (signals.length === 0) {
+      return { inScope: true, answer: "No deployment or service events are available for this incident from the connected sources.", citedIds: [], nextStep: "view_evidence" };
+    }
+    const lines = signals.map((e) => {
+      const version = typeof e.detail?.["version"] === "string" ? ` ${e.detail["version"]}` : "";
+      const signal = typeof e.detail?.["signal"] === "string" ? ` (${e.detail["signal"]})` : "";
+      return `${e.type}${version}${signal}`;
+    });
+    return {
+      inScope: true,
+      answer: `Recorded service signals, in order: ${lines.join("; then ")}. ${facts("fact:service").map((f) => f.statement).join(" ")}`.trim(),
+      citedIds: [...signals.map((e) => e.id), ...facts("fact:service").map((f) => f.id)],
+      nextStep: "view_investigation",
+    };
+  }
+  if (/approv|batch|bulk|what (would|will) happen/.test(q)) {
+    const plan = [...facts("fact:safe"), ...facts("fact:plan")];
+    return { inScope: true, answer: plan.map((f) => f.statement).join(" "), citedIds: plan.map((f) => f.id), nextStep: "review_recovery" };
+  }
+  return {
+    inScope: false,
+    answer: "I can only answer questions about this incident from its evidence, for example why cases are held, what changed around a deployment, or what approving the safe batch would do.",
+    citedIds: [],
+    nextStep: "none",
   };
 }

@@ -7,7 +7,7 @@ import type { CaseInvestigationInput, IncidentInvestigationInput } from "@/servi
  * validates against these schemas before anything reaches the product.
  */
 
-export const AGENT_TASKS = ["investigate-case", "investigate-incident", "draft-message", "draft-contract", "explain-autonomy"] as const;
+export const AGENT_TASKS = ["investigate-case", "investigate-incident", "draft-message", "draft-contract", "explain-autonomy", "ask-incident"] as const;
 export type AgentTask = (typeof AGENT_TASKS)[number];
 
 // ---------------------------------------------------------------------------
@@ -100,6 +100,39 @@ export const autonomyExplanationSchema = z.object({
 });
 export type AutonomyExplanation = z.infer<typeof autonomyExplanationSchema>;
 
+// ---------------------------------------------------------------------------
+// Ask RAY: questions about one incident
+// ---------------------------------------------------------------------------
+
+const askEvidenceSchema = z.object({
+  id: z.string(),
+  source: z.string(),
+  type: z.string(),
+  occurredAt: z.string(),
+  detail: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const askIncidentInputSchema = z.object({
+  incidentId: z.string(),
+  question: z.string().min(1).max(500),
+  /** Deterministic facts computed by the product (recovery groups, policy preview, service health). */
+  facts: z.array(z.object({ id: z.string(), statement: z.string() })),
+  caseIds: z.array(z.string()),
+  /** Only evidence from sources the agent is permitted to read. */
+  evidence: z.array(askEvidenceSchema).max(1500),
+});
+export type AskIncidentInput = z.infer<typeof askIncidentInputSchema>;
+
+export const ASK_NEXT_STEPS = ["review_recovery", "view_investigation", "view_evidence", "none"] as const;
+
+export const askAnswerSchema = z.object({
+  inScope: z.boolean().describe("False when the question is not about this incident or cannot be answered from the supplied evidence and facts"),
+  answer: z.string().min(1).describe("At most 120 words, plain operational English, grounded only in the supplied evidence and facts"),
+  citedIds: z.array(z.string()).describe("Evidence ids, case ids or fact ids that support the answer"),
+  nextStep: z.enum(ASK_NEXT_STEPS).describe("Where the merchant can act on the answer; this never performs an action"),
+});
+export type AskAnswer = z.infer<typeof askAnswerSchema>;
+
 /** One gateway for every agent task. Implementations return unvalidated output. */
 export type AgentGateway = {
   investigateCase(input: CaseInvestigationInput): Promise<unknown>;
@@ -107,6 +140,7 @@ export type AgentGateway = {
   draftMessage(input: MessageDraftInput): Promise<unknown>;
   draftContract(input: ContractDraftInput): Promise<unknown>;
   explainAutonomy(input: AutonomyInput): Promise<unknown>;
+  askIncident(input: AskIncidentInput): Promise<unknown>;
   /** What serves these calls, for the audit log, e.g. "claude-opus-5 via Claude CLI". */
   describe?(): Promise<string>;
 };
