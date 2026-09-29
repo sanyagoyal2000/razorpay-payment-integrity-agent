@@ -28,6 +28,29 @@ export type EvidenceItem = {
   occurredAt: string;
 };
 
+/**
+ * What each kind of evidence does for a decision. Groups holding cause or
+ * recovery evidence open by default; baseline, context, repetitive symptom
+ * and pattern evidence stays one click away.
+ */
+export type EvidenceRole = "cause" | "recovery" | "baseline" | "context" | "symptom" | "pattern";
+
+export const KIND_ROLES: Record<EvidenceKind, EvidenceRole> = {
+  deploy: "context",
+  service_errors: "cause",
+  payment_captured: "baseline",
+  payment_event: "baseline",
+  webhook_accepted: "baseline",
+  webhook_failed: "cause",
+  outcome_failed: "cause",
+  outcome_completed: "recovery",
+  outcome_event: "context",
+  receipt_missing: "symptom",
+  receipt_confirmed: "context",
+  service_recovered: "recovery",
+  similar_case: "pattern",
+};
+
 export const EVIDENCE_GROUPS: Array<{ label: string; kinds: EvidenceKind[] }> = [
   { label: "Deployment", kinds: ["deploy"] },
   { label: "Service errors", kinds: ["service_errors"] },
@@ -127,11 +150,36 @@ export function resolveEvidence(repos: Repositories, id: string): EvidenceItem |
   return undefined;
 }
 
-/** Resolves and groups evidence IDs for display. Unknown IDs are dropped. */
-export function groupEvidence(repos: Repositories, ids: readonly string[]) {
+export type EvidenceGroup = { key: string; label: string; items: EvidenceItem[]; defaultExpanded: boolean };
+
+/**
+ * Resolves and groups evidence IDs for display. Unknown IDs are dropped.
+ * A group opens by default when it holds cause or recovery evidence, unless
+ * every one of its cause items is cited only by causes the investigation
+ * ruled out. Collapsing hides items; it never removes them.
+ */
+export function groupEvidence(
+  repos: Repositories,
+  ids: readonly string[],
+  hypotheses: ReadonlyArray<{ verdict: "supported" | "ruled_out" | "inconclusive"; evidenceIds: string[] }> = [],
+): EvidenceGroup[] {
   const items = [...new Set(ids)].map((id) => resolveEvidence(repos, id)).filter((item): item is EvidenceItem => item !== undefined);
-  return EVIDENCE_GROUPS.map((group) => ({
-    label: group.label,
-    items: items.filter((i) => group.kinds.includes(i.kind)).sort((a, b) => a.occurredAt.localeCompare(b.occurredAt)),
-  })).filter((g) => g.items.length > 0);
+  const citedByLive = new Set(hypotheses.filter((h) => h.verdict !== "ruled_out").flatMap((h) => h.evidenceIds));
+  const citedByRuledOut = new Set(hypotheses.filter((h) => h.verdict === "ruled_out").flatMap((h) => h.evidenceIds));
+  const onlyRuledOut = (item: EvidenceItem) => citedByRuledOut.has(item.id) && !citedByLive.has(item.id);
+  return EVIDENCE_GROUPS.map((group) => {
+    const own = items.filter((i) => group.kinds.includes(i.kind)).sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+    const recovery = own.some((i) => KIND_ROLES[i.kind] === "recovery");
+    const cause = own.filter((i) => KIND_ROLES[i.kind] === "cause");
+    const liveCause = cause.length > 0 && !cause.every(onlyRuledOut);
+    return { key: group.kinds.join("+"), label: group.label, items: own, defaultExpanded: recovery || liveCause };
+  }).filter((g) => g.items.length > 0);
 }
+
+/** Disclosure state for evidence groups: a map from group key to expanded. */
+export type EvidenceExpansion = Record<string, boolean>;
+
+export const initialExpansion = (groups: readonly EvidenceGroup[]): EvidenceExpansion => Object.fromEntries(groups.map((g) => [g.key, g.defaultExpanded]));
+export const expandAll = (groups: readonly EvidenceGroup[]): EvidenceExpansion => Object.fromEntries(groups.map((g) => [g.key, true]));
+export const collapseAll = (groups: readonly EvidenceGroup[]): EvidenceExpansion => Object.fromEntries(groups.map((g) => [g.key, false]));
+export const setGroupExpanded = (state: EvidenceExpansion, key: string, expanded: boolean): EvidenceExpansion => ({ ...state, [key]: expanded });

@@ -98,7 +98,8 @@ export function agentContribution(repos: Repositories, incident: IncidentRecord,
   }
 
   const run = describeIncidentInvestigation(repos, incident.id, asOf);
-  const sourceCount = run ? Object.keys(run.sources).length : 0;
+  // Payment Integrity's own records are not a connected source (matches the evidence counts and authority line).
+  const sourceCount = run ? Object.keys(run.sources).filter((s) => s !== "Payment Integrity").length : 0;
   const counts = hypothesisCounts(incident.investigation);
   const evaluated = counts.supported + counts.ruled_out + counts.inconclusive;
   const examined: ContributionMetric = {

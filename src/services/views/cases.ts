@@ -322,7 +322,7 @@ export function caseDetail(repos: Repositories, caseId: string, asOf: string) {
   const executions = repos.executions.forCase(c.id).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
   const receipt = repos.outcomes.receiptForPayment(c.paymentId);
   const outcomeEvent = receipt?.outcomeEventId ? repos.outcomes.event(receipt.outcomeEventId) : undefined;
-  const evidence = groupEvidence(repos, c.recommendation?.evidenceIds ?? []);
+  const evidence = groupEvidence(repos, c.recommendation?.evidenceIds ?? [], c.investigation?.hypotheses ?? []);
 
   return {
     caseData: c,

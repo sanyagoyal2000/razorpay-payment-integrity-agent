@@ -34,7 +34,9 @@ import { formatINR } from "@/domain/money";
 import type { AppServices } from "@/services/container";
 import { approveBulk, isTerminal, runExecutions } from "@/services/execution";
 import type { RecoveryGroupId } from "@/services/recovery/groups";
+import { selectedActionConfidence } from "@/services/views/incidentDecision";
 import { AUTOMATION_EVIDENCE_HREF, recoveryFacts, recoveryPlan, type IncidentWorkspaceModel } from "@/services/views/incidents";
+import { MetaList } from "@/ui/components/MetaList";
 import { AppLink } from "@/ui/components/AppLink";
 import type { CaseListRequest } from "@/ui/components/CaseListDrawer";
 import { Money } from "@/ui/components/Money";
@@ -58,7 +60,8 @@ export function RecoverySection({
   const [runIds, setRunIds] = useState<string[]>([]);
   const plan = useMemo(() => recoveryPlan(services.repos, model.incident, selected, asOf), [services, model, selected, asOf]);
   const facts = useMemo(() => recoveryFacts(services.repos, model.incident, selected, asOf), [services, model, selected, asOf]);
-  const { confidence } = model;
+  const { confidence, modeView } = model;
+  const actionConfidence = useMemo(() => selectedActionConfidence(services.repos, model.incident, selected, asOf), [services, model, selected, asOf]);
 
   const runs = runIds.map((id) => services.repos.executions.get(id)).filter((e) => e !== undefined);
   const running = runs.some((e) => !isTerminal(e));
@@ -105,20 +108,35 @@ export function RecoverySection({
         </Text>
       ) : (
         <Box display="grid" gridTemplateColumns="minmax(0px, 1fr)" gap="spacing.6" alignItems="start">
-          <Box display="flex" alignItems="center" gap="spacing.2" flexWrap="wrap">
-            {confidence.investigation !== undefined ? (
-              <Text size="small" weight="semibold">{Math.round(confidence.investigation * 100)}% investigation confidence</Text>
-            ) : (
-              <Text size="small" weight="semibold">No validated investigation yet</Text>
-            )}
-            <Tooltip content={confidence.explanation} placement="top">
-              <IconButton icon={InfoIcon} size="small" accessibilityLabel="How confidence and approval relate" onClick={() => undefined} />
-            </Tooltip>
-            <Text size="xsmall" color="surface.text.gray.muted">
-              {confidence.recommendation !== undefined ? `Lowest case recommendation confidence ${Math.round(confidence.recommendation * 100)}% · ` : ""}
-              Automatic execution needs {Math.round(confidence.automaticThreshold * 100)}% · {confidence.mode} in Automations
-            </Text>
-          </Box>
+          <MetaList
+            minColumnWidth={200}
+            items={[
+              {
+                label: "Incident diagnosis",
+                value: confidence.investigation !== undefined ? `${Math.round(confidence.investigation * 100)}% confidence` : "Not yet validated",
+                help: "Confidence in the likely cause",
+              },
+              {
+                label: "Selected recovery actions",
+                value: actionConfidence !== undefined ? `Minimum ${Math.round(actionConfidence * 100)}% confidence` : "No eligible cases selected",
+                help: "Lowest confidence among the selected cases' actions",
+              },
+              {
+                label: "Current mode",
+                value: (
+                  <Box display="flex" alignItems="center" gap="spacing.1" flexWrap="wrap">
+                    <Text size="small" weight="medium" {...(modeView.blocked ? { color: "feedback.text.negative.intense" as const } : {})}>
+                      {modeView.blocked ? "Blocked by policy" : `${modeView.mode} · ${modeView.consequence}`}
+                    </Text>
+                    <Tooltip content={modeView.tooltip} placement="top">
+                      <IconButton icon={InfoIcon} size="small" accessibilityLabel="What automatic execution requires" onClick={() => undefined} />
+                    </Tooltip>
+                  </Box>
+                ),
+                ...(modeView.blocked ? { help: modeView.consequence.replace(/^Blocked by policy: /, "") } : {}),
+              },
+            ]}
+          />
           <Box minWidth="0px" overflowX="auto">
             <Table data={{ nodes: model.groups }} rowDensity="normal" gridTemplateColumns="minmax(190px, 2fr) 64px 104px minmax(150px, 1.5fr) 190px">
               {(items) => (

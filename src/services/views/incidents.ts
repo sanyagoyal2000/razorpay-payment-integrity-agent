@@ -12,7 +12,7 @@ import { suggestedQuestions } from "@/services/agent/askSuggestions";
 import { incidentLifecycle } from "@/services/lifecycle";
 import { agentContribution } from "./agentContribution";
 import { contextAndAuthority } from "./agentProfile";
-import { decisionSummary, evidenceCounts, recommendationReasons, recoveryAuthority, recoveryConfidence } from "./incidentDecision";
+import { decisionSummary, evidenceCounts, merchantIntent, reasonsSourceSummary, recommendationReasons, recoveryAuthority, recoveryConfidence, recoveryModeView } from "./incidentDecision";
 import { groupEvidence } from "./evidence";
 import { investigationView } from "./investigation";
 import { requiredDecision } from "./overview";
@@ -285,7 +285,7 @@ export function incidentWorkspace(repos: Repositories, incidentId: string, asOf:
     whatHappened: incident.summary,
     likelyCause: incident.likelyCause,
     rootCauseConfidence: incident.investigation?.confidence,
-    evidence: groupEvidence(repos, evidenceIds),
+    evidence: groupEvidence(repos, evidenceIds, incident.investigation?.hypotheses ?? []),
     investigation: investigationView(repos, incident.investigation, describeIncidentInvestigation(repos, incident.id, asOf), "incident"),
     uncertainties: incident.investigation?.uncertainties ?? [],
     contribution: agentContribution(repos, incident, asOf),
@@ -296,6 +296,9 @@ export function incidentWorkspace(repos: Repositories, incidentId: string, asOf:
     reasons: recommendationReasons(repos, incident, asOf),
     recoveryAuthority: recoveryAuthority(repos, incident, asOf),
     confidence: recoveryConfidence(repos, incident, asOf),
+    modeView: recoveryModeView(repos, incident, asOf),
+    intent: merchantIntent(repos, incident),
+    reasonsSummary: reasonsSourceSummary(recommendationReasons(repos, incident, asOf)),
     evidenceCounts: evidenceCounts(repos, incident, asOf, groupEvidence(repos, evidenceIds)),
     groups: groupIncidentCases(repos, incident.id, asOf),
     containment: containmentOptions(repos, incident, asOf),

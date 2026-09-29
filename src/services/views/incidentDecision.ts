@@ -9,7 +9,7 @@ import { incidentTotals, isAtRisk } from "@/services/metrics/cases";
 import { actionLabel, serviceLabel } from "@/services/policy/actions";
 import { evaluateCase, requireContract } from "@/services/policy/currentState";
 import { modeLabel } from "@/services/policy/evaluatePolicy";
-import { assessCase, groupIncidentCases, type RecoveryGroupId } from "@/services/recovery/groups";
+import { assessCase, groupIncidentCases, planBulkRecovery, type RecoveryGroupId } from "@/services/recovery/groups";
 import { contextAndAuthority } from "./agentProfile";
 import type { groupEvidence } from "./evidence";
 import { systemicBlocker } from "./systemStatus";
@@ -215,6 +215,16 @@ export function recommendationReasons(repos: Repositories, incident: IncidentRec
   return reasons;
 }
 
+const REASON_SOURCES: Record<string, string> = { captured: "payment", webhooks: "webhook", failed: "fulfilment", health: "service-health" };
+
+/** One quiet line naming the kinds of validated evidence behind the reasons. */
+export function reasonsSourceSummary(reasons: readonly Reason[]): string | undefined {
+  const kinds = reasons.filter((r) => r.evidenceIds.length > 0 && REASON_SOURCES[r.id]).map((r) => REASON_SOURCES[r.id]!);
+  if (kinds.length === 0) return undefined;
+  const list = kinds.length === 1 ? kinds[0]! : `${kinds.slice(0, -1).join(", ")} and ${kinds.at(-1)}`;
+  return `Supported by validated ${list} evidence.`;
+}
+
 // ---------------------------------------------------------------------------
 // Authority, confidence and policy for this recovery
 // ---------------------------------------------------------------------------
@@ -304,6 +314,84 @@ export function recoveryConfidence(repos: Repositories, incident: IncidentRecord
     automaticThreshold: threshold,
     mode: modeLabel(mode),
     explanation,
+  };
+}
+
+/** Minimum recommendation confidence across the selected groups' bulk-eligible cases. */
+export function selectedActionConfidence(repos: Repositories, incident: IncidentRecord, selected: readonly RecoveryGroupId[], asOf: string): number | undefined {
+  const caseIds = groupIncidentCases(repos, incident.id, asOf)
+    .filter((g) => selected.includes(g.id))
+    .flatMap((g) => g.caseIds);
+  const eligible = planBulkRecovery(repos, caseIds, asOf).eligible.filter((c) => c.recommendation !== undefined);
+  return eligible.length === 0 ? undefined : Math.min(...eligible.map((c) => c.recommendation!.confidence));
+}
+
+export type ModeView = { mode: string; consequence: string; blocked: boolean; tooltip: string };
+
+/**
+ * The current automation mode for the incident's recovery action, what it
+ * means for this decision, and the automatic threshold, which is only one of
+ * the requirements for running without approval.
+ */
+export function recoveryModeView(repos: Repositories, incident: IncidentRecord, asOf: string): ModeView {
+  const contract = requireContract(repos, incident.outcomeContractId);
+  const { automaticThreshold, explanation } = recoveryConfidence(repos, incident, asOf);
+  const mode = repos.config.actionModes()[contract.safeRecoveryAction === "replay_webhook" ? "replay_webhook" : "retry_provisioning"];
+  const label = actionLabel(contract.safeRecoveryAction, contract);
+  const blocked = explanation.startsWith("Blocked by policy");
+  const consequence = blocked
+    ? explanation
+    : mode === "automatic_below_threshold"
+      ? "Runs without approval within limits"
+      : mode === "disabled"
+        ? "Cannot run"
+        : "Merchant approval required";
+  return {
+    mode: modeLabel(mode),
+    consequence,
+    blocked,
+    tooltip: `Automatic execution requires at least ${Math.round(automaticThreshold * 100)}% action confidence and an eligible automation mode. ${label} is currently configured as ${modeLabel(mode)}.`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Merchant intent
+// ---------------------------------------------------------------------------
+
+const OUTCOME_LABELS: Record<string, string> = {
+  course_access_granted: "Course access",
+  booking_confirmed: "Confirmed booking",
+  membership_activated: "Membership activation",
+  wallet_credited: "Wallet credit",
+  plan_upgraded: "Plan upgrade",
+};
+
+/** A merchant-facing name for an Outcome Contract's promised outcome. */
+export function outcomeLabel(expectedOutcome: string): string {
+  return OUTCOME_LABELS[expectedOutcome] ?? expectedOutcome.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+}
+
+export type MerchantIntent = {
+  expectedOutcome: string;
+  verifiedThrough: string;
+  technical: { outcomeEvent: string; matchingKey: string; verificationMethod: string; deadlineSeconds: number };
+};
+
+/**
+ * The merchant's intent in plain language for the Decision tab, with the
+ * technical definition kept alongside for the Evidence & history tab.
+ */
+export function merchantIntent(repos: Repositories, incident: IncidentRecord): MerchantIntent {
+  const contract = requireContract(repos, incident.outcomeContractId);
+  const minutes = contract.deadlineSeconds / 60;
+  const deadline = contract.deadlineSeconds % 60 === 0 ? plural(minutes, "minute", "minutes") : plural(contract.deadlineSeconds, "second", "seconds");
+  const model = contextAndAuthority(repos, contract);
+  const source = model.context.find((c) => c.id === "fulfilment");
+  const verifiedThrough = source && source.source !== "No integration" ? source.source : `LearnLoop ${serviceLabel(contract.fulfilmentService).toLowerCase()}`;
+  return {
+    expectedOutcome: `${outcomeLabel(contract.expectedOutcome)} within ${deadline}`,
+    verifiedThrough,
+    technical: { outcomeEvent: contract.expectedOutcome, matchingKey: contract.matchingKey, verificationMethod: contract.verificationMethod, deadlineSeconds: contract.deadlineSeconds },
   };
 }
 

@@ -123,7 +123,7 @@ describe("Why the agent was needed", () => {
     const byId = Object.fromEntries(c.metrics.map((m) => [m.id, m]));
     expect(c.state).toBe("valid");
     expect(byId.detected!.value).toBe(43);
-    expect(byId.examined).toMatchObject({ value: run.eventsExamined, detail: `events across ${Object.keys(run.sources).length} connected sources` });
+    expect(byId.examined).toMatchObject({ value: run.eventsExamined, detail: "events across 3 connected sources" });
     expect(byId.causes).toMatchObject({ value: 4, detail: "1 supported, 3 ruled out, 0 inconclusive" });
     expect(byId.safe).toMatchObject({ value: 38, detail: `cases worth ${formatINR(151962)}` });
     expect(byId.held).toMatchObject({ value: 5, detail: "3 duplicate payments, 2 above the value limit" });

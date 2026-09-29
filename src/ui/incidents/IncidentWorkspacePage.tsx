@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Button, SparklesIcon, TabItem, TabList, TabPanel, Tabs, Text } from "@razorpay/blade/components";
+import { Box, Button, Code, SparklesIcon, TabItem, TabList, TabPanel, Tabs, Text } from "@razorpay/blade/components";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { reinvestigateIncident, type InvestigationProgress } from "@/services/agent";
@@ -12,6 +12,7 @@ import { LifecycleLabel } from "@/ui/agent/LifecycleLabel";
 import { AppLink } from "@/ui/components/AppLink";
 import { CaseListDrawer, type CaseListRequest } from "@/ui/components/CaseListDrawer";
 import { IncidentStatusBadge, SeverityLabel } from "@/ui/components/badges";
+import { MetaList } from "@/ui/components/MetaList";
 import { PageHeader } from "@/ui/components/PageHeader";
 import { NotFound, PageError, PageSkeleton } from "@/ui/components/states";
 import { Surface } from "@/ui/components/Surface";
@@ -109,7 +110,7 @@ export function IncidentWorkspacePage({ incidentId }: { incidentId: string }) {
 
         <TabPanel value="investigation">
           <Box display="flex" flexDirection="column" gap="spacing.6" paddingTop="spacing.6">
-            <WhyRayRecommends reasons={model.reasons} contribution={model.contribution} onShowCases={setDrawer} />
+            <WhyRayRecommends reasons={model.reasons} {...(model.reasonsSummary ? { sourceSummary: model.reasonsSummary } : {})} contribution={model.contribution} onShowCases={setDrawer} />
             <InvestigationPanel
               subject="incident"
               view={model.investigation}
@@ -133,7 +134,18 @@ export function IncidentWorkspacePage({ incidentId }: { incidentId: string }) {
             <EvidenceSection groups={model.evidence} now={state.now} />
             <HistorySection entries={model.history} now={state.now} />
             <Surface id="incident-details" title="Incident details" actions={<AppLink href={`${BASE_PATH}/audit-log?incident=${incident.id}`}>View in Audit Log</AppLink>}>
-              <IncidentSummary model={model} now={state.now} />
+              <Box display="flex" flexDirection="column" gap="spacing.5">
+                <IncidentSummary model={model} now={state.now} />
+                <MetaList
+                  minColumnWidth={200}
+                  items={[
+                    { label: "Outcome event", value: <Code size="small">{model.intent.technical.outcomeEvent}</Code> },
+                    { label: "Matching key", value: <Code size="small">{model.intent.technical.matchingKey}</Code> },
+                    { label: "Verification deadline", value: `${model.intent.technical.deadlineSeconds} seconds` },
+                    { label: "Verification method", value: model.intent.technical.verificationMethod },
+                  ]}
+                />
+              </Box>
             </Surface>
           </Box>
         </TabPanel>

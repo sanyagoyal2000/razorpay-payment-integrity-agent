@@ -12,7 +12,17 @@ import { ContributionDetails } from "./WhyAgentNeeded";
  * evidence or the current policy evaluation. The fixed-rule versus
  * investigator figures stay one click away.
  */
-export function WhyRayRecommends({ reasons, contribution, onShowCases }: { reasons: Reason[]; contribution: AgentContribution; onShowCases: (request: CaseListRequest) => void }) {
+export function WhyRayRecommends({
+  reasons,
+  sourceSummary,
+  contribution,
+  onShowCases,
+}: {
+  reasons: Reason[];
+  sourceSummary?: string;
+  contribution: AgentContribution;
+  onShowCases: (request: CaseListRequest) => void;
+}) {
   return (
     <RaySurface id="why-ray" identityName="RAY investigation" title="Why RAY recommends this">
       <Box display="flex" flexDirection="column" gap="spacing.5">
@@ -21,16 +31,10 @@ export function WhyRayRecommends({ reasons, contribution, onShowCases }: { reaso
           {reasons.map((r) => (
             <Box key={r.id} display="grid" gridTemplateColumns="20px 1fr" columnGap="spacing.3">
               <Box paddingTop="spacing.1"><CheckIcon size="small" color="surface.icon.gray.subtle" /></Box>
-              <Box>
-                <Text size="small">{r.text}</Text>
-                {r.evidenceIds.length > 0 ? (
-                  <Text size="xsmall" color="surface.text.gray.muted">
-                    Based on {r.evidenceIds.length} recorded {r.evidenceIds.length === 1 ? "item" : "items"}
-                  </Text>
-                ) : null}
-              </Box>
+              <Text size="small">{r.text}</Text>
             </Box>
           ))}
+          {sourceSummary ? <Text size="xsmall" color="surface.text.gray.muted">{sourceSummary}</Text> : null}
         </Box>
         <Collapsible>
           <CollapsibleLink size="small">See how RAY investigated</CollapsibleLink>
