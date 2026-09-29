@@ -118,14 +118,12 @@ export function AppShell({ children, logo = null }: { children: ReactNode; logo?
               <Text size="small" color="surface.text.staticWhite.normal">
                 {MERCHANT.name}
               </Text>
-              <Badge color="positive" size="small" emphasis="intense">
-                Live
-              </Badge>
+              
             </Box>
             <Menu>
               <Avatar name={OPERATOR.name} size="small" color="primary" />
               <MenuOverlay>
-                <MenuHeader title={OPERATOR.name} subtitle={`${OPERATOR.role} · ${MERCHANT.name} (Live)`} />
+                <MenuHeader title={OPERATOR.name} subtitle={`${OPERATOR.role} · ${MERCHANT.name}`} />
                 {PRODUCT_TABS.map((tab) => (
                   <MenuItem
                     key={tab.href}
