@@ -49,7 +49,7 @@ export function CheckPaymentPage() {
     <Box minHeight="100vh" backgroundColor="surface.background.gray.subtle">
       <Box as="header" backgroundColor="surface.background.gray.intense" borderBottomWidth="thin" borderBottomColor="surface.border.gray.muted" paddingX="spacing.5" paddingY="spacing.4">
         <Box maxWidth="480px" marginX="auto">
-          <Text size="large" weight="semibold">LearnLoop</Text>
+          <Text size="large" weight="semibold">Marrow</Text>
         </Box>
       </Box>
       <Box as="main" maxWidth="480px" marginX="auto" paddingX="spacing.5" paddingY="spacing.8">
@@ -76,7 +76,7 @@ export function CheckPaymentPage() {
               name="orderId"
               value={orderId}
               onChange={({ value }) => setOrderId(value ?? "")}
-              placeholder="LL-4301232"
+              placeholder="MR-4301232"
               isRequired
               necessityIndicator="none"
               {...(errors.orderId ? { validationState: "error" as const, errorText: errors.orderId } : {})}

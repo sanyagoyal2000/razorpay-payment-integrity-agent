@@ -90,7 +90,7 @@ export function PrimaryMetrics({ metrics, onShowCases }: { metrics: Metrics; onS
             onShowCases({
               title: "Resolved before customer contact",
               explanation:
-                "Cases resolved with a verified outcome in the last 30 days, before the customer contacted LearnLoop, where the default would have been a refund or a customer contact.",
+                "Cases resolved with a verified outcome in the last 30 days, before the learner contacted Marrow, where the default would have been a refund or a customer contact.",
               caseIds: metrics.resolvedBeforeContact.caseIds,
             }),
         }}

@@ -30,8 +30,8 @@ Each criterion from the specification, where it is implemented, and the automate
 | Requirement | Covered by |
 |---|---|
 | Verified business impact (last 30 days; the spec's "Value delivered"), each figure linked to its cases, with a calculation tooltip | Overview; `reconciliation.test.ts` |
-| Deploy evidence from LearnLoop Observability (`deploy.completed` v2.3) | `fixtures.test.ts` |
-| Exact arithmetic from real course prices | `fixtures.test.ts`, `reconciliation.test.ts` |
+| Deploy evidence from Platform Monitoring (`deploy.completed` v2.3) | `fixtures.test.ts` |
+| Exact arithmetic from real learning package prices | `fixtures.test.ts`, `reconciliation.test.ts` |
 | Single footer disclaimer; official Razorpay wordmark (text fallback until the file is present) | App shell |
 | No hydration warnings or console errors | Production browser runs on every route |
 
@@ -45,7 +45,7 @@ Each criterion from the specification, where it is implemented, and the automate
 | Observable stages without chain-of-thought; failure never reported as success | `agent/progress.ts`, `InvestigationPanel` | `briefing.test.ts`, `agent.test.ts` |
 | Earned autonomy from verified outcomes; deterministic eligibility; audited confirmation | `autonomyEligibility.ts`, `metrics/autonomy.ts`, `EarnedAutonomy` | `autonomy.test.ts` |
 | Offline investigator validation with a fair baseline and development/holdout split | `evaluation/`, `/developer/evaluations` | `evaluation.test.ts` |
-| Contract-specific language; no enrolment terms on bookings | `actionLabel`, `domain/fulfilment.ts` | `configuration.test.ts` |
+| Contract-specific language; no learning-access terms on bookings | `actionLabel`, `domain/fulfilment.ts` | `configuration.test.ts` |
 | Masked contact details with audited reveal; communication details; opt-outs | `privacy.ts`, `communication.ts` | `privacy.test.ts`, `views.test.ts` |
 | Audit detail and machine-readable export | `AuditDetail`, `auditExport`, Audit Log drawer | `privacy.test.ts` |
 | No horizontal scroll at 1280 px on changed pages; mobile usable | Overview, incident, Automations, validation and Audit Log pages | Browser checks at 1280 px and 390 px |

@@ -24,8 +24,8 @@ const PAYMENT_STATE: Record<string, { label: string; color: "positive" | "notice
 
 const CONTACT_LABEL = {
   none: "Not contacted",
-  notified: "Notified by LearnLoop",
-  customer_initiated: "Customer contacted LearnLoop",
+  notified: "Notified by Marrow",
+  customer_initiated: "Learner contacted Marrow",
 } as const;
 
 const METHOD_LABEL = { upi: "UPI", card: "Card", netbanking: "Netbanking" } as const;

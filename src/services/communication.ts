@@ -1,7 +1,7 @@
 import type { Repositories } from "@/repositories";
 
-/** Payment Integrity sends through LearnLoop's customer-communications integration, by email. */
-export const MESSAGE_CHANNEL = "Email (LearnLoop customer communications)";
+/** Payment Integrity sends through the merchant's customer-communications integration, by email. */
+export const MESSAGE_CHANNEL = "Email (Marrow learner communications)";
 export const MESSAGE_CONSENT = "Transactional: about the customer's own purchase. No marketing content.";
 
 export type CommunicationSummary = {

@@ -33,7 +33,7 @@ export type MessageDraft = z.infer<typeof messageDraftSchema>;
 // Outcome Contract drafts
 // ---------------------------------------------------------------------------
 
-export const OUTCOME_TYPES = ["course_access_granted", "booking_confirmed", "membership_activated", "wallet_credited", "plan_upgraded"] as const;
+export const OUTCOME_TYPES = ["learning_access_granted", "booking_confirmed", "membership_activated", "wallet_credited", "plan_upgraded"] as const;
 export const RECOVERY_ACTIONS = ["retry_provisioning", "replay_webhook", "escalate"] as const;
 export const REVIEW_CASE_TYPES = ["missing_outcome", "duplicate_payment", "late_authorization", "inventory_conflict", "delayed_processing"] as const;
 

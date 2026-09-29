@@ -232,7 +232,7 @@ export function memoryPersistence(): Persistence & { state: PersistedState | nul
 }
 
 /** localStorage persistence. Only construct this in the browser, after mount. */
-export function localStoragePersistence(key = "payment-integrity:v2"): Persistence {
+export function localStoragePersistence(key = "payment-integrity:v3"): Persistence {
   return {
     load() {
       try {

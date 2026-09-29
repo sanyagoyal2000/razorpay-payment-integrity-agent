@@ -1,6 +1,7 @@
 import { formatINR } from "@/domain/money";
 import { formatIstShort } from "@/domain/time";
 import type { Repositories } from "@/repositories";
+import { serviceLabel } from "@/services/policy/actions";
 
 export type EvidenceKind =
   | "deploy"
@@ -17,7 +18,7 @@ export type EvidenceKind =
   | "service_recovered"
   | "similar_case";
 
-export type EvidenceSource = "Razorpay" | "LearnLoop" | "LearnLoop Observability" | "Payment Integrity";
+export type EvidenceSource = "Razorpay" | "Marrow" | "Platform Monitoring" | "Payment Integrity";
 
 export type EvidenceItem = {
   id: string;
@@ -114,15 +115,15 @@ export function resolveEvidence(repos: Repositories, id: string): EvidenceItem |
       observability.type === "deploy.completed" ? "deploy" : observability.type === "service.recovered" ? "service_recovered" : "service_errors";
     const title =
       kind === "deploy"
-        ? `deploy.completed ${String(meta["version"] ?? "")} · ${observability.service}`
+        ? `deploy.completed ${String(meta["version"] ?? "")} · ${serviceLabel(observability.service)}`
         : kind === "service_recovered"
-          ? `${observability.service} recovered`
-          : `${observability.service} errors detected`;
+          ? `${serviceLabel(observability.service)} recovered`
+          : `${serviceLabel(observability.service)} errors detected`;
     const detail = [meta["endpoint"], meta["statusCode"] ? `HTTP ${String(meta["statusCode"])}` : undefined, meta["message"] ?? meta["signal"] ?? meta["healthCheck"]]
       .filter(Boolean)
       .map(String)
       .join(" · ");
-    return { id, kind, source: "LearnLoop Observability", title, detail, occurredAt: observability.occurredAt };
+    return { id, kind, source: "Platform Monitoring", title, detail, occurredAt: observability.occurredAt };
   }
   const caseData = repos.cases.get(id);
   if (caseData) {
@@ -141,7 +142,7 @@ export function resolveEvidence(repos: Repositories, id: string): EvidenceItem |
     return {
       id,
       kind,
-      source: "LearnLoop",
+      source: "Marrow",
       title: event.responseCode ? `${event.type} (HTTP ${event.responseCode})` : event.type,
       detail: event.merchantOrderId,
       occurredAt: event.occurredAt,

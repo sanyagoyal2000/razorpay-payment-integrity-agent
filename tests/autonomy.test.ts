@@ -30,7 +30,7 @@ describe("Earned autonomy evidence", () => {
     expect(e.verificationRate).toBeCloseTo(0.98);
     expect(e.wrongActionCaseIds).toEqual(["CS-10412"]);
     expect(e.verifiedCaseIds).not.toContain("CS-10412");
-    expect(e.contracts).toEqual([{ id: "ctr_course_purchase", name: "Course purchase", executed: 50, verified: 49 }]);
+    expect(e.contracts).toEqual([{ id: "ctr_course_purchase", name: "Medical learning package purchase", executed: 50, verified: 49 }]);
     expect(e.amounts!.max).toBeLessThanOrEqual(5000);
   });
 
@@ -54,7 +54,7 @@ describe("Earned autonomy evidence", () => {
     expect(eligibility.summary).toBe(
       "This action produced a verified outcome in 50 of the last 50 executed cases, with no known incorrect outcomes. Payment Integrity can recommend limited automation below ₹5,000 when investigation confidence is at least 95%.",
     );
-    expect(eligibility.suggestion).toMatchObject({ contracts: [{ id: "ctr_course_purchase" }], maxValue: 5000, minimumConfidence: 0.95, requiredPermissions: ["grant_course_access"] });
+    expect(eligibility.suggestion).toMatchObject({ contracts: [{ id: "ctr_course_purchase" }], maxValue: 5000, minimumConfidence: 0.95, requiredPermissions: ["grant_learning_access"] });
     expect(eligibility.suggestion!.alwaysReviewCaseTypes).toEqual(expect.arrayContaining(["duplicate_payment", "inventory_conflict"]));
   });
 

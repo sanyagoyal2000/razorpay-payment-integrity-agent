@@ -1,5 +1,5 @@
 import { authorityScopes, contextScopes, hasWriteAuthority } from "@/services/permissions";
-import type { ActionMode, Integration, IntegrationId, OutcomeContract, PolicyAction } from "@/domain/types";
+import { ACTORS, type ActionMode, type Integration, type IntegrationId, type OutcomeContract, type PolicyAction } from "@/domain/types";
 import { sum } from "@/domain/money";
 import { addDaysToDate, istDate, median, MS_PER_DAY } from "@/domain/time";
 import type { Repositories } from "@/repositories";
@@ -94,7 +94,7 @@ export const MODE_OPTIONS: Array<{ value: ActionMode; label: string; description
 export function actionPolicyRows(repos: Repositories) {
   const scopes = new Set(authorityScopes(repos));
   const needs: Partial<Record<PolicyAction, string>> = {
-    retry_provisioning: "grant_course_access",
+    retry_provisioning: "grant_learning_access",
     replay_webhook: "replay_webhook",
     capture_payment: "capture_payment",
     issue_refund: "issue_refund",
@@ -120,7 +120,7 @@ export function actionPolicyRows(repos: Repositories) {
 // ---------------------------------------------------------------------------
 
 const WRITE_SCOPE_ACTIONS: Record<string, string> = {
-  grant_course_access: "Retry enrolment",
+  grant_learning_access: "Restore learning access",
   capture_payment: "Capture payment",
   replay_webhook: "Replay webhook",
   send_customer_message: "Notify customer",
@@ -152,14 +152,14 @@ export function integrationRows(repos: Repositories, asOf: string): IntegrationR
     learnloop_orders: latest(repos.payments.list().map((p) => p.createdAt), asOf),
     learnloop_enrolment: latest(outcomeEvents.filter((e) => e.status === "completed").map((e) => e.occurredAt), asOf),
     customer_comms: latest(audit.filter((e) => e.action === "Contacted customer" || e.action === "Notify affected customers").map((e) => e.occurredAt), asOf),
-    incident_management: latest(audit.filter((e) => e.actor === "LearnLoop connector" && /Posted/.test(e.result)).map((e) => e.occurredAt), asOf),
-    learnloop_observability: latest(repos.outcomes.observability().map((e) => e.occurredAt), asOf),
+    incident_management: latest(audit.filter((e) => e.actor === ACTORS.connector && /Posted/.test(e.result)).map((e) => e.occurredAt), asOf),
+    platform_monitoring: latest(repos.outcomes.observability().map((e) => e.occurredAt), asOf),
   };
 
   const attempts = sum(stats.map((s) => s.webhookAttempts));
   const failures = sum(stats.map((s) => s.webhookFailures));
   const coursePayments = sum(stats.filter((s) => s.contractId === "ctr_course_purchase").map((s) => s.paymentsCaptured));
-  const enrolFailures = outcomeEvents.filter((e) => e.type === "enrolment.failed" && e.occurredAt >= weekAgo && e.occurredAt <= asOf).length;
+  const enrolFailures = outcomeEvents.filter((e) => e.type === "learning_access.failed" && e.occurredAt >= weekAgo && e.occurredAt <= asOf).length;
   const pct = (n: number, d: number) => (d === 0 ? "No traffic" : `${((n / d) * 100).toFixed(2)}% errors (${n} of ${d.toLocaleString("en-IN")}), 7 days`);
   const logSummary = (id: IntegrationId) => {
     const own = logs.filter((l) => l.integrationId === id);

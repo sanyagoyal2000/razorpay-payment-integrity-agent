@@ -77,7 +77,7 @@ describe("Audit detail", () => {
     const detail = env.repos.audit.forCase(c.id).at(-1)!.detail!;
     expect(detail).toMatchObject({ trigger: "merchant", producedBy: "Deterministic fixtures (offline)" });
     expect(detail.invocationId).toBeDefined();
-    expect(detail.sources).toEqual(expect.arrayContaining(["Razorpay", "LearnLoop"]));
+    expect(detail.sources).toEqual(expect.arrayContaining(["Razorpay", "Marrow"]));
     expect(detail.inputFingerprint).toMatch(/^[0-9a-f]{8}$/);
     expect(detail.outputFingerprint).toMatch(/^[0-9a-f]{8}$/);
 

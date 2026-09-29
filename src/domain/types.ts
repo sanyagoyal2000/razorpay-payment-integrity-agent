@@ -34,7 +34,7 @@ export type Customer = {
   name: string;
   email: string;
   phone: string;
-  /** The customer unsubscribed from LearnLoop email; no message may be sent to them. */
+  /** The customer unsubscribed from merchant email; no message may be sent to them. */
   emailOptOut?: boolean;
 };
 
@@ -54,7 +54,7 @@ export type Product = {
   contractId: string;
 };
 
-/** A merchant-side order, as read from the LearnLoop Orders API. */
+/** A merchant-side order, as read from the Merchant Orders API. */
 export type MerchantOrder = {
   id: string; // merchant_order_id
   customerId: string;
@@ -116,7 +116,7 @@ export type WebhookDelivery = {
 };
 
 // ---------------------------------------------------------------------------
-// Merchant outcome side (LearnLoop)
+// Merchant outcome side
 // ---------------------------------------------------------------------------
 
 /**
@@ -125,8 +125,8 @@ export type WebhookDelivery = {
  * own completion events.
  */
 export type OutcomeEventType =
-  | "enrolment.requested"
-  | "enrolment.failed"
+  | "learning_access.requested"
+  | "learning_access.failed"
   | "booking.requested"
   | "membership.activation_requested"
   | "membership.activation_failed"
@@ -134,8 +134,8 @@ export type OutcomeEventType =
   | "wallet.credit_failed"
   | "plan.upgrade_requested"
   | "plan.upgrade_failed"
-  | "course_access_granted"
-  | "course_access_revoked"
+  | "learning_access_granted"
+  | "learning_access_revoked"
   | "inventory_changed"
   | "booking_confirmed"
   | "booking.failed"
@@ -147,7 +147,7 @@ export type OutcomeEventType =
 export type MerchantOutcomeEvent = {
   id: string;
   merchantOrderId: string;
-  source: "learnloop";
+  source: "merchant";
   type: OutcomeEventType;
   status: "pending" | "completed" | "failed";
   responseCode?: number;
@@ -155,7 +155,7 @@ export type MerchantOutcomeEvent = {
   metadata?: Record<string, unknown>;
 };
 
-/** Deploy events and service error logs from LearnLoop Observability. */
+/** Deploy events and service error logs from Platform Monitoring. */
 export type ObservabilityEventType =
   | "deploy.completed"
   | "service.errors_detected"
@@ -163,7 +163,7 @@ export type ObservabilityEventType =
 
 export type ObservabilityEvent = {
   id: string;
-  source: "learnloop_observability";
+  source: "platform_monitoring";
   type: ObservabilityEventType;
   service: string;
   occurredAt: ISODateTime;
@@ -297,7 +297,7 @@ export type IntegrationId =
   | "learnloop_enrolment"
   | "customer_comms"
   | "incident_management"
-  | "learnloop_observability";
+  | "platform_monitoring";
 
 export type Integration = {
   id: IntegrationId;
@@ -741,7 +741,7 @@ export const ACTORS = {
   operator: "Priya Sharma",
   agent: "Payment Integrity Agent",
   policy: "Deterministic policy engine",
-  connector: "LearnLoop connector",
+  connector: "Merchant connector",
 } as const;
 
 /** Runtime switches for degraded-dependency states (developer settings). */

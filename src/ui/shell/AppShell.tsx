@@ -174,7 +174,7 @@ export function AppShell({ children, logo = null }: { children: ReactNode; logo?
           </Box>
           <Box as="footer" paddingX="spacing.8" paddingY="spacing.4" borderTopWidth="thin" borderTopColor="surface.border.gray.muted">
             <Text size="xsmall" color="surface.text.gray.muted">
-              Concept prototype built on simulated data. Not an official Razorpay product.
+              Concept prototype using simulated Marrow data. No real incident, system or customer data is represented.
             </Text>
           </Box>
         </Box>

@@ -10,7 +10,7 @@ import type { ActionCallResult, MerchantAdapter, PaymentGateway } from "@/adapte
 export const SIMULATED_FULFILMENT_LATENCY_SECONDS = 2;
 
 /**
- * Simulated LearnLoop Enrolment API. Succeeds when the fulfilment service is
+ * Simulated Learning Access Service. Succeeds when the fulfilment service is
  * healthy, fails with HTTP 500 when it is down, and never fulfils the same
  * idempotency key twice.
  */
@@ -37,9 +37,9 @@ function requestFulfilment(
 ): ActionCallResult {
   const fulfil = fulfilmentVocabulary(contract.fulfilmentService);
   const request: MerchantOutcomeEvent = {
-    id: repos.nextId("ll_evt"),
+    id: repos.nextId("mr_evt"),
     merchantOrderId,
-    source: "learnloop",
+    source: "merchant",
     type: fulfil.requested,
     status: "pending",
     occurredAt: now,
@@ -48,9 +48,9 @@ function requestFulfilment(
   repos.outcomes.appendEvent(request);
   if (serviceHealth(repos, contract.fulfilmentService, now) !== "healthy") {
     const failed: MerchantOutcomeEvent = {
-      id: repos.nextId("ll_evt"),
+      id: repos.nextId("mr_evt"),
       merchantOrderId,
-      source: "learnloop",
+      source: "merchant",
       type: fulfil.failed,
       status: "failed",
       responseCode: 500,
@@ -61,9 +61,9 @@ function requestFulfilment(
     return { accepted: false, responseCode: 500, eventIds: [request.id, failed.id] };
   }
   const completed: MerchantOutcomeEvent = {
-    id: repos.nextId("ll_evt"),
+    id: repos.nextId("mr_evt"),
     merchantOrderId,
-    source: "learnloop",
+    source: "merchant",
     type: contract.expectedOutcome,
     status: "completed",
     responseCode: 200,
@@ -74,7 +74,7 @@ function requestFulfilment(
   return { accepted: true, responseCode: 202, eventIds: [request.id] };
 }
 
-/** Simulated Razorpay actions. Capture and webhook replay both lead LearnLoop to fulfil the order. */
+/** Simulated Razorpay actions. Capture and webhook replay both lead the merchant to fulfil the order. */
 export function createDemoGateway(repos: Repositories, clock: Clock, merchant: MerchantAdapter): PaymentGateway {
   const contractFor = (merchantOrderId: string) => {
     const order = repos.payments.order(merchantOrderId);

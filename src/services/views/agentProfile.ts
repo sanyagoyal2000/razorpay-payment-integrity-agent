@@ -4,7 +4,7 @@ import type { Repositories } from "@/repositories";
 import { agentLifecycle, type Lifecycle } from "@/services/lifecycle";
 import { dailyPerformance, valueDelivered } from "@/services/metrics/overview";
 import { authorityScopes, contextScopes, hasWriteAuthority } from "@/services/permissions";
-import { ACTIONS, actionLabel, POLICY_ACTION_LABELS, requiredScope, serviceLabel } from "@/services/policy/actions";
+import { ACTIONS, actionLabel, POLICY_ACTION_LABELS, requiredScope, serviceLabel, theService } from "@/services/policy/actions";
 
 export const AGENT_NAME = "Payment Integrity Agent";
 export const AGENT_PURPOSE =
@@ -30,7 +30,7 @@ export const AUTHORITY_LABELS: Record<Authority, string> = {
 export type ActionAuthority = { action: ActionType; label: string; authority: Authority; authorityLabel: string; detail: string };
 
 const FULFILMENT_STATUS_SCOPES: Record<string, { scope: string; label: string } | undefined> = {
-  "enrolment-service": { scope: "course_access_status", label: "Enrolment status" },
+  "learning-access-service": { scope: "learning_access_status", label: "Learning access status" },
 };
 
 function integrationFor(repos: Repositories, scope: string): string {
@@ -53,7 +53,7 @@ export function contextAndAuthority(repos: Repositories, contract: OutcomeContra
   const context: ContextItem[] = [
     item("payments", "Razorpay payment and order events", ["payment_status", "order_status"], "Orders, authorisations, captures and refunds."),
     item("webhooks", "Webhook delivery attempts", ["webhook_deliveries"], "Every order.paid attempt and its response code."),
-    item("deployments", "Merchant deployment events", ["deploy_events"], "Deploys and service error logs from LearnLoop Observability."),
+    item("deployments", "Merchant deployment events", ["deploy_events"], "Deploys and service error logs from Platform Monitoring."),
     fulfilment
       ? item("fulfilment", fulfilment.label, [fulfilment.scope], `Whether ${contract.expectedOutcome} has happened.`)
       : {
@@ -61,7 +61,7 @@ export function contextAndAuthority(repos: Repositories, contract: OutcomeContra
           label: `${serviceLabel(contract.fulfilmentService)} status`,
           source: "No integration",
           available: false,
-          detail: `No connected source reports ${serviceLabel(contract.fulfilmentService).toLowerCase()} status directly; only its outcome events are visible.`,
+          detail: `No connected source reports ${theService(contract.fulfilmentService)} status directly; only its outcome events are visible.`,
         },
     ...(contract.requiresInventoryCheck ? [item("inventory", "Inventory or capacity status", ["inventory_status"], "Seat inventory and capacity changes.")] : []),
     { id: "receipts", label: "Outcome Receipts", source: "Payment Integrity", available: true, detail: "Proof, per payment, that the intended outcome happened." },
@@ -156,7 +156,7 @@ export function agentProfile(repos: Repositories, asOf: string): AgentProfile {
     outcomeMetric: {
       label: "Payments reaching their promised outcome",
       value: latest === undefined ? "No data" : `${(latest.completionRate * 100).toFixed(1)}%`,
-      detail: "Course purchases, today, including recovered cases.",
+      detail: "Learning package purchases, today, including recovered cases.",
     },
     verifiedOutcomes: {
       label: "GMV resolved before refund or dispute (30 days)",

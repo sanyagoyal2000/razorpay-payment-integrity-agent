@@ -50,7 +50,7 @@ describe("Context & authority", () => {
     expect(course.context.every((c) => c.available)).toBe(true);
     const by = Object.fromEntries(course.actions.map((a) => [a.label, a.authorityLabel]));
     expect(by).toMatchObject({
-      "Retry enrolment": "Suggest only",
+      "Restore learning access": "Suggest only",
       "Capture payment": "Approval required",
       "Refund duplicate": "Not permitted",
       "Escalate for review": "Automatic within limits",
@@ -70,7 +70,7 @@ describe("Context & authority", () => {
     setIntegrationConnected(env.repos, "learnloop_enrolment", true, ACTORS.operator, NOW);
     const reconnected = contextAndAuthority(env.repos, contract);
     expect(reconnected.context.find((c) => c.id === "fulfilment")!.available).toBe(true);
-    expect(reconnected.actions.find((a) => a.action === "retry_provisioning")).toMatchObject({ authority: "not_permitted", detail: "Write access to LearnLoop Enrolment API has not been granted." });
+    expect(reconnected.actions.find((a) => a.action === "retry_provisioning")).toMatchObject({ authority: "not_permitted", detail: "Write access to Learning Access Service has not been granted." });
 
     setWriteAuthority(env.repos, "learnloop_enrolment", true, ACTORS.operator, NOW);
     expect(contextAndAuthority(env.repos, contract).actions.find((a) => a.action === "retry_provisioning")!.authority).toBe("suggest_only");
@@ -83,7 +83,7 @@ describe("Agent details", () => {
     const p = agentProfile(env.repos, NOW);
     expect(p.purpose).toBe(AGENT_PURPOSE);
     expect(p.lifecycle.state).toBe("awaiting_approval");
-    expect(p.connected.find((c) => c.name === "LearnLoop Observability")!.access).toBe("Read only");
+    expect(p.connected.find((c) => c.name === "Platform Monitoring")!.access).toBe("Read only");
     expect(p.permissionMode.label).toBe("Review-first; 1 automatic within limits");
     expect(p.verifiedOutcomes.caseIds.length).toBeGreaterThan(0);
   });

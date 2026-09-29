@@ -10,10 +10,10 @@ import type { CauseId, EvalAction, Scenario } from "./types";
  */
 const CAUSE_PATTERNS: Record<Exclude<CauseId, "insufficient_evidence">, { match: RegExp; exclude?: RegExp }> = {
   webhook_delivery_failure: { match: /webhook|order\.paid .*(not|never) (been )?(delivered|received)|delivery/i, exclude: /webhook (was |were )?(eventually |later )?(delivered|accepted)|not a (webhook|delivery)/i },
-  fulfilment_failure: { match: /(enrol|fulfil|provision|activation|service|\/enroll|outage)\w*.*(fail|error|5\d\d|outage|down|stall|lost|unhealthy|degrad)|(fail|error|5\d\d|outage|down|stall|lost|unhealthy|degrad)\w*.*(enrol|fulfil|provision|activation|service|\/enroll)/i },
+  fulfilment_failure: { match: /(enrol|fulfil|provision|activation|service|\/enroll|\/learning-access|outage)\w*.*(fail|error|5\d\d|outage|down|stall|lost|unhealthy|degrad)|(fail|error|5\d\d|outage|down|stall|lost|unhealthy|degrad)\w*.*(enrol|fulfil|provision|activation|service|\/enroll)/i },
   // The outage predates the deployment: correct when the cause is the service failure and the deployment is not blamed.
   fulfilment_failure_not_deploy: {
-    match: /(enrol|fulfil|provision|activation|service|\/enroll|outage)\w*.*(fail|error|5\d\d|outage|down|degrad)|(before|prior to|predat|precede|unrelated|not caused by).{0,60}deploy/i,
+    match: /(enrol|fulfil|provision|activation|service|\/enroll|\/learning-access|outage)\w*.*(fail|error|5\d\d|outage|down|degrad)|(before|prior to|predat|precede|unrelated|not caused by).{0,60}deploy/i,
     exclude: /(caused by|after|following|due to|from) (a |the )?(bad |faulty )?(deploy|release)|deploy\w* (of \S+ )?(caused|broke)|bad deploy/i,
   },
   bad_deployment: { match: /deploy|release|rollback|v\d+\.\d+/i, exclude: /(before|prior to|predat|unrelated|not caused by).{0,40}deploy/i },

@@ -34,7 +34,7 @@ const LABELS: Record<ContainmentAction, { label: string; description: string }> 
   },
   engineering_incident: {
     label: "Create an engineering incident",
-    description: "Open an incident for LearnLoop engineering in Slack with the evidence attached.",
+    description: "Open an incident for merchant engineering in Slack with the evidence attached.",
   },
   monitor_next_purchases: {
     label: `Monitor the next ${MONITORED_PURCHASES} matching purchases`,

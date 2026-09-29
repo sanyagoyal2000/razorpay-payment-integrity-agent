@@ -10,11 +10,11 @@ export type FulfilmentVocabulary = {
 
 /**
  * Each fulfilment service speaks its own language: a workshop seat is booked,
- * not enrolled; a membership is activated. Keyed by the Outcome Contract's
+ * not granted access; a membership is activated. Keyed by the Outcome Contract's
  * fulfilment service.
  */
 const VOCABULARY: Record<string, FulfilmentVocabulary> = {
-  "enrolment-service": { requested: "enrolment.requested", failed: "enrolment.failed", endpoint: "/enroll" },
+  "learning-access-service": { requested: "learning_access.requested", failed: "learning_access.failed", endpoint: "/learning-access" },
   "booking-service": { requested: "booking.requested", failed: "booking.failed", endpoint: "/bookings" },
   "membership-service": { requested: "membership.activation_requested", failed: "membership.activation_failed", endpoint: "/memberships/activate" },
   "wallet-service": { requested: "wallet.credit_requested", failed: "wallet.credit_failed", endpoint: "/wallet/credits" },
@@ -22,7 +22,7 @@ const VOCABULARY: Record<string, FulfilmentVocabulary> = {
 };
 
 export function fulfilmentVocabulary(service: string): FulfilmentVocabulary {
-  return VOCABULARY[service] ?? { requested: "enrolment.requested", failed: "enrolment.failed", endpoint: `/${service}` };
+  return VOCABULARY[service] ?? { requested: "learning_access.requested", failed: "learning_access.failed", endpoint: `/${service}` };
 }
 
 export const FULFILMENT_REQUEST_TYPES: ReadonlySet<string> = new Set(Object.values(VOCABULARY).map((v) => v.requested));

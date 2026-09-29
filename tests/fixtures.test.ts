@@ -39,12 +39,12 @@ describe("fixtures", () => {
     }
   });
 
-  it("include the v2.3 deploy.completed event at 14:04 IST from LearnLoop Observability", () => {
+  it("include the v2.3 deploy.completed event at 14:04 IST from Platform Monitoring", () => {
     const deploy = fixtures.observabilityEvents.find((e) => e.type === "deploy.completed" && e.metadata?.["version"] === "v2.3")!;
-    expect(deploy.source).toBe("learnloop_observability");
+    expect(deploy.source).toBe("platform_monitoring");
     expect(istDate(deploy.occurredAt)).toBe(FIXTURE_ANCHOR_DATE);
     expect(istTime(deploy.occurredAt)).toBe("14:04:00");
-    expect(fixtures.integrations.find((i) => i.id === "learnloop_observability")).toMatchObject({ status: "connected", access: "read_only" });
+    expect(fixtures.integrations.find((i) => i.id === "platform_monitoring")).toMatchObject({ status: "connected", access: "read_only" });
     const incidentEvidence = (fixtures.investigationResponses["INC-0017"] as { evidenceIds: string[] }).evidenceIds;
     expect(incidentEvidence).toContain(deploy.id);
   });
@@ -60,7 +60,7 @@ describe("fixtures", () => {
     ]);
     const payment = fixtures.payments.find((p) => p.id === order.paymentId)!;
     const outcomes = fixtures.outcomeEvents.filter((e) => e.merchantOrderId === payment.merchantOrderId);
-    expect(outcomes.find((e) => e.type === "enrolment.failed")).toMatchObject({ responseCode: 500 });
+    expect(outcomes.find((e) => e.type === "learning_access.failed")).toMatchObject({ responseCode: 500 });
     expect(payment.amount).toBe(2499);
   });
 

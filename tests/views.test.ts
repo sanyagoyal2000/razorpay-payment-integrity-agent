@@ -86,7 +86,7 @@ describe("Incident workspace", () => {
       "Successful post-recovery outcomes",
       "Similar case sequences",
     ]);
-    expect(workspace.evidence[0]!.items[0]!.title).toBe("deploy.completed v2.3 · enrolment-service");
+    expect(workspace.evidence[0]!.items[0]!.title).toBe("deploy.completed v2.3 · Learning Access Service");
     expect(resolveEvidence(env.repos, "evt_does_not_exist")).toBeUndefined();
     expect(groupEvidence(env.repos, ["evt_does_not_exist"])).toEqual([]);
   });
@@ -111,8 +111,8 @@ describe("Incident workspace", () => {
     const incident = env.repos.incidents.get("INC-0017")!;
     expect(requiredDecision(env.repos, incident, asOf)).toBe("Review 5 cases individually");
     const workspace = incidentWorkspace(env.repos, "INC-0017", asOf)!;
-    expect(workspace.history[0]!.change).toMatch(/38 customer outcomes verified/);
-    expect(workspace.history.some((h) => /Approved retry enrolment for 38 cases \(₹1,51,962\)/.test(h.change))).toBe(true);
+    expect(workspace.history[0]!.change).toMatch(/38 learner outcomes verified/);
+    expect(workspace.history.some((h) => /Approved recovery for 38 cases: Restore learning access \(₹1,51,962\)/.test(h.change))).toBe(true);
     const activity = overviewModel(env.repos, asOf).activity;
     expect(activity.find((a) => a.category === "Outcome verified")!.count).toBe(38);
     expect(activity.find((a) => a.category === "Case resolved")!.count).toBe(38);

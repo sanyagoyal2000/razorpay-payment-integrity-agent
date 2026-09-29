@@ -30,7 +30,7 @@ describe("Proactive briefing", () => {
     expect(b.totalAtRisk).toBe(totals.remainingAtRisk);
     expect(b.totalAtRisk).toBe(182457);
     expect(b.featured).toMatchObject({ customers: 43, safe: { count: 38, value: 151962 }, held: 5, service: { healthy: true } });
-    expect(b.body).toContain(`${formatINR(182457)} across 43 customers is at risk`);
+    expect(b.body).toContain(`${formatINR(182457)} across 43 learners is at risk`);
     expect(b.body).toContain(`38 cases worth ${formatINR(151962)} are eligible for safe recovery`);
     expect(b.primaryAction).toEqual({ label: "Review 38 recoveries", target: { kind: "incident", incidentId: "INC-0017", section: "recovery" } });
     expect(b.secondaryActions[0]!.label).toBe("View investigation");
@@ -82,7 +82,7 @@ describe("Proactive briefing", () => {
     const env = setup();
     const b = proactiveBriefing(env.repos, istToIso(FIXTURE_ANCHOR_DATE, "14:15:00"));
     expect(b.state).toBe("service_unhealthy");
-    expect(b.body).toContain("The enrolment service is still failing. Recovery is blocked until the service becomes healthy.");
+    expect(b.body).toContain("The Learning Access Service is still failing. Recovery is blocked until the service becomes healthy.");
     expect(b.body).not.toMatch(/safe recovery/);
     expect(b.primaryAction?.label).toBe("View incident");
   });
@@ -167,14 +167,14 @@ describe("Observable investigation stages", () => {
     const run = env.repos.incidents.get("INC-0017")!.investigationRun!;
     expect(stages[0]!.detail).toBe(`Collected ${run.eventsExamined} payment, webhook, merchant, observability and outcome receipt events from ${Object.keys(run.sources).length} sources.`);
     expect(stages[1]!.detail).toBe("Compared 43 cases for shared timing, service and outcome patterns.");
-    expect(stages[2]!.detail).toMatch(/^Enrolment service recovered at \d\d:\d\d IST\.$/);
+    expect(stages[2]!.detail).toMatch(/^Learning Access Service recovered at \d\d:\d\d IST\.$/);
     expect(stages[3]!.detail).toBe(`Checked ${run.citationsChecked} citations against recorded events; none removed.`);
     expect(stages[4]!.detail).toBe("38 cases are eligible for recovery; 5 require individual review.");
     expect(run.stages).toEqual(stages);
   });
 
   it("words a failing service as failing", () => {
-    expect(healthStage({ service: "enrolment-service", status: "down", since: NOW }, NOW).detail).toMatch(/^Enrolment service still failing since \d\d:\d\d IST\.$/);
+    expect(healthStage({ service: "learning-access-service", status: "down", since: NOW }, NOW).detail).toMatch(/^Learning Access Service still failing since \d\d:\d\d IST\.$/);
   });
 
   it("counts removed citations", async () => {

@@ -96,7 +96,7 @@ describe("Outcome Contracts", () => {
   it("previews the resulting logic in plain language", () => {
     const env = setup();
     const lines = contractLogic(contractToForm(env.repos.config.contract("ctr_event_booking")!), (id) => env.repos.payments.product(id)?.name ?? id, 5000);
-    expect(lines[0]).toBe("When a payment for System Design Live Workshop, Bengaluru is captured, expect booking_confirmed from booking-service, matched on merchant_order_id, within 5 min.");
+    expect(lines[0]).toBe("When a payment for Live clinical skills workshop seat is captured, expect booking_confirmed from the booking service, matched on merchant_order_id, within 5 min.");
     expect(lines[1]).toBe("If it does not arrive, open a case and propose to reconfirm booking.");
     expect(lines).toContain("Never fulfil if the purchased inventory changed after payment.");
   });
@@ -106,13 +106,13 @@ describe("Integrations", () => {
   it("shows scopes, actions and health from data", () => {
     const env = setup();
     const rows = integrationRows(env.repos, NOW);
-    expect(rows.find((r) => r.id === "learnloop_enrolment")!.actionsAllowed).toEqual(["Retry enrolment"]);
+    expect(rows.find((r) => r.id === "learnloop_enrolment")!.actionsAllowed).toEqual(["Restore learning access"]);
     expect(rows.find((r) => r.id === "razorpay_payments")!.errorSummary).toMatch(/% errors/);
     expect(rows.every((r) => r.lastSuccessfulEventAt === undefined || r.lastSuccessfulEventAt <= NOW)).toBe(true);
     const health = integrationHealth(env.repos, NOW);
     expect(health.webhookSuccess.value).toBeGreaterThan(0.99);
     expect(health.schemaErrors.value).toBe(1);
-    expect(permissionModel(env.repos)).toMatchObject({ write: ["capture_payment", "replay_webhook", "grant_course_access", "send_customer_message", "create_incident", "post_message"] });
+    expect(permissionModel(env.repos)).toMatchObject({ write: ["capture_payment", "replay_webhook", "grant_learning_access", "send_customer_message", "create_incident", "post_message"] });
   });
 
   it("revoking an integration makes its actions impossible; reconnecting restores context but not authority", () => {
@@ -120,12 +120,12 @@ describe("Integrations", () => {
     const c = env.safeCases[0]!;
     setIntegrationConnected(env.repos, "learnloop_enrolment", false, ACTORS.operator, NOW);
     expect(evaluateCase(env.repos, c, c.recommendation!, NOW).result).toBe("blocked");
-    expect(permissionModel(env.repos).notGranted).toContain("grant_course_access");
-    expect(actionPolicyRows(env.repos).find((r) => r.action === "retry_provisioning")!.permissionMissing).toBe("grant_course_access");
+    expect(permissionModel(env.repos).notGranted).toContain("grant_learning_access");
+    expect(actionPolicyRows(env.repos).find((r) => r.action === "retry_provisioning")!.permissionMissing).toBe("grant_learning_access");
 
     setIntegrationConnected(env.repos, "learnloop_enrolment", true, ACTORS.operator, NOW);
-    expect(permissionModel(env.repos).read).toContain("course_access_status");
-    expect(permissionModel(env.repos).write).not.toContain("grant_course_access");
+    expect(permissionModel(env.repos).read).toContain("learning_access_status");
+    expect(permissionModel(env.repos).write).not.toContain("grant_learning_access");
     expect(evaluateCase(env.repos, c, c.recommendation!, NOW).result).toBe("blocked");
 
     setWriteAuthority(env.repos, "learnloop_enrolment", true, ACTORS.operator, NOW);
@@ -139,19 +139,19 @@ describe("Contract-specific language", () => {
     const { actionLabel } = await import("@/services/policy/actions");
     const env = setup();
     const label = (id: string) => actionLabel("retry_provisioning", env.repos.config.contract(id)!);
-    expect(label("ctr_course_purchase")).toBe("Retry enrolment");
+    expect(label("ctr_course_purchase")).toBe("Restore learning access");
     expect(label("ctr_event_booking")).toBe("Reconfirm booking");
     expect(label("ctr_membership_activation")).toBe("Activate membership");
     expect(label("ctr_wallet_credit")).toBe("Credit wallet");
     expect(label("ctr_saas_upgrade")).toBe("Apply plan upgrade");
   });
 
-  it("never shows enrolment terms on the event-booking case", async () => {
+  it("never shows learning-access terms on the event-booking case", async () => {
     const { caseDetail } = await import("@/services/views/cases");
     const env = setup();
     const booking = env.refusalCase;
     expect(env.repos.config.contract(booking.outcomeContractId)!.fulfilmentService).toBe("booking-service");
     const text = JSON.stringify(caseDetail(env.repos, booking.id, NOW));
-    expect(text).not.toMatch(/enrol|grant_course_access|Retry provisioning|course access/i);
+    expect(text).not.toMatch(/enrol|grant_learning_access|Retry provisioning|course access|learning access|learning package/i);
   });
 });

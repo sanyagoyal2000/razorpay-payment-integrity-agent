@@ -4,7 +4,7 @@ import { formatIstDateTime } from "@/domain/time";
 import type { Repositories } from "@/repositories";
 import { incidentTotals, isAtRisk } from "@/services/metrics/cases";
 import { dailyPerformance, primaryMetrics, valueDelivered, wrongActionRate } from "@/services/metrics/overview";
-import { POLICY_ACTION_LABELS, serviceLabel } from "@/services/policy/actions";
+import { POLICY_ACTION_LABELS, theService } from "@/services/policy/actions";
 import { modeLabel } from "@/services/policy/evaluatePolicy";
 import { assessCase, groupIncidentCases } from "@/services/recovery/groups";
 import { serviceHealth } from "@/services/policy/currentState";
@@ -66,7 +66,7 @@ export function requiredDecision(repos: Repositories, incident: IncidentRecord, 
   const blocker = systemicBlocker(repos, asOf);
   if (blocker) return blocker;
   if (serviceHealth(repos, incident.affectedService, asOf) !== "healthy") {
-    return `None until ${serviceLabel(incident.affectedService).toLowerCase()} recovers`;
+    return `None until ${theService(incident.affectedService)} recovers`;
   }
   const groups = groupIncidentCases(repos, incident.id, asOf);
   const safe = groups.find((g) => g.id === "safe");

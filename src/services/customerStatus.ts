@@ -6,7 +6,7 @@ import { requireContract } from "@/services/policy/currentState";
 export type CustomerStatus = "resolved" | "recovery_in_progress" | "under_review";
 
 const OUTCOME_PHRASE: Record<string, string> = {
-  course_access_granted: "your course access is now active",
+  learning_access_granted: "your learning package access is now active",
   booking_confirmed: "your seat is confirmed",
   membership_activated: "your membership is now active",
   wallet_credited: "your credits have been added",

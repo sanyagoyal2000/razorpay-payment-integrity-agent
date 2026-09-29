@@ -32,7 +32,7 @@ describe("policy engine", () => {
       "Payment not refunded",
       "Outcome still missing",
       "No successful duplicate",
-      "Enrolment service healthy",
+      "Learning Access Service healthy",
       "Idempotency key available",
       "Amount within limit",
       "Permission available",
@@ -41,7 +41,7 @@ describe("policy engine", () => {
     }
   });
 
-  it("blocks recovery while the enrolment service is down", () => {
+  it("blocks recovery while the Learning Access Service is down", () => {
     const { repos, safeCases } = setup();
     const during = istToIso(FIXTURE_ANCHOR_DATE, "14:12:00");
     const c = safeCases.find((x) => x.detectedAt < during)!;

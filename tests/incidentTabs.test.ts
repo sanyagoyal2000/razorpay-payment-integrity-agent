@@ -71,10 +71,10 @@ describe("Decision summary", () => {
     const env = setup();
     const s = decisionSummary(env.repos, env.incident, NOW, new Date(NOW));
     expect(s).toMatchObject({
-      headline: "43 customers paid but do not have course access",
+      headline: "43 learners paid but cannot access their learning package",
       atRisk: "₹1,82,457 is at risk.",
-      cause: "The enrolment service failed after deployment v2.3 and has now recovered.",
-      recommendation: "Retry enrolment for 38 customers worth ₹1,51,962. 5 cases are excluded for individual review.",
+      cause: "The Learning Access Service failed after deployment v2.3 and has now recovered.",
+      recommendation: "Restore access for 38 learners worth ₹1,51,962. Five cases are excluded for individual review.",
       safeCount: 38,
     });
     expect(s.status[0]).toMatch(/^Started /);
@@ -92,9 +92,9 @@ describe("Why RAY recommends this", () => {
     const reasons = recommendationReasons(env.repos, env.incident, NOW);
     expect(reasons.map((r) => r.text)).toEqual([
       "All 43 payments were captured by Razorpay.",
-      "Webhooks reached LearnLoop for every payment.",
-      "Enrolment failed for 43 payments after deployment v2.3.",
-      "The enrolment service has recovered.",
+      "Webhooks reached Marrow for every payment.",
+      "Learning access failed for 43 payments after deployment v2.3.",
+      "The Learning Access Service has recovered.",
       "The 38 safe cases have an exact payment-to-order match.",
       "3 duplicate payments and 2 high-value cases are excluded for individual review.",
     ]);
@@ -102,7 +102,7 @@ describe("Why RAY recommends this", () => {
     expect(reasons.find((r) => r.id === "captured")!.evidenceIds.every((id) => ids.has(id))).toBe(true);
 
     const before = recommendationReasons(env.repos, env.incident, istToIso(FIXTURE_ANCHOR_DATE, "14:15:00"));
-    expect(before.find((r) => r.id === "health")!.text).toBe("The enrolment service is still failing, so recovery waits.");
+    expect(before.find((r) => r.id === "health")!.text).toBe("The Learning Access Service is still failing, so recovery waits.");
     expect(before.some((r) => r.id === "match")).toBe(false);
   });
 
@@ -121,14 +121,14 @@ describe("Authority for this recovery", () => {
     const env = setup();
     expect(recoveryAuthority(env.repos, env.incident, NOW).summary).toEqual([
       "Read access to 3 connected sources",
-      "Retry enrolment requires merchant approval",
+      "Restore learning access requires merchant approval",
       "Refund duplicate is not permitted",
     ]);
     setIntegrationConnected(env.repos, "learnloop_enrolment", false, ACTORS.operator, NOW);
     setIntegrationConnected(env.repos, "learnloop_enrolment", true, ACTORS.operator, NOW);
-    expect(recoveryAuthority(env.repos, env.incident, NOW).summary[1]).toBe("Retry enrolment is not permitted");
+    expect(recoveryAuthority(env.repos, env.incident, NOW).summary[1]).toBe("Restore learning access is not permitted");
     setWriteAuthority(env.repos, "learnloop_enrolment", true, ACTORS.operator, NOW);
-    expect(recoveryAuthority(env.repos, env.incident, NOW).summary[1]).toBe("Retry enrolment requires merchant approval");
+    expect(recoveryAuthority(env.repos, env.incident, NOW).summary[1]).toBe("Restore learning access requires merchant approval");
   });
 
   it("keeps the full permission matrix on Agent details", () => {
@@ -165,9 +165,9 @@ describe("Recovery plan and learning", () => {
   it("keeps four facts visible and failure behaviour one click away", () => {
     const env = setup();
     const facts = recoveryFacts(env.repos, env.incident, ["safe"], NOW);
-    expect(facts.facts).toEqual(["38 customers · ₹1,51,962", "Retry enrolment once for each payment", "No customer message will be sent", "Success requires course_access_granted"]);
+    expect(facts.facts).toEqual(["38 learners · ₹1,51,962", "Restore learning access once for each payment", "No customer message will be sent", "Success requires learning_access_granted"]);
     expect(facts.ifItFails).toHaveLength(5);
-    expect(facts.learning).toBe("Verified outcomes from this recovery will update retry enrolment automation eligibility.");
+    expect(facts.learning).toBe("Verified outcomes from this recovery count towards automation eligibility for Restore learning access.");
     expect(AUTOMATION_EVIDENCE_HREF).toBe("/payment-integrity/automations#earned-autonomy");
   });
 
@@ -194,7 +194,7 @@ describe("Metric scopes", () => {
     const metrics = primaryMetrics(env.repos, NOW);
     expect(metrics.revenueAtRisk.value).toBe(189_955);
     expect(metrics.revenueAtRisk.caseIds).toHaveLength(45);
-    expect(proactiveBriefing(env.repos, NOW).body).toContain("₹1,82,457 across 43 customers is at risk in INC-0017.");
+    expect(proactiveBriefing(env.repos, NOW).body).toContain("₹1,82,457 across 43 learners is at risk in INC-0017.");
     expect(source("ui/overview/PrimaryMetrics.tsx")).toContain("Revenue at risk across all open cases");
     expect(source("ui/overview/ValueDelivered.tsx")).toContain("Verified business impact (last 30 days)");
   });

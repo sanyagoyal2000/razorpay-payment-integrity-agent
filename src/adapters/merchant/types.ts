@@ -7,7 +7,7 @@ export type ActionCallResult = {
   eventIds: string[];
 };
 
-/** Merchant-side fulfilment API (LearnLoop Enrolment API in this deployment). */
+/** Merchant-side fulfilment API (the Learning Access Service in this deployment). */
 export type MerchantAdapter = {
   fulfil(input: { merchantOrderId: string; contract: OutcomeContract; idempotencyKey: string }): ActionCallResult;
 };

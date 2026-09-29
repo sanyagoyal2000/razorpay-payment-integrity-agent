@@ -93,7 +93,7 @@ export type CaseFilters = {
 
 export const DEFAULT_CASE_FILTERS: CaseFilters = { query: "", statuses: [], types: [], amount: "any" };
 
-/** Matches payment ID, order ID (LearnLoop or Razorpay), customer name, email or phone. */
+/** Matches payment ID, order ID (Marrow or Razorpay), customer name, email or phone. */
 export function matchesQuery(row: CaseRow, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
@@ -200,8 +200,8 @@ const INTEGRITY_TITLES: Record<string, string> = {
 
 function outcomeTitle(type: string, responseCode?: number): string {
   const titles: Record<string, string> = {
-    "enrolment.requested": "Enrolment requested",
-    "enrolment.failed": "Enrolment request failed",
+    "learning_access.requested": "Learning access requested",
+    "learning_access.failed": "Learning access request failed",
     "booking.requested": "Booking requested",
     "membership.activation_requested": "Membership activation requested",
     "membership.activation_failed": "Membership activation failed",
@@ -209,8 +209,8 @@ function outcomeTitle(type: string, responseCode?: number): string {
     "wallet.credit_failed": "Wallet credit failed",
     "plan.upgrade_requested": "Plan upgrade requested",
     "plan.upgrade_failed": "Plan upgrade failed",
-    course_access_granted: "Course access granted",
-    course_access_revoked: "Course access revoked",
+    learning_access_granted: "Learning access restored",
+    learning_access_revoked: "Learning access revoked",
     inventory_changed: "Seat inventory changed",
     booking_confirmed: "Booking confirmed",
     "booking.failed": "Booking failed",

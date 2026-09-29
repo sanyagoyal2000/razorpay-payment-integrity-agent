@@ -1,6 +1,6 @@
 # Payment Integrity
 
-Concept prototype of a Razorpay Agent Studio agent that checks every successful payment produced the outcome it promised. It runs entirely on simulated, deterministic data. No backend, API keys or network access are needed.
+Concept prototype of a Razorpay Agent Studio agent that checks every successful payment produced the outcome it promised. The merchant is Marrow, a medical learning platform, and every incident, system, deployment and learner shown is simulated: no real Marrow incident, system or customer data is represented, and nothing here describes Marrow's actual technology. It runs entirely on deterministic data. No backend, API keys or network access are needed.
 
 ## Setup
 
@@ -47,7 +47,7 @@ src/ui/                 Client components: shell, Overview, Incidents, shared pi
 src/app/                 Next.js routes (thin wrappers around src/ui):
                            /payment-integrity, /incidents, /incidents/[id], /cases, /cases/[id], /audit-log
 src/adapters/
-  demo/              Fixture investigator, simulated LearnLoop and Razorpay
+  demo/              Fixture investigator, simulated merchant (Marrow) and Razorpay
   merchant/          Merchant and gateway adapter interfaces
 tests/               Policy, execution, investigation, fixture and reconciliation tests
 ```
@@ -148,7 +148,7 @@ The model receives only what each task needs: payment and outcome events for the
 
 ## Customer page
 
-`/check-payment` is the customer-facing page (no admin navigation). A customer enters the phone number they paid with and their order ID (for example `LL-4301232`, shown on each case's detail page). The result is one of: resolved, recovery in progress, under review, or not found. A second charge is explained as under review, and a refunded payment says so. A wrong phone number gets the same "not found" answer as an unknown order. No confidence, internal errors, webhook status, thresholds or architecture are shown.
+`/check-payment` is the customer-facing page (no admin navigation). A customer enters the phone number they paid with and their order ID (for example `MR-4301232`, shown on each case's detail page). The result is one of: resolved, recovery in progress, under review, or not found. A second charge is explained as under review, and a refunded payment says so. A wrong phone number gets the same "not found" answer as an unknown order. No confidence, internal errors, webhook status, thresholds or architecture are shown.
 
 ## Degraded states and developer settings
 

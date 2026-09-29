@@ -28,7 +28,7 @@ export const VALUE_DELIVERED_EXPLANATIONS = {
   avoidableRefundsPrevented:
     "Cases resolved with a verified outcome in the last 30 days whose payment Razorpay would otherwise have refunded automatically.",
   supportContactsAvoided:
-    "Cases resolved with a verified outcome in the last 30 days, before the customer contacted LearnLoop. Counts one contact per case.",
+    "Cases resolved with a verified outcome in the last 30 days, before the learner contacted Marrow. Counts one contact per case.",
   medianDetectionToVerifiedSeconds:
     "Median time from case detection to verified outcome, across the cases counted in GMV resolved.",
 } as const;

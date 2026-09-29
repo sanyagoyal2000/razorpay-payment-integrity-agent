@@ -176,7 +176,7 @@ export function buildDataset(): Dataset {
     let n = 4_300_000 + dayIndex * 2100 + Math.floor(((h * 3600 + m * 60 + s) * 2100) / 86_400);
     while (usedOrderNumbers.has(n)) n += 1;
     usedOrderNumbers.add(n);
-    return `LL-${n}`;
+    return `MR-${n}`;
   };
 
   // -------------------------------------------------------------------------
@@ -271,16 +271,16 @@ export function buildDataset(): Dataset {
       responseCode?: number,
       metadata?: Record<string, unknown>,
     ) => {
-      const e: MerchantOutcomeEvent = { id: uid("ll_evt", 12), merchantOrderId: order.id, source: "learnloop", type, status, occurredAt };
+      const e: MerchantOutcomeEvent = { id: uid("mr_evt", 12), merchantOrderId: order.id, source: "merchant", type, status, occurredAt };
       if (responseCode !== undefined) e.responseCode = responseCode;
       if (metadata) e.metadata = metadata;
       outcomeEvents.push(e);
       chain.outcomeEvents.push(e);
       return e;
     };
-    // Course and seat purchases record the fulfilment request itself; other services report only results.
+    // Learning package and seat purchases record the fulfilment request itself; other services report only results.
     const fulfil = fulfilmentVocabulary(contract.fulfilmentService);
-    const logsRequest = contract.fulfilmentService === "enrolment-service" || contract.fulfilmentService === "booking-service";
+    const logsRequest = contract.fulfilmentService === "learning-access-service" || contract.fulfilmentService === "booking-service";
     const plan = input.outcome;
     if (plan.kind !== "none" && logsRequest && !input.webhookNeverDelivered) {
       outcome(fulfil.requested, "pending", addSeconds(outcomeBase, 1), undefined, { endpoint: fulfil.endpoint });
@@ -328,7 +328,7 @@ export function buildDataset(): Dataset {
     return event;
   };
   const observability = (e: Omit<ObservabilityEvent, "id" | "source">): ObservabilityEvent => {
-    const event: ObservabilityEvent = { id: uid("obs", 12), source: "learnloop_observability", ...e };
+    const event: ObservabilityEvent = { id: uid("obs", 12), source: "platform_monitoring", ...e };
     observabilityEvents.push(event);
     return event;
   };
@@ -484,9 +484,9 @@ export function buildDataset(): Dataset {
     } else {
       const fulfil = fulfilmentVocabulary(contractById(c.outcomeContractId).fulfilmentService);
       const request: MerchantOutcomeEvent = {
-        id: uid("ll_evt", 12),
+        id: uid("mr_evt", 12),
         merchantOrderId: chain.order.id,
-        source: "learnloop",
+        source: "merchant",
         type: fulfil.requested,
         status: "pending",
         occurredAt: started,
@@ -498,9 +498,9 @@ export function buildDataset(): Dataset {
     const contract = contractById(c.outcomeContractId);
     const outcomeAt = addSeconds(started, opts.outcomeLatencySeconds);
     const granted: MerchantOutcomeEvent = {
-      id: uid("ll_evt", 12),
+      id: uid("mr_evt", 12),
       merchantOrderId: chain.order.id,
-      source: "learnloop",
+      source: "merchant",
       type: contract.expectedOutcome,
       status: "completed",
       responseCode: 200,
@@ -520,7 +520,7 @@ export function buildDataset(): Dataset {
       { state: "approval_recorded", at: t, detail: `Approved by ${approver}` },
       { state: "policy_rechecking", at: addSeconds(t, 1), detail: "Payment, outcome and policy re-fetched; verdict unchanged" },
       { state: "idempotency_reserved", at: addSeconds(t, 1), detail: `Key ${chain.payment.id}:${opts.action}` },
-      { state: "action_started", at: started, detail: opts.replayDelivery ? "order.paid webhook replayed" : "Enrolment request sent" },
+      { state: "action_started", at: started, detail: opts.replayDelivery ? "order.paid webhook replayed" : "Access restoration request sent" },
       { state: "awaiting_outcome", at: addSeconds(started, 1), detail: `Waiting for ${contract.expectedOutcome}` },
       { state: "outcome_verified", at: verifiedAt, detail: `${contract.expectedOutcome} received` },
       { state: "resolved", at: verifiedAt, detail: "Payment and merchant outcome are consistent" },
@@ -545,7 +545,7 @@ export function buildDataset(): Dataset {
 
     const base = { targetType: "case" as const, targetId: c.id, caseId: c.id, ...(c.incidentId ? { incidentId: c.incidentId } : {}) };
     audit({ ...base, occurredAt: addSeconds(t, 1), actor: ACTORS.policy, action: "Re-checked policy before execution", result: "Verdict unchanged", policyResult: opts.approvalSource === "merchant" ? "requires_approval" : "allowed", approvalSource: opts.approvalSource });
-    audit({ ...base, occurredAt: started, actor: ACTORS.connector, action: opts.replayDelivery ? "Replayed webhook" : "Sent enrolment request", result: "Accepted", evidenceIds: actionEventIds, approvalSource: opts.approvalSource });
+    audit({ ...base, occurredAt: started, actor: ACTORS.connector, action: opts.replayDelivery ? "Replayed webhook" : "Sent access restoration request", result: "Accepted", evidenceIds: actionEventIds, approvalSource: opts.approvalSource });
     audit({ ...base, occurredAt: verifiedAt, actor: ACTORS.agent, action: "Verified outcome", result: `${contract.expectedOutcome} confirmed`, evidenceIds: [granted.id, ...(chain.receipt ? [chain.receipt.id] : [])], approvalSource: opts.approvalSource });
     audit({ ...base, occurredAt: verifiedAt, actor: ACTORS.agent, action: "Resolved case", result: "Outcome confirmed", evidenceIds: chain.receipt ? [chain.receipt.id] : [], approvalSource: opts.approvalSource });
 
@@ -565,9 +565,9 @@ export function buildDataset(): Dataset {
   const resolveByArrival = (c: IntegrityCase, chain: Chain, arrivedAt: string) => {
     const contract = contractById(c.outcomeContractId);
     const arrived: MerchantOutcomeEvent = {
-      id: uid("ll_evt", 12),
+      id: uid("mr_evt", 12),
       merchantOrderId: chain.order.id,
-      source: "learnloop",
+      source: "merchant",
       type: contract.expectedOutcome,
       status: "completed",
       responseCode: 200,
@@ -645,7 +645,7 @@ export function buildDataset(): Dataset {
   const failedOutcome = (chain: Chain) => chain.outcomeEvents.find((e) => e.status === "failed")?.id;
 
   const courseMessage = (product: Product) =>
-    `Your ${formatINR(product.price)} payment for ${product.name} was successful. We are restoring your course access now, and you will not be charged again.`;
+    `Your ${formatINR(product.price)} payment for ${product.name} was successful. We are restoring your learning package access now, and you will not be charged again.`;
 
   // -------------------------------------------------------------------------
   // Observability history
@@ -653,7 +653,7 @@ export function buildDataset(): Dataset {
   for (const [daysBefore, version] of [[27, "v2.0"], [19, "v2.1"], [8, "v2.2"]] as const) {
     observability({
       type: "deploy.completed",
-      service: "enrolment-service",
+      service: "learning-access-service",
       occurredAt: at(daysBefore, "11:32:00"),
       metadata: { version, environment: "production", deployedBy: "ci-pipeline" },
     });
@@ -677,19 +677,19 @@ export function buildDataset(): Dataset {
     });
     const detectedAt = addSeconds(chain.receipt!.expectedBy, 1);
     const investigation: Investigation = {
-      summary: `order.paid was acknowledged with HTTP 200, but the /enroll call returned HTTP ${responseCode} and no course_access_granted arrived within 2 minutes.`,
-      likelyCause: `Single enrolment request failure (HTTP ${responseCode}); no other failures in the surrounding window.`,
+      summary: `order.paid was acknowledged with HTTP 200, but the /learning-access call returned HTTP ${responseCode} and no learning_access_granted arrived within 2 minutes.`,
+      likelyCause: `Single learning access request failure (HTTP ${responseCode}); no other failures in the surrounding window.`,
       evidenceIds: missingOutcomeEvidence(chain),
       uncertainties: [],
       hypotheses: [
-        hyp("order.paid not delivered to LearnLoop", "ruled_out", [delivered(chain)], "LearnLoop acknowledged order.paid with HTTP 200."),
-        hyp("Enrolment request failed", "supported", [failedOutcome(chain)], `/enroll returned HTTP ${responseCode} and no access grant followed.`),
-        hyp("Wider enrolment outage", "ruled_out", [chain.receipt?.id], "No other purchases in the surrounding window missed their outcome."),
+        hyp("order.paid not delivered to Marrow", "ruled_out", [delivered(chain)], "Marrow acknowledged order.paid with HTTP 200."),
+        hyp("Learning access request failed", "supported", [failedOutcome(chain)], `/learning-access returned HTTP ${responseCode} and no access grant followed.`),
+        hyp("Wider Learning Access Service outage", "ruled_out", [chain.receipt?.id], "No other purchases in the surrounding window missed their outcome."),
       ],
       recommendedAction: "retry_provisioning",
       confidence: rng.pick([0.96, 0.97, 0.98]),
-      customerImpact: `Customer paid ${formatINR(product.price)} for ${product.name} and does not have course access.`,
-      consequenceOfInaction: "The customer is likely to contact LearnLoop support or request a refund.",
+      customerImpact: `Learner paid ${formatINR(product.price)} for ${product.name} and cannot access their learning package.`,
+      consequenceOfInaction: "The learner is likely to contact Marrow support or request a refund.",
       customerMessageDraft: courseMessage(product),
     };
     return { chain, detectedAt, investigation };
@@ -713,26 +713,26 @@ export function buildDataset(): Dataset {
   });
 
   // The last automatic retry granted access to a customer whose cancellation
-  // was already with LearnLoop support. LearnLoop revoked access and refunded.
+  // was already with merchant support. The merchant revoked access and refunded.
   const wrongCase = cases.find((c) => c.id === wrongActionCaseId)!;
   const wrongChain = historyChains.get(wrongCase.id)!;
   {
     const revokedAt = addSeconds(wrongCase.resolution!.resolvedAt, 2 * 3600 + 14 * 60);
     const revoked: MerchantOutcomeEvent = {
-      id: uid("ll_evt", 12),
+      id: uid("mr_evt", 12),
       merchantOrderId: wrongChain.order.id,
-      source: "learnloop",
-      type: "course_access_revoked",
+      source: "merchant",
+      type: "learning_access_revoked",
       status: "completed",
       responseCode: 200,
       occurredAt: revokedAt,
-      metadata: { reason: "Customer cancellation raised with LearnLoop support before access was granted" },
+      metadata: { reason: "Learner cancellation raised with Marrow support before access was granted" },
     };
     outcomeEvents.push(revoked);
-    const refunded: PaymentEvent = { id: uid("evt"), paymentId: wrongChain.payment.id, source: "razorpay", type: "payment.refunded", occurredAt: addSeconds(revokedAt, 300), metadata: { amount: wrongChain.payment.amount, initiatedBy: "LearnLoop finance" } };
+    const refunded: PaymentEvent = { id: uid("evt"), paymentId: wrongChain.payment.id, source: "razorpay", type: "payment.refunded", occurredAt: addSeconds(revokedAt, 300), metadata: { amount: wrongChain.payment.amount, initiatedBy: "Merchant finance" } };
     paymentEvents.push(refunded);
     wrongChain.payment.status = "refunded";
-    wrongCase.wrongAction = { detectedAt: revokedAt, reason: "Access granted to a customer who had already asked LearnLoop support to cancel; LearnLoop revoked access and refunded." };
+    wrongCase.wrongAction = { detectedAt: revokedAt, reason: "Access granted to a learner who had already asked Marrow support to cancel; Marrow revoked access and refunded." };
     wrongCase.customerContact = "customer_initiated";
     audit({ occurredAt: addSeconds(revokedAt, 5), actor: ACTORS.connector, action: "Reported access revoked", targetType: "case", targetId: wrongCase.id, caseId: wrongCase.id, result: "Automatic retry marked as a wrong action", evidenceIds: [revoked.id, refunded.id], approvalSource: "not_required" });
     audit({ occurredAt: at(14, "10:12:00"), actor: OPERATOR.name, action: "Changed action policy", targetType: "policy", targetId: "retry_provisioning", result: "Retry provisioning: Automatic below thresholds → Suggest only", evidenceIds: [wrongCase.id], approvalSource: "merchant" });
@@ -761,8 +761,8 @@ export function buildDataset(): Dataset {
     const decisionAt = addSeconds(detectedAt, rng.int(4, 55) * 60);
     if (editedIndexes.has(index)) {
       // Merchant edited the action to wait; the outcome then arrived on its own.
-      c.decisions.push({ decidedAt: decisionAt, actor: OPERATOR.name, kind: "edited", action: "wait", edited: true, reason: "LearnLoop engineering confirmed a queued enrolment retry" });
-      audit({ occurredAt: decisionAt, actor: OPERATOR.name, action: "Edited recommendation", targetType: "case", targetId: c.id, caseId: c.id, result: "Retry enrolment → Wait and re-check", approvalSource: "merchant", evidenceIds: investigation.evidenceIds });
+      c.decisions.push({ decidedAt: decisionAt, actor: OPERATOR.name, kind: "edited", action: "wait", edited: true, reason: "Merchant engineering confirmed a queued access restoration retry" });
+      audit({ occurredAt: decisionAt, actor: OPERATOR.name, action: "Edited recommendation", targetType: "case", targetId: c.id, caseId: c.id, result: "Restore learning access → Wait and re-check", approvalSource: "merchant", evidenceIds: investigation.evidenceIds });
       resolveByArrival(c, chain, addSeconds(decisionAt, rng.int(3, 9) * 60));
     } else {
       resolveByAction(c, chain, { action: "retry_provisioning", approvedAt: decisionAt, approvalSource: "merchant", outcomeLatencySeconds: rng.int(3, 8) });
@@ -821,8 +821,8 @@ export function buildDataset(): Dataset {
   // =========================================================================
   {
     const incidentId = "INC-0014";
-    const errors = observability({ type: "service.errors_detected", service: "learnloop-webhooks", occurredAt: at(12, "19:40:05"), metadata: { endpoint: "/webhooks/razorpay", statusCode: 503, message: "upstream connect error: no healthy upstream" } });
-    const recovered = observability({ type: "service.recovered", service: "learnloop-webhooks", occurredAt: at(12, "19:58:40"), metadata: { endpoint: "/webhooks/razorpay", healthCheck: "passing" } });
+    const errors = observability({ type: "service.errors_detected", service: "merchant-webhooks", occurredAt: at(12, "19:40:05"), metadata: { endpoint: "/webhooks/razorpay", statusCode: 503, message: "upstream connect error: no healthy upstream" } });
+    const recovered = observability({ type: "service.recovered", service: "merchant-webhooks", occurredAt: at(12, "19:58:40"), metadata: { endpoint: "/webhooks/razorpay", healthCheck: "passing" } });
     const times = ["19:41:10", "19:43:52", "19:46:31", "19:49:02", "19:52:47", "19:55:20"];
     const caseIds: string[] = [];
     const chains: Chain[] = [];
@@ -843,18 +843,18 @@ export function buildDataset(): Dataset {
       });
       const detectedAt = addSeconds(chain.receipt!.expectedBy, 1);
       const investigation: Investigation = {
-        summary: "Payment captured, but every order.paid delivery to LearnLoop's webhook endpoint returned HTTP 503, so LearnLoop never started enrolment.",
-        likelyCause: "LearnLoop webhook endpoint unavailable (HTTP 503: no healthy upstream).",
+        summary: "Payment captured, but every order.paid delivery to Marrow's webhook endpoint returned HTTP 503, so access was never requested.",
+        likelyCause: "Merchant webhook endpoint unavailable (HTTP 503: no healthy upstream).",
         evidenceIds: [chain.captured!.id, ...chain.deliveries.map((d) => d.id), chain.receipt!.id, errors.id],
         uncertainties: [],
         hypotheses: [
-          hyp("LearnLoop webhook endpoint unavailable", "supported", [...chain.deliveries.map((d) => d.id), errors.id], "Every order.paid delivery returned HTTP 503 while the endpoint reported no healthy upstream."),
-          hyp("Enrolment service failure", "ruled_out", [chain.receipt!.id], "No enrolment request was made, so enrolment could not have failed; LearnLoop never learned of the payment."),
+          hyp("Merchant webhook endpoint unavailable", "supported", [...chain.deliveries.map((d) => d.id), errors.id], "Every order.paid delivery returned HTTP 503 while the endpoint reported no healthy upstream."),
+          hyp("Learning Access Service failure", "ruled_out", [chain.receipt!.id], "No access request was made, so the Learning Access Service could not have failed; Marrow never learned of the payment."),
         ],
         recommendedAction: "replay_webhook",
         confidence: 0.96,
-        customerImpact: `Customer paid ${formatINR(product.price)} for ${product.name} and does not have course access.`,
-        consequenceOfInaction: "LearnLoop has no record of the payment; access is not granted until order.paid is delivered.",
+        customerImpact: `Learner paid ${formatINR(product.price)} for ${product.name} and cannot access their learning package.`,
+        consequenceOfInaction: "Marrow has no record of the payment; access is not granted until order.paid is delivered.",
         customerMessageDraft: courseMessage(product),
       };
       const c = openCase({ type: "missing_outcome", chain, detectedAt, status: "open", investigation, defaultOutcome: "customer_contact", incidentId });
@@ -871,18 +871,18 @@ export function buildDataset(): Dataset {
     const resolvedAt = cases.filter((c) => caseIds.includes(c.id)).map((c) => c.resolution!.resolvedAt).sort().at(-1)!;
     incidents.push({
       id: incidentId,
-      title: "Order webhooks rejected by LearnLoop endpoint",
+      title: "Order webhooks rejected by merchant endpoint",
       status: "resolved",
       severity: "medium",
       caseIds,
       startedAt: errors.occurredAt,
       detectedAt,
       resolvedAt,
-      likelyCause: "LearnLoop webhook endpoint returned HTTP 503 (no healthy upstream) for 18 minutes",
+      likelyCause: "Merchant webhook endpoint returned HTTP 503 (no healthy upstream) for 18 minutes",
       outcomeContractId: CONTRACT_IDS.course,
       owner: OPERATOR.name,
-      affectedService: "learnloop-webhooks",
-      summary: "Payments were captured, but LearnLoop's webhook endpoint rejected order.paid, so enrolment never started.",
+      affectedService: "merchant-webhooks",
+      summary: "Payments were captured, but Marrow's webhook endpoint rejected order.paid, so access was never requested.",
     });
     integrity({ type: "incident.created", incidentId, occurredAt: detectedAt });
     audit({ occurredAt: detectedAt, actor: ACTORS.agent, action: "Created incident", targetType: "incident", targetId: incidentId, incidentId, result: "2 cases share webhook HTTP 503 failures", evidenceIds: [errors.id, ...caseIds.slice(0, 2)], approvalSource: "not_required" });
@@ -935,19 +935,19 @@ export function buildDataset(): Dataset {
     chain.payment.captureDeadline = captureDeadlineFor(chain.payment);
     const detectedAt = addSeconds(authorizedAt, 2);
     const investigation: Investigation = {
-      summary: `The bank authorised the payment ${Math.round((Date.parse(authorizedAt) - Date.parse(orderAt)) / 60000)} minutes after checkout started, after the LearnLoop order had expired. It was not captured and will be refunded automatically if not captured by the deadline.`,
+      summary: `The bank authorised the payment ${Math.round((Date.parse(authorizedAt) - Date.parse(orderAt)) / 60000)} minutes after checkout started, after the Marrow order had expired. It was not captured and will be refunded automatically if not captured by the deadline.`,
       likelyCause: "Late bank authorisation after the checkout session expired.",
       evidenceIds: [chain.orderCreated.id, chain.authorized!.id],
       uncertainties: ["Whether the customer still expects access after checkout timed out."],
       hypotheses: [
-        hyp("Bank authorised after checkout expired", "supported", [chain.orderCreated.id, chain.authorized!.id], "Authorisation arrived after the LearnLoop order had expired, so it was never captured."),
+        hyp("Bank authorised after checkout expired", "supported", [chain.orderCreated.id, chain.authorized!.id], "Authorisation arrived after the Marrow order had expired, so it was never captured."),
         hyp("Payment failed", "ruled_out", [chain.authorized!.id], "The bank authorised the payment; the money is held, not declined."),
       ],
       recommendedAction: "capture",
       confidence: 0.95,
       customerImpact: `Customer's ${formatINR(product.price)} is held by the bank and they do not have access.`,
       consequenceOfInaction: "The authorisation expires and the payment is refunded automatically; the sale is lost.",
-      customerMessageDraft: `Your ${formatINR(product.price)} payment for ${product.name} was confirmed by your bank. Your course access is now being activated.`,
+      customerMessageDraft: `Your ${formatINR(product.price)} payment for ${product.name} was confirmed by your bank. Your learning package access is now being activated.`,
     };
     const c = openCase({ type: "late_authorization", chain, detectedAt, status: "open", investigation, defaultOutcome: "auto_refund", missedDeadline: false, deadline: chain.payment.captureDeadline });
     recordPolicyEvaluation(c, addSeconds(detectedAt, 5), "requires_approval", "Capture payment always requires approval");
@@ -968,7 +968,7 @@ export function buildDataset(): Dataset {
   }
   {
     const { c, chain } = lateAuthorization(17, rng.pick(courseProducts));
-    reject(c, addSeconds(c.detectedAt, 41 * 60), "Customer completed a new purchase for the same course after checkout timed out.");
+    reject(c, addSeconds(c.detectedAt, 41 * 60), "Learner completed a new purchase for the same learning package after checkout timed out.");
     const refunded: PaymentEvent = { id: uid("evt"), paymentId: chain.payment.id, source: "razorpay", type: "payment.refunded", occurredAt: chain.payment.captureDeadline!, metadata: { amount: chain.payment.amount, reason: "authorisation not captured before deadline" } };
     paymentEvents.push(refunded);
     chain.payment.status = "refunded";
@@ -978,7 +978,7 @@ export function buildDataset(): Dataset {
   // HISTORY: rejected recommendations
   // =========================================================================
   for (const [daysBefore, reason, contact] of [
-    [10, "LearnLoop support granted access manually before this case was reviewed.", "customer_initiated"],
+    [10, "Marrow support restored access manually before this case was reviewed.", "customer_initiated"],
     [4, "Order belongs to a corporate cohort; access is granted by the cohort administrator.", "none"],
   ] as const) {
     const { chain, detectedAt, investigation } = sporadicMissingOutcome(daysBefore, rng.pick(courseProducts));
@@ -988,7 +988,7 @@ export function buildDataset(): Dataset {
   }
 
   // =========================================================================
-  // HISTORY: duplicate payments (grant once, second charge refunded by LearnLoop finance)
+  // HISTORY: duplicate payments (grant once, second charge refunded by merchant finance)
   // =========================================================================
   for (const daysBefore of [18, 6]) {
     const product = rng.pick(courseProducts);
@@ -1001,28 +1001,28 @@ export function buildDataset(): Dataset {
     second.receipt = undefined;
     const detectedAt = addSeconds(first.receipt!.expectedBy, 1) > second.captured!.occurredAt ? addSeconds(first.receipt!.expectedBy, 1) : addSeconds(second.captured!.occurredAt, 2);
     const investigation: Investigation = {
-      summary: `Customer paid twice for ${product.name}, ${Math.round((Date.parse(second.captured!.occurredAt) - Date.parse(first.captured!.occurredAt)) / 60000)} minutes apart. Neither payment produced access because /enroll timed out.`,
-      likelyCause: "Enrolment request timed out (HTTP 504); the customer retried checkout when access did not appear.",
+      summary: `Customer paid twice for ${product.name}, ${Math.round((Date.parse(second.captured!.occurredAt) - Date.parse(first.captured!.occurredAt)) / 60000)} minutes apart. Neither payment produced access because /learning-access timed out.`,
+      likelyCause: "Learning access request timed out (HTTP 504); the learner retried checkout when access did not appear.",
       evidenceIds: [first.captured!.id, second.captured!.id, first.outcomeEvents.find((e) => e.status === "failed")!.id, first.receipt!.id],
       uncertainties: ["Whether the second payment was intentional."],
       hypotheses: [
-        hyp("Customer retried because access did not appear", "supported", [first.captured!.id, second.captured!.id], "The second payment for the same course followed the first failed enrolment within minutes."),
-        hyp("Enrolment request timed out", "supported", [failedOutcome(first)], "/enroll returned HTTP 504 for the first payment."),
+        hyp("Customer retried because access did not appear", "supported", [first.captured!.id, second.captured!.id], "The second payment for the same learning package followed the first failed access request within minutes."),
+        hyp("Learning access request timed out", "supported", [failedOutcome(first)], "/learning-access returned HTTP 504 for the first payment."),
       ],
       recommendedAction: "retry_provisioning",
       confidence: 0.9,
-      customerImpact: `Customer was charged ${formatINR(product.price * 2)} for one ${formatINR(product.price)} course and has no access.`,
+      customerImpact: `Customer was charged ${formatINR(product.price * 2)} for one ${formatINR(product.price)} learning package and has no access.`,
       consequenceOfInaction: "A refund request or payment dispute is likely.",
     };
     const c = openCase({ type: "duplicate_payment", chain: first, related: [second], detectedAt, status: "review_required", investigation, defaultOutcome: "customer_contact" });
     recordPolicyEvaluation(c, addSeconds(detectedAt, 5), "requires_approval", "Second captured payment found; individual review required");
     resolveByAction(c, first, { action: "review_duplicate", approvedAt: addSeconds(detectedAt, rng.int(15, 50) * 60), approvalSource: "merchant", outcomeLatencySeconds: rng.int(4, 8) });
     const refundAt = addSeconds(c.resolution!.resolvedAt, 3 * 3600);
-    const refunded: PaymentEvent = { id: uid("evt"), paymentId: second.payment.id, source: "razorpay", type: "payment.refunded", occurredAt: refundAt, metadata: { amount: product.price, initiatedBy: "LearnLoop finance" } };
+    const refunded: PaymentEvent = { id: uid("evt"), paymentId: second.payment.id, source: "razorpay", type: "payment.refunded", occurredAt: refundAt, metadata: { amount: product.price, initiatedBy: "Merchant finance" } };
     paymentEvents.push(refunded);
     second.payment.status = "refunded";
     second.order.status = "fulfilled";
-    audit({ occurredAt: addSeconds(refundAt, 20), actor: ACTORS.connector, action: "Reported refund", targetType: "case", targetId: c.id, caseId: c.id, result: `Second charge ${second.payment.id} refunded by LearnLoop finance`, evidenceIds: [refunded.id], approvalSource: "not_required" });
+    audit({ occurredAt: addSeconds(refundAt, 20), actor: ACTORS.connector, action: "Reported refund", targetType: "case", targetId: c.id, caseId: c.id, result: `Second charge ${second.payment.id} refunded by merchant finance`, evidenceIds: [refunded.id], approvalSource: "not_required" });
   }
 
   // =========================================================================
@@ -1031,25 +1031,25 @@ export function buildDataset(): Dataset {
   const D = 0;
   const deploy = observability({
     type: "deploy.completed",
-    service: "enrolment-service",
+    service: "learning-access-service",
     occurredAt: at(D, "14:04:00"),
     metadata: { version: "v2.3", environment: "production", deployedBy: "ci-pipeline", commit: "8f3c2a1" },
   });
   const firstFailureAt = at(D, "14:05:21");
   const enrolErrors = observability({
     type: "service.errors_detected",
-    service: "enrolment-service",
+    service: "learning-access-service",
     occurredAt: firstFailureAt,
-    metadata: { endpoint: "/enroll", statusCode: 500, errorRate: "100%", message: "TypeError: Cannot read properties of undefined (reading 'cohortId')" },
+    metadata: { endpoint: "/learning-access", statusCode: 500, errorRate: "100%", message: "TypeError: Cannot read properties of undefined (reading 'cohortId')" },
   });
   const enrolRecovered = observability({
     type: "service.recovered",
-    service: "enrolment-service",
+    service: "learning-access-service",
     occurredAt: at(D, "14:18:40"),
-    metadata: { endpoint: "/enroll", healthCheck: "passing", consecutiveSuccesses: 20 },
+    metadata: { endpoint: "/learning-access", healthCheck: "passing", consecutiveSuccesses: 20 },
   });
 
-  // Healthy course purchases just before the deploy and just after recovery.
+  // Healthy learning package purchases just before the deploy and just after recovery.
   const healthySample = (time: string) =>
     buildChain({ customer: newCustomer(), product: rng.pick(courseProducts), orderCreatedAt: at(D, time), outcome: { kind: "confirmed", afterSeconds: rng.int(4, 9) } });
   for (const time of ["13:41:18", "13:47:55", "13:52:30", "13:58:12", "14:02:44", "14:03:51"]) healthySample(time);
@@ -1104,20 +1104,20 @@ export function buildDataset(): Dataset {
       duplicateSeconds.push(second);
       const minutesApart = Math.round((Date.parse(second.captured!.occurredAt) - Date.parse(chain.captured!.occurredAt)) / 60000);
       const investigation: Investigation = {
-        summary: `Customer paid twice for ${product.name}, ${minutesApart} minutes apart. Both order.paid webhooks returned HTTP 200, but both /enroll calls returned HTTP 500, so neither payment produced access.`,
-        likelyCause: "LearnLoop enrolment service returned HTTP 500 after deployment v2.3; the customer retried checkout when access did not appear.",
+        summary: `Customer paid twice for ${product.name}, ${minutesApart} minutes apart. Both order.paid webhooks returned HTTP 200, but both /learning-access calls returned HTTP 500, so neither payment produced access.`,
+        likelyCause: "The Learning Access Service returned HTTP 500 after deployment v2.3; the learner retried checkout when access did not appear.",
         evidenceIds: [...baseEvidence, second.captured!.id, second.outcomeEvents.find((e) => e.status === "failed")!.id],
         uncertainties: ["Whether the second payment was intentional or a retry after access did not appear."],
         hypotheses: [
-          hyp("order.paid not delivered to LearnLoop", "ruled_out", [delivered(chain), delivered(second)], "Both order.paid webhooks returned HTTP 200."),
-          hyp("Enrolment service failing after deployment v2.3", "supported", [deploy.id, enrolErrors.id, failedOutcome(chain), failedOutcome(second)], "Both /enroll calls returned HTTP 500 during the outage that began after deploy.completed v2.3."),
-          hyp("Customer paid twice for one purchase", "supported", [chain.captured!.id, second.captured!.id], "Two captured payments from the same customer for the same course, minutes apart."),
+          hyp("order.paid not delivered to Marrow", "ruled_out", [delivered(chain), delivered(second)], "Both order.paid webhooks returned HTTP 200."),
+          hyp("Learning Access Service failing after deployment v2.3", "supported", [deploy.id, enrolErrors.id, failedOutcome(chain), failedOutcome(second)], "Both /learning-access calls returned HTTP 500 during the outage that began after deploy.completed v2.3."),
+          hyp("Customer paid twice for one purchase", "supported", [chain.captured!.id, second.captured!.id], "Two captured payments from the same customer for the same learning package, minutes apart."),
         ],
         recommendedAction: "retry_provisioning",
         confidence: 0.9,
-        customerImpact: `Customer was charged ${formatINR(product.price * 2)} for one ${formatINR(product.price)} course and has no access.`,
+        customerImpact: `Customer was charged ${formatINR(product.price * 2)} for one ${formatINR(product.price)} learning package and has no access.`,
         consequenceOfInaction: "Customer remains double-charged without access; a refund request or dispute is likely.",
-        customerMessageDraft: `Your payment for ${product.name} was successful. We are restoring your course access, and we are reviewing your second payment of ${formatINR(product.price)}.`,
+        customerMessageDraft: `Your payment for ${product.name} was successful. We are restoring your learning package access, and we are reviewing your second payment of ${formatINR(product.price)}.`,
       };
       const detected = detectedAt > second.captured!.occurredAt ? detectedAt : addSeconds(second.captured!.occurredAt, 2);
       incidentCases.push(openCase({ type: "duplicate_payment", chain, related: [second], detectedAt: detected, status: "review_required", investigation, defaultOutcome: "customer_contact", incidentId }));
@@ -1126,20 +1126,20 @@ export function buildDataset(): Dataset {
 
     const highValue = slot.group === "high_value";
     const investigation: Investigation = {
-      summary: `Payment captured and order.paid acknowledged with HTTP 200, but LearnLoop's /enroll call returned HTTP 500 and no course_access_granted arrived within 2 minutes. The enrolment service has since recovered and is accepting requests.`,
-      likelyCause: "LearnLoop enrolment service returned HTTP 500 after deployment v2.3.",
+      summary: `Payment captured and order.paid acknowledged with HTTP 200, but Marrow's /learning-access call returned HTTP 500 and no learning_access_granted arrived within 2 minutes. The Learning Access Service has since recovered and is accepting requests.`,
+      likelyCause: "The Learning Access Service returned HTTP 500 after deployment v2.3.",
       evidenceIds: baseEvidence,
-      uncertainties: highValue ? [`${product.name} unlocks several courses; it is not confirmed whether a single enrolment grants access to all of them.`] : [],
+      uncertainties: highValue ? [`${product.name} unlocks several learning packages; it is not confirmed whether a single access restoration covers all of them.`] : [],
       hypotheses: [
-        hyp("order.paid not delivered to LearnLoop", "ruled_out", [delivered(chain)], "LearnLoop acknowledged order.paid with HTTP 200."),
-        hyp("Enrolment service failing after deployment v2.3", "supported", [deploy.id, enrolErrors.id, failedOutcome(chain)], "/enroll returned HTTP 500 during the outage that began 81 seconds after deploy.completed v2.3."),
+        hyp("order.paid not delivered to Marrow", "ruled_out", [delivered(chain)], "Marrow acknowledged order.paid with HTTP 200."),
+        hyp("Learning Access Service failing after deployment v2.3", "supported", [deploy.id, enrolErrors.id, failedOutcome(chain)], "/learning-access returned HTTP 500 during the outage that began 81 seconds after deploy.completed v2.3."),
         hyp("Customer already has access from another payment", "ruled_out", [chain.receipt?.id], "No other captured payment or access grant exists for this order."),
-        hyp("Enrolment service still unavailable", "ruled_out", [enrolRecovered.id], "Health checks have passed since the service recovered, so a retry can succeed."),
+        hyp("Learning Access Service still unavailable", "ruled_out", [enrolRecovered.id], "Health checks have passed since the service recovered, so a retry can succeed."),
       ],
       recommendedAction: "retry_provisioning",
       confidence: highValue ? 0.96 : 0.97,
-      customerImpact: `Customer paid ${formatINR(product.price)} for ${product.name} and does not have course access.`,
-      consequenceOfInaction: "The customer is likely to contact LearnLoop support or raise a dispute while the payment stays captured without access.",
+      customerImpact: `Learner paid ${formatINR(product.price)} for ${product.name} and cannot access their learning package.`,
+      consequenceOfInaction: "The learner is likely to contact Marrow support or raise a dispute while the payment stays captured without access.",
       customerMessageDraft: courseMessage(product),
     };
     incidentCases.push(openCase({ type: "missing_outcome", chain, detectedAt, status: "open", investigation, defaultOutcome: "customer_contact", incidentId }));
@@ -1153,7 +1153,7 @@ export function buildDataset(): Dataset {
       c,
       addSeconds(c.detectedAt > incidentDetectedAt ? c.detectedAt : incidentDetectedAt, 6),
       c.detectedAt < enrolRecovered.occurredAt ? "blocked" : "requires_approval",
-      c.detectedAt < enrolRecovered.occurredAt ? "Blocked: enrolment service unhealthy" : policySummaryForIncidentCase(c),
+      c.detectedAt < enrolRecovered.occurredAt ? "Blocked: Learning Access Service unhealthy" : policySummaryForIncidentCase(c),
     );
   }
   for (const c of incidentCases.filter((x) => x.detectedAt < enrolRecovered.occurredAt)) {
@@ -1161,49 +1161,49 @@ export function buildDataset(): Dataset {
   }
 
   const incidentInvestigation: Investigation = {
-    summary: "Payments continued succeeding, but LearnLoop's enrolment service stopped producing access confirmations after deployment v2.3.",
-    likelyCause: "Deployment v2.3 of LearnLoop's enrolment service: /enroll returned HTTP 500 from 81 seconds after deploy.completed until the service recovered.",
+    summary: "Payments continued succeeding, but the Learning Access Service stopped producing access confirmations after deployment v2.3.",
+    likelyCause: "Deployment v2.3 of the Learning Access Service: /learning-access returned HTTP 500 from 81 seconds after deploy.completed until the service recovered.",
     evidenceIds: [
       deploy.id,
       enrolErrors.id,
       enrolRecovered.id,
       ...incidentCases.slice(0, 3).flatMap((c) => c.investigation!.evidenceIds.slice(0, 4)),
       ...incidentCases.slice(0, 3).map((c) => c.id),
-      postRecovery[0]!.outcomeEvents.find((e) => e.type === "course_access_granted")!.id,
+      postRecovery[0]!.outcomeEvents.find((e) => e.type === "learning_access_granted")!.id,
     ],
     uncertainties: [
       "Whether duplicate payments were intentional.",
       "Whether high-value bundles require different access.",
     ],
     hypotheses: [
-      hyp("Deployment v2.3 broke enrolment", "supported", [deploy.id, enrolErrors.id, enrolRecovered.id], "/enroll began returning HTTP 500 81 seconds after deploy.completed v2.3 and every enrolment failed until the service recovered."),
-      hyp("Razorpay webhooks not reaching LearnLoop", "ruled_out", incidentCases.slice(0, 3).map((c) => c.investigation!.evidenceIds[1]), "order.paid deliveries returned HTTP 200 throughout the incident."),
+      hyp("Deployment v2.3 broke learning access", "supported", [deploy.id, enrolErrors.id, enrolRecovered.id], "/learning-access began returning HTTP 500 81 seconds after deploy.completed v2.3 and every access request failed until the service recovered."),
+      hyp("Razorpay webhooks not reaching Marrow", "ruled_out", incidentCases.slice(0, 3).map((c) => c.investigation!.evidenceIds[1]), "order.paid deliveries returned HTTP 200 throughout the incident."),
       hyp("Payments not captured", "ruled_out", incidentCases.slice(0, 3).map((c) => c.investigation!.evidenceIds[0]), "Every affected payment was captured by Razorpay."),
-      hyp("Enrolment still failing now", "ruled_out", [enrolRecovered.id, postRecovery[0]!.outcomeEvents.find((e) => e.type === "course_access_granted")!.id], "New purchases after the recovery received access normally."),
+      hyp("Learning access still failing now", "ruled_out", [enrolRecovered.id, postRecovery[0]!.outcomeEvents.find((e) => e.type === "learning_access_granted")!.id], "New purchases after the recovery received access normally."),
     ],
     recommendedAction: "retry_provisioning",
     confidence: 0.93,
-    customerImpact: "43 customers paid and do not have course access.",
+    customerImpact: "43 learners paid and cannot access their learning package.",
     consequenceOfInaction: "Customers contact support or raise disputes; payments stay captured without access.",
   };
   investigationResponses[incidentId] = incidentInvestigation;
   incidents.push({
     id: incidentId,
-    title: "Course access not granted after successful payment",
+    title: "Learning package access not granted after successful payment",
     status: "action_required",
     severity: "high",
     caseIds: incidentCases.map((c) => c.id),
     startedAt: firstFailureAt,
     detectedAt: incidentDetectedAt,
-    likelyCause: "Enrolment service returned HTTP 500 after deployment v2.3",
+    likelyCause: "Learning Access Service returned HTTP 500 after deployment v2.3",
     outcomeContractId: CONTRACT_IDS.course,
     owner: OPERATOR.name,
-    affectedService: "enrolment-service",
+    affectedService: "learning-access-service",
     summary: incidentInvestigation.summary,
     investigation: incidentInvestigation,
   });
   integrity({ type: "incident.created", incidentId, occurredAt: incidentDetectedAt });
-  audit({ occurredAt: incidentDetectedAt, actor: ACTORS.agent, action: "Created incident", targetType: "incident", targetId: incidentId, incidentId, result: "3 Course purchase cases share one failure signature", evidenceIds: incidentCases.slice(0, 3).map((c) => c.id), approvalSource: "not_required" });
+  audit({ occurredAt: incidentDetectedAt, actor: ACTORS.agent, action: "Created incident", targetType: "incident", targetId: incidentId, incidentId, result: "3 learning package purchase cases share one failure signature", evidenceIds: incidentCases.slice(0, 3).map((c) => c.id), approvalSource: "not_required" });
 
   // Incident history snapshots, computed from the cases known at each moment.
   const snapshot = (occurredAt: string, systemHealth: IncidentUpdate["systemHealth"], note: string, rootCauseConfidence?: number) => {
@@ -1220,12 +1220,12 @@ export function buildDataset(): Dataset {
     if (rootCauseConfidence !== undefined) update.rootCauseConfidence = rootCauseConfidence;
     incidentUpdates.push(update);
   };
-  snapshot(incidentDetectedAt, "down", "Incident opened: order.paid acknowledged, /enroll returned HTTP 500, no access confirmation.", 0.58);
-  snapshot(addSeconds(incidentDetectedAt, 75), "down", "Failures began 81 seconds after deploy.completed for enrolment-service v2.3.", 0.86);
+  snapshot(incidentDetectedAt, "down", "Incident opened: order.paid acknowledged, /learning-access returned HTTP 500, no access confirmation.", 0.58);
+  snapshot(addSeconds(incidentDetectedAt, 75), "down", "Failures began 81 seconds after deploy.completed for the Learning Access Service v2.3.", 0.86);
   for (const time of ["14:12:00", "14:15:00", "14:18:00"]) snapshot(at(D, time), "down", "Case count updated.");
-  snapshot(enrolRecovered.occurredAt, "healthy", "Enrolment service health checks passing; recovery is now possible.", 0.9);
+  snapshot(enrolRecovered.occurredAt, "healthy", "Learning Access Service health checks passing; recovery is now possible.", 0.9);
   snapshot(addSeconds(incidentCases.at(-1)!.detectedAt, 1), "healthy", "Final affected purchase added. No failures after recovery.", 0.93);
-  snapshot(addSeconds(postRecovery[2]!.receipt!.confirmedAt!, 1), "healthy", "New purchases receiving course access within normal time.", 0.93);
+  snapshot(addSeconds(postRecovery[2]!.receipt!.confirmedAt!, 1), "healthy", "New purchases receiving learning package access within normal time.", 0.93);
 
   // =========================================================================
   // TODAY: refusal case (event booking with changed inventory)
@@ -1234,23 +1234,23 @@ export function buildDataset(): Dataset {
     const product = productById("prd_system_design_workshop");
     const chain = buildChain({ customer: newCustomer(), product, orderCreatedAt: at(D, "12:51:40"), outcome: { kind: "none" } });
     const inventoryChanged: MerchantOutcomeEvent = {
-      id: uid("ll_evt", 12),
+      id: uid("mr_evt", 12),
       merchantOrderId: chain.order.id,
-      source: "learnloop",
+      source: "merchant",
       type: "inventory_changed",
       status: "completed",
       occurredAt: addSeconds(chain.captured!.occurredAt, 17),
       metadata: { heldSeat: "B-14", change: "Venue capacity reduced from 60 to 40; seat block B released", replacementAvailable: null },
     };
     const bookingFailed: MerchantOutcomeEvent = {
-      id: uid("ll_evt", 12),
+      id: uid("mr_evt", 12),
       merchantOrderId: chain.order.id,
-      source: "learnloop",
+      source: "merchant",
       type: "booking.failed",
       status: "failed",
       responseCode: 409,
       occurredAt: addSeconds(inventoryChanged.occurredAt, 1),
-      metadata: { endpoint: "/enroll", message: "Seat B-14 no longer exists" },
+      metadata: { endpoint: "/learning-access", message: "Seat B-14 no longer exists" },
     };
     outcomeEvents.push(inventoryChanged, bookingFailed);
     chain.outcomeEvents.push(inventoryChanged, bookingFailed);
@@ -1264,11 +1264,11 @@ export function buildDataset(): Dataset {
       hypotheses: [
         hyp("Seat inventory changed after payment", "supported", [inventoryChanged.id, bookingFailed.id], "Seat block B was released 17 seconds after capture; the booking then returned HTTP 409 for the missing seat."),
         hyp("Booking service outage", "ruled_out", [bookingFailed.id], "The booking was rejected with HTTP 409 (conflict), not a server error."),
-        hyp("order.paid not delivered to LearnLoop", "ruled_out", [chain.deliveries.at(-1)!.id], "LearnLoop acknowledged order.paid with HTTP 200."),
+        hyp("order.paid not delivered to Marrow", "ruled_out", [chain.deliveries.at(-1)!.id], "Marrow acknowledged order.paid with HTTP 200."),
       ],
       recommendedAction: "escalate",
       confidence: 0.91,
-      customerImpact: `Customer paid ${formatINR(product.price)} for a workshop seat that no longer exists.`,
+      customerImpact: `Learner paid ${formatINR(product.price)} for a workshop seat that no longer exists.`,
       consequenceOfInaction: "The customer has paid without a confirmed seat; completing the original booking could overbook the workshop.",
     };
     const c = openCase({ type: "inventory_conflict", chain, detectedAt, status: "review_required", investigation, defaultOutcome: "customer_contact", missedDeadline: false });
@@ -1285,20 +1285,20 @@ export function buildDataset(): Dataset {
     const authorizedAt = chain.authorized!.occurredAt;
     chain.payment.captureDeadline = captureDeadlineFor(chain.payment);
     const investigation: Investigation = {
-      summary: "The bank authorised the payment 17 minutes after checkout started, after the LearnLoop order had expired. It was not captured and will be refunded automatically if not captured by the deadline.",
+      summary: "The bank authorised the payment 17 minutes after checkout started, after the Marrow order had expired. It was not captured and will be refunded automatically if not captured by the deadline.",
       likelyCause: "Late bank authorisation after the checkout session expired.",
       evidenceIds: [chain.orderCreated.id, chain.authorized!.id],
       uncertainties: ["Whether the customer still expects access after checkout timed out."],
       hypotheses: [
-        hyp("Bank authorised after checkout expired", "supported", [chain.orderCreated.id, chain.authorized!.id], "Authorisation arrived 17 minutes after checkout started, after the LearnLoop order had expired."),
+        hyp("Bank authorised after checkout expired", "supported", [chain.orderCreated.id, chain.authorized!.id], "Authorisation arrived 17 minutes after checkout started, after the Marrow order had expired."),
         hyp("Payment failed", "ruled_out", [chain.authorized!.id], "The bank authorised the payment; the money is held, not declined."),
-        hyp("Customer bought the course again", "ruled_out", [chain.orderCreated.id], "No other payment from this customer for the course was found."),
+        hyp("Learner bought the package again", "ruled_out", [chain.orderCreated.id], "No other payment from this learner for the package was found."),
       ],
       recommendedAction: "capture",
       confidence: 0.95,
       customerImpact: `Customer's ${formatINR(product.price)} is held by the bank and they do not have access.`,
       consequenceOfInaction: "The authorisation expires and the payment is refunded automatically; the sale is lost.",
-      customerMessageDraft: `Your ${formatINR(product.price)} payment for ${product.name} was confirmed by your bank. Your course access is now being activated.`,
+      customerMessageDraft: `Your ${formatINR(product.price)} payment for ${product.name} was confirmed by your bank. Your learning package access is now being activated.`,
     };
     const c = openCase({ type: "late_authorization", chain, detectedAt: addSeconds(authorizedAt, 2), status: "open", investigation, defaultOutcome: "auto_refund", missedDeadline: false, deadline: chain.payment.captureDeadline });
     recordPolicyEvaluation(c, addSeconds(c.detectedAt, 5), "requires_approval", "Capture payment always requires approval");
@@ -1323,21 +1323,21 @@ export function buildDataset(): Dataset {
     // case becomes a missing outcome at the contract deadline.
     const pending = chain.outcomeEvents.find((e) => e.status === "pending")!;
     investigationResponses[c.id] = {
-      summary: "Payment captured and order.paid acknowledged with HTTP 200. LearnLoop recorded the membership activation as pending, but no membership_activated arrived within the 5-minute contract deadline.",
-      likelyCause: "Membership activation stalled inside LearnLoop after the order was accepted.",
+      summary: "Payment captured and order.paid acknowledged with HTTP 200. Marrow recorded the membership activation as pending, but no membership_activated arrived within the 5-minute contract deadline.",
+      likelyCause: "Membership activation stalled on the merchant side after the order was accepted.",
       evidenceIds: [chain.captured!.id, delivered(chain)!, pending.id, chain.receipt!.id],
       uncertainties: ["membership-service logged no errors, so why the activation stalled is not confirmed."],
       hypotheses: [
-        hyp("order.paid not delivered to LearnLoop", "ruled_out", [delivered(chain)], "LearnLoop acknowledged order.paid with HTTP 200."),
-        hyp("Activation stalled after LearnLoop accepted the order", "supported", [pending.id], "LearnLoop recorded the activation as pending and never completed it."),
+        hyp("order.paid not delivered to Marrow", "ruled_out", [delivered(chain)], "Marrow acknowledged order.paid with HTTP 200."),
+        hyp("Activation stalled after Marrow accepted the order", "supported", [pending.id], "Marrow recorded the activation as pending and never completed it."),
         hyp("Slow but normal processing", "ruled_out", [chain.receipt!.id], "The 5-minute deadline is well past this contract's 95th percentile of 96 s."),
       ],
-      // LearnLoop still reports the activation as in progress, and Payment
-      // Integrity cannot activate memberships, so the fix sits with LearnLoop.
+      // Marrow still reports the activation as in progress, and Payment
+      // Integrity cannot activate memberships, so the fix sits with Marrow.
       recommendedAction: "escalate",
       confidence: 0.9,
-      customerImpact: `Customer paid ${formatINR(product.price)} for ${product.name} and the membership is not active.`,
-      consequenceOfInaction: "The customer is likely to contact LearnLoop support or request a refund.",
+      customerImpact: `Learner paid ${formatINR(product.price)} for ${product.name} and the membership is not active.`,
+      consequenceOfInaction: "The learner is likely to contact Marrow support or request a refund.",
       customerMessageDraft: `Your ${formatINR(product.price)} payment for ${product.name} was successful. We are activating your membership now, and you will not be charged again.`,
     } satisfies Investigation;
   }
@@ -1345,7 +1345,7 @@ export function buildDataset(): Dataset {
   // =========================================================================
   // Configuration history in the audit log
   // =========================================================================
-  audit({ occurredAt: at(40, "11:20:00"), actor: OPERATOR.name, action: "Created contract", targetType: "contract", targetId: CONTRACT_IDS.course, result: "Course purchase activated", approvalSource: "merchant" });
+  audit({ occurredAt: at(40, "11:20:00"), actor: OPERATOR.name, action: "Created contract", targetType: "contract", targetId: CONTRACT_IDS.course, result: "Medical learning package purchase activated", approvalSource: "merchant" });
   audit({ occurredAt: at(40, "11:24:00"), actor: OPERATOR.name, action: "Created contract", targetType: "contract", targetId: CONTRACT_IDS.membership, result: "Membership activation activated", approvalSource: "merchant" });
   audit({ occurredAt: at(30, "15:10:00"), actor: OPERATOR.name, action: "Created contract", targetType: "contract", targetId: CONTRACT_IDS.event, result: "Event booking activated with inventory check", approvalSource: "merchant" });
   audit({ occurredAt: at(29, "09:45:00"), actor: OPERATOR.name, action: "Changed action policy", targetType: "policy", targetId: "retry_provisioning", result: "Retry provisioning: Suggest only → Automatic below thresholds", approvalSource: "merchant" });
@@ -1355,7 +1355,7 @@ export function buildDataset(): Dataset {
   connectorLogs.push(
     { id: uid("log", 10), integrationId: "customer_comms", kind: "auth_error", occurredAt: at(9, "03:12:44"), detail: "Access token expired; refreshed automatically on the next attempt." },
     { id: uid("log", 10), integrationId: "learnloop_orders", kind: "schema_error", occurredAt: at(6, "21:37:09"), detail: "Field coupon_code returned as number; expected string. Record read with coupon_code ignored." },
-    { id: uid("log", 10), integrationId: "learnloop_enrolment", kind: "timeout", occurredAt: at(18, "16:20:31"), detail: "Enrolment status read timed out after 10 s; retried successfully." },
+    { id: uid("log", 10), integrationId: "learnloop_enrolment", kind: "timeout", occurredAt: at(18, "16:20:31"), detail: "Access status read timed out after 10 s; retried successfully." },
   );
 
   // Records were appended per scenario; the audit log reads chronologically.
@@ -1436,7 +1436,7 @@ function caseOpenedResult(type: CaseType): string {
 }
 
 /**
- * Twelve hours of healthy course purchases after the horizon, roughly one every
+ * Twelve hours of healthy learning package purchases after the horizon, roughly one every
  * 30-70 seconds. They surface as the real clock passes each one.
  */
 function buildScheduledPurchases(rng: ReturnType<typeof createRandom>) {

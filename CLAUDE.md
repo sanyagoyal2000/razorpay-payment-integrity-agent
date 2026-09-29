@@ -25,15 +25,15 @@ Add a "Value delivered (trailing 30 days)" section to Overview:
 Each figure links to the cases behind it and has a one-line "How this is calculated" tooltip. Count only cases where the default outcome would have been an auto-refund or a customer contact. No projected or inflated numbers.
 
 ### Deploy evidence needs a source
-Add an integration: **LearnLoop Observability** (deploy events, service error logs), connected, read-only. Add a `deploy.completed` fixture event for `v2.3` at 14:04 IST so incident evidence can cite a real event ID. The agent may only mention the deployment because this event exists.
+Add an integration: **Platform Monitoring** (deploy events, service error logs), connected, read-only. Add a `deploy.completed` fixture event for `v2.3` at 14:04 IST so incident evidence can cite a real event ID. The agent may only mention the deployment because this event exists.
 
 ### Exact arithmetic
-- Build fixture amounts from real course prices (₹999, ₹2,499, ₹3,499, ₹4,999, ₹9,999) so each group sums exactly: 38 safe = ₹1,51,955; 3 duplicate = ₹10,497; 2 high-value = ₹19,998; total ₹1,82,450.
+- Build fixture amounts from real learning package prices (₹999, ₹2,499, ₹3,499, ₹4,999, ₹9,999) so each group sums exactly: 38 safe = ₹1,51,955; 3 duplicate = ₹10,497; 2 high-value = ₹19,998; total ₹1,82,450.
 - For duplicate cases, amount at risk = the original payment only. Track the second charge separately as refund exposure.
 - Add a test asserting every displayed aggregate equals the sum of its underlying cases, before and after resolving the 38 safe cases (remaining ₹30,495).
 
 ### Disclaimer
-Put exactly one line in the footer of the admin shell (small, muted): "Concept prototype built on simulated data. Not an official Razorpay product." No other prototype labels in the UI. Use Razorpay's official wordmark (`public/brand/razorpay.svg`, supplied by the project owner; Razorpay's Usage Agreement applies). On the black top bar, show the reversed copy `public/brand/razorpay-wordmark-white.svg`: identical except that the navy text is recoloured white, as agreed with the project owner; the blue mark is unchanged. Show it at its own aspect ratio. Never redraw, stretch or typeset a substitute logo; if the file is missing, the shell falls back to the plain text "Razorpay".
+Put exactly one line in the footer of the admin shell (small, muted): "Concept prototype using simulated Marrow data. No real incident, system or customer data is represented." No other prototype labels in the UI. Use Razorpay's official wordmark (`public/brand/razorpay.svg`, supplied by the project owner; Razorpay's Usage Agreement applies). On the black top bar, show the reversed copy `public/brand/razorpay-wordmark-white.svg`: identical except that the navy text is recoloured white, as agreed with the project owner; the blue mark is unchanged. Show it at its own aspect ratio. Never redraw, stretch or typeset a substitute logo; if the file is missing, the shell falls back to the plain text "Razorpay".
 
 ### Next.js and localStorage
 Load persisted state client-side only (after mount), so server and client renders match. The app must have zero hydration warnings or console errors.

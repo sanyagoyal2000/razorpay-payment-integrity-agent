@@ -126,10 +126,10 @@ export function ContainmentSection({ model, services, now }: { model: IncidentWo
           {pending?.action === "notify_customers" ? (
             <Box display="flex" flexDirection="column" gap="spacing.4">
               <Text size="small">
-                {recipients} customers whose {product} outcome is still missing will receive this message by email:
+                {recipients} learners whose {product} outcome is still missing will receive this message by email:
               </Text>
               <Box padding="spacing.4" borderRadius="medium" backgroundColor="surface.background.gray.moderate">
-                <Text size="small">{model.notification.template.replace("{product}", "your course")}</Text>
+                <Text size="small">{model.notification.template.replace("{product}", "your learning package")}</Text>
               </Box>
               <Text size="xsmall" color="surface.text.gray.muted">
                 Customer messages require your approval. Customers already contacted are not messaged again.

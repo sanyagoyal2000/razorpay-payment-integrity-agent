@@ -65,8 +65,8 @@ describe("investigation boundary", () => {
 
 function validRaw() {
   return {
-    summary: "Enrolment failed after payment.",
-    likelyCause: "HTTP 500 from /enroll.",
+    summary: "Learning access failed after payment.",
+    likelyCause: "HTTP 500 from /learning-access.",
     evidenceIds: ["evt_real"],
     uncertainties: [],
     recommendedAction: "retry_provisioning",

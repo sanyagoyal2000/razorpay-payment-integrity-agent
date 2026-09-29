@@ -68,7 +68,7 @@ export function PerformanceSummary({
       <Figure
         label="Median outcome completion time"
         value={performance.medianCompletionSeconds === null ? "No data" : formatDuration(performance.medianCompletionSeconds)}
-        detail="Course purchase, today"
+        detail="Medical learning package purchase, today"
       />
       <Divider />
       <Figure
@@ -80,7 +80,7 @@ export function PerformanceSummary({
           onClick: () =>
             onShowCases({
               title: "Resolved before customer contact",
-              explanation: "Resolved with a verified outcome before the customer contacted LearnLoop.",
+              explanation: "Resolved with a verified outcome before the learner contacted Marrow.",
               caseIds: performance.resolvedBeforeContact.caseIds,
             }),
         }}

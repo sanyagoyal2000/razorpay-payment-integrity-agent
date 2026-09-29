@@ -8,12 +8,12 @@ import type {
   Product,
 } from "@/domain/types";
 
-export const WEBHOOK_ENDPOINT = "https://api.learnloop.in/webhooks/razorpay";
+export const WEBHOOK_ENDPOINT = "https://merchant.example.com/webhooks/razorpay";
 
 export const MERCHANT: Merchant = {
   id: "mer_LearnLoop01",
-  name: "LearnLoop",
-  industry: "Edtech",
+  name: "Marrow",
+  industry: "Medical education",
   environment: "live",
   timezone: "Asia/Kolkata",
   currency: "INR",
@@ -34,19 +34,19 @@ export const CONTRACT_IDS = {
 } as const;
 
 export const PRODUCTS: Product[] = [
-  { id: "prd_excel_analysts", name: "Excel for Analysts", kind: "course", price: 999, contractId: CONTRACT_IDS.course },
-  { id: "prd_python_foundations", name: "Python Foundations", kind: "course", price: 999, contractId: CONTRACT_IDS.course },
-  { id: "prd_sql_analysis", name: "SQL for Data Analysis", kind: "course", price: 2499, contractId: CONTRACT_IDS.course },
-  { id: "prd_ui_design", name: "UI Design Essentials", kind: "course", price: 2499, contractId: CONTRACT_IDS.course },
-  { id: "prd_fullstack_js", name: "Full-Stack JavaScript", kind: "course", price: 3499, contractId: CONTRACT_IDS.course },
-  { id: "prd_pm_fundamentals", name: "Product Management Fundamentals", kind: "course", price: 3499, contractId: CONTRACT_IDS.course },
-  { id: "prd_ml_python", name: "Machine Learning with Python", kind: "course", price: 4999, contractId: CONTRACT_IDS.course },
-  { id: "prd_dsa_intensive", name: "Data Structures and Algorithms Intensive", kind: "course", price: 4999, contractId: CONTRACT_IDS.course },
-  { id: "prd_ds_career_bundle", name: "Data Science Career Bundle", kind: "bundle", price: 9999, contractId: CONTRACT_IDS.course },
-  { id: "prd_system_design_workshop", name: "System Design Live Workshop, Bengaluru", kind: "event_seat", price: 2499, contractId: CONTRACT_IDS.event },
-  { id: "prd_plus_membership", name: "LearnLoop Plus annual membership", kind: "membership", price: 4999, contractId: CONTRACT_IDS.membership },
+  { id: "prd_excel_analysts", name: "Anatomy essentials module", kind: "course", price: 999, contractId: CONTRACT_IDS.course },
+  { id: "prd_python_foundations", name: "Physiology essentials module", kind: "course", price: 999, contractId: CONTRACT_IDS.course },
+  { id: "prd_sql_analysis", name: "Pathology question bank", kind: "course", price: 2499, contractId: CONTRACT_IDS.course },
+  { id: "prd_ui_design", name: "Pharmacology question bank", kind: "course", price: 2499, contractId: CONTRACT_IDS.course },
+  { id: "prd_fullstack_js", name: "Medicine video lecture package", kind: "course", price: 3499, contractId: CONTRACT_IDS.course },
+  { id: "prd_pm_fundamentals", name: "Surgery video lecture package", kind: "course", price: 3499, contractId: CONTRACT_IDS.course },
+  { id: "prd_ml_python", name: "Clinical case practice package", kind: "course", price: 4999, contractId: CONTRACT_IDS.course },
+  { id: "prd_dsa_intensive", name: "Mock test series", kind: "course", price: 4999, contractId: CONTRACT_IDS.course },
+  { id: "prd_ds_career_bundle", name: "Complete revision bundle", kind: "bundle", price: 9999, contractId: CONTRACT_IDS.course },
+  { id: "prd_system_design_workshop", name: "Live clinical skills workshop seat", kind: "event_seat", price: 2499, contractId: CONTRACT_IDS.event },
+  { id: "prd_plus_membership", name: "Annual learning membership", kind: "membership", price: 4999, contractId: CONTRACT_IDS.membership },
   { id: "prd_practice_credits", name: "Practice credits, 500 pack", kind: "credits", price: 999, contractId: CONTRACT_IDS.wallet },
-  { id: "prd_teams_upgrade", name: "LearnLoop Teams upgrade, 25 seats", kind: "plan_upgrade", price: 9999, contractId: CONTRACT_IDS.saas },
+  { id: "prd_teams_upgrade", name: "Institution plan upgrade, 25 seats", kind: "plan_upgrade", price: 9999, contractId: CONTRACT_IDS.saas },
 ];
 
 export function productById(id: string): Product {
@@ -59,9 +59,9 @@ export function buildContracts(at: (daysBeforeAnchor: number, time: string) => s
   return [
     {
       id: CONTRACT_IDS.course,
-      name: "Course purchase",
-      paymentType: "Course and bundle purchases",
-      expectedOutcome: "course_access_granted",
+      name: "Medical learning package purchase",
+      paymentType: "Learning package and bundle purchases",
+      expectedOutcome: "learning_access_granted",
       matchingKey: "merchant_order_id",
       deadlineSeconds: 120,
       safeRecoveryAction: "retry_provisioning",
@@ -69,18 +69,18 @@ export function buildContracts(at: (daysBeforeAnchor: number, time: string) => s
       minimumConfidence: 0.95,
       status: "active",
       productScope: PRODUCTS.filter((p) => p.contractId === CONTRACT_IDS.course).map((p) => p.id),
-      fulfilmentService: "enrolment-service",
-      verificationMethod: "course_access_granted event from LearnLoop Enrolment API matched on merchant_order_id",
+      fulfilmentService: "learning-access-service",
+      verificationMethod: "learning_access_granted event from the Learning Access Service matched on merchant_order_id",
       alwaysReviewCaseTypes: ["duplicate_payment"],
       requiresInventoryCheck: false,
       customerNotificationTemplate:
-        "Your payment for {product} was successful. We are restoring your course access and you will not be charged again.",
+        "Your payment for {product} was successful. We are restoring your learning package access and you will not be charged again.",
       updatedAt: at(40, "11:20:00"),
     },
     {
       id: CONTRACT_IDS.saas,
       name: "SaaS upgrade",
-      paymentType: "Team plan upgrades",
+      paymentType: "Institution plan upgrades",
       expectedOutcome: "plan_upgraded",
       matchingKey: "merchant_order_id",
       deadlineSeconds: 300,
@@ -90,11 +90,11 @@ export function buildContracts(at: (daysBeforeAnchor: number, time: string) => s
       status: "draft",
       productScope: ["prd_teams_upgrade"],
       fulfilmentService: "billing-service",
-      verificationMethod: "plan_upgraded event from LearnLoop billing matched on merchant_order_id",
+      verificationMethod: "plan_upgraded event from the merchant billing service matched on merchant_order_id",
       alwaysReviewCaseTypes: ["duplicate_payment"],
       requiresInventoryCheck: false,
       customerNotificationTemplate:
-        "Your payment for {product} was successful. Your team plan upgrade is being completed.",
+        "Your payment for {product} was successful. Your institution plan upgrade is being completed.",
       updatedAt: at(3, "16:42:00"),
     },
     {
@@ -120,7 +120,7 @@ export function buildContracts(at: (daysBeforeAnchor: number, time: string) => s
     {
       id: CONTRACT_IDS.membership,
       name: "Membership activation",
-      paymentType: "LearnLoop Plus memberships",
+      paymentType: "Annual learning memberships",
       expectedOutcome: "membership_activated",
       matchingKey: "merchant_order_id",
       deadlineSeconds: 300,
@@ -191,7 +191,7 @@ export function buildIntegrations(at: (daysBeforeAnchor: number, time: string) =
     {
       id: "razorpay_payments",
       name: "Razorpay Payments",
-      purpose: "Payment, order and webhook events for LearnLoop's live account",
+      purpose: "Payment, order and webhook events for Marrow's live account",
       status: "connected",
       access: "scoped_write",
       scopes: {
@@ -204,36 +204,36 @@ export function buildIntegrations(at: (daysBeforeAnchor: number, time: string) =
     },
     {
       id: "learnloop_orders",
-      name: "LearnLoop Orders API",
+      name: "Merchant Orders API",
       purpose: "Merchant order records used to match payments to purchases",
       status: "connected",
       access: "read_only",
       scopes: { read: ["order_status", "inventory_status"], write: [], notGranted: ["delete_order", "change_product"] },
-      dataAccessed: ["Order status", "Product purchased", "Customer reference", "Seat inventory and capacity"],
+      dataAccessed: ["Order status", "Package purchased", "Learner reference", "Seat inventory and capacity"],
       connectedAt: at(41, "10:15:00"),
     },
     {
       id: "learnloop_enrolment",
-      name: "LearnLoop Enrolment API",
-      purpose: "Course access and workshop seat status; the only fulfilment action granted",
+      name: "Learning Access Service",
+      purpose: "Learning package access and workshop seat status; the only fulfilment action granted",
       status: "connected",
       access: "scoped_write",
       scopes: {
-        read: ["course_access_status"],
-        write: ["grant_course_access"],
+        read: ["learning_access_status"],
+        write: ["grant_learning_access"],
         notGranted: ["edit_customer", "change_product", "delete_order"],
       },
-      dataAccessed: ["Course access status", "Enrolment responses", "Seat inventory"],
+      dataAccessed: ["Learning package access status", "Access restoration responses", "Seat inventory"],
       connectedAt: at(41, "10:21:00"),
     },
     {
       id: "customer_comms",
       name: "Customer communications",
-      purpose: "Email updates to affected customers",
+      purpose: "Email updates to affected learners",
       status: "connected",
       access: "scoped_write",
       scopes: { read: ["message_status"], write: ["send_customer_message"], notGranted: ["edit_customer"] },
-      dataAccessed: ["Customer email", "Customer phone", "Message delivery status"],
+      dataAccessed: ["Learner email", "Learner phone", "Message delivery status"],
       connectedAt: at(38, "12:40:00"),
     },
     {
@@ -247,8 +247,8 @@ export function buildIntegrations(at: (daysBeforeAnchor: number, time: string) =
       connectedAt: at(38, "12:55:00"),
     },
     {
-      id: "learnloop_observability",
-      name: "LearnLoop Observability",
+      id: "platform_monitoring",
+      name: "Platform Monitoring",
       purpose: "Deploy events and service error logs used as incident evidence",
       status: "connected",
       access: "read_only",

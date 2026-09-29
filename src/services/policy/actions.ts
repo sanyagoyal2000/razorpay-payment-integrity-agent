@@ -33,7 +33,7 @@ export const ACTIONS: Record<ActionType, ActionDefinition> = {
 };
 
 const FULFILMENT_SCOPES: Record<string, string> = {
-  "enrolment-service": "grant_course_access",
+  "learning-access-service": "grant_learning_access",
   "booking-service": "confirm_booking",
   "membership-service": "activate_membership",
   "wallet-service": "credit_wallet",
@@ -61,14 +61,27 @@ export function requiredScope(action: ActionType, contract: Pick<OutcomeContract
   }
 }
 
+/** Services with a proper name. Others read generically, e.g. "Booking service". */
+const SERVICE_NAMES: Record<string, string> = {
+  "learning-access-service": "Learning Access Service",
+  "merchant-webhooks": "Merchant webhook endpoint",
+};
+
 export function serviceLabel(service: string): string {
+  const named = SERVICE_NAMES[service];
+  if (named) return named;
   const name = service.replace(/-service$/, "").replace(/-/g, " ");
   return `${name.charAt(0).toUpperCase()}${name.slice(1)} service`;
 }
 
+/** The service mid-sentence: "the Learning Access Service", "the booking service". */
+export function theService(service: string): string {
+  return `the ${SERVICE_NAMES[service] ? serviceLabel(service) : serviceLabel(service).toLowerCase()}`;
+}
+
 /** What re-running fulfilment means for each Outcome Contract's promised outcome. */
 const FULFILMENT_LABELS: Record<string, string> = {
-  course_access_granted: "Retry enrolment",
+  learning_access_granted: "Restore learning access",
   booking_confirmed: "Reconfirm booking",
   membership_activated: "Activate membership",
   wallet_credited: "Credit wallet",
@@ -77,7 +90,7 @@ const FULFILMENT_LABELS: Record<string, string> = {
 
 /** Duplicate payments: fulfil once against the original charge, then review the second. */
 const DUPLICATE_LABELS: Record<string, string> = {
-  course_access_granted: "Grant access once, review refund",
+  learning_access_granted: "Restore access once, review refund",
   booking_confirmed: "Confirm booking once, review refund",
   membership_activated: "Activate membership once, review refund",
   wallet_credited: "Credit wallet once, review refund",
@@ -86,7 +99,7 @@ const DUPLICATE_LABELS: Record<string, string> = {
 
 /**
  * An action's label in the language of the contract it acts on, so an event
- * booking never reads as enrolment. Without a contract, the generic label.
+ * booking never reads as an access restoration. Without a contract, the generic label.
  */
 export function actionLabel(action: ActionType, contract?: Pick<OutcomeContract, "expectedOutcome">): string {
   if (!contract) return ACTIONS[action].label;

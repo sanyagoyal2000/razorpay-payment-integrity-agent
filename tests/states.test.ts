@@ -26,14 +26,14 @@ describe("Check my payment", () => {
     await runExecution(env, execution.id, { sleep: clockSleep(env.clock) });
     const resolved = lookupPayment(env.repos, who, env.clock.now().toISOString());
     expect(resolved.status).toBe("resolved");
-    expect(resolved.message).toBe(`Your ₹${c.amountAtRisk.toLocaleString("en-IN")} payment was successful and your course access is now active.`);
+    expect(resolved.message).toBe(`Your ₹${c.amountAtRisk.toLocaleString("en-IN")} payment was successful and your learning package access is now active.`);
   });
 
   it("requires the matching phone number and never reveals that the order exists", () => {
     const env = setup();
     const who = customerOf(env, env.safeCases[0]!.id);
     expect(lookupPayment(env.repos, { ...who, phone: "+91 90000 00000" }, NOW)).toEqual({ status: "not_found", message: NOT_FOUND_MESSAGE });
-    expect(lookupPayment(env.repos, { ...who, orderId: "LL-9999999" }, NOW)).toEqual({ status: "not_found", message: NOT_FOUND_MESSAGE });
+    expect(lookupPayment(env.repos, { ...who, orderId: "MR-9999999" }, NOW)).toEqual({ status: "not_found", message: NOT_FOUND_MESSAGE });
     expect(lookupPayment(env.repos, { phone: who.phone.replace(/\D/g, "").slice(-10), orderId: who.orderId.toLowerCase().replace("-", " ") }, NOW).status).toBe("under_review");
   });
 
@@ -53,8 +53,8 @@ describe("Check my payment", () => {
 
   it("validates input before looking anything up", () => {
     expect(validateLookup("12345", "abc")).toEqual({ phone: expect.any(String), orderId: expect.any(String) });
-    expect(validateLookup("+91 98765 43210", "ll 4301232")).toEqual({});
-    expect(normaliseOrderId(" ll4301232 ")).toBe("LL-4301232");
+    expect(validateLookup("+91 98765 43210", "mr 4301232")).toEqual({});
+    expect(normaliseOrderId(" mr4301232 ")).toBe("MR-4301232");
   });
 });
 
@@ -110,7 +110,7 @@ describe("No open incidents", () => {
     await runExecutions(env, executions.map((e) => e.id), { sleep: clockSleep(env.clock) });
     env.store.sync(env.clock.now());
     for (const c of [...env.duplicateCases, ...env.highValueCases]) {
-      rejectRecommendation(env.repos, c.id, "Handled directly by LearnLoop support", ACTORS.operator, env.clock.now().toISOString());
+      rejectRecommendation(env.repos, c.id, "Handled directly by Marrow support", ACTORS.operator, env.clock.now().toISOString());
     }
     const asOf = env.clock.now().toISOString();
     expect(env.repos.incidents.get("INC-0017")!.status).toBe("resolved");

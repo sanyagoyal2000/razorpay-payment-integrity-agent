@@ -44,7 +44,7 @@ describe("Observed cases past their deadline", () => {
     expect(env.repos.cases.get(env.waitingCase.id)!.status).toBe("observing");
   });
 
-  it("are investigated and escalated to LearnLoop, because recovery would be blocked", async () => {
+  it("are investigated and escalated to Marrow, because recovery would be blocked", async () => {
     const env = setup();
     const asOf = pastDeadline(env);
     expect(await checkObservations(env)).toEqual([env.waitingCase.id]);
@@ -53,14 +53,14 @@ describe("Observed cases past their deadline", () => {
     expect(c.investigation?.likelyCause).toMatch(/stalled/);
     expect(c.investigationRun?.citationsRemoved).toEqual([]);
     expect(c.recommendation?.action).toBe("escalate");
-    // Retrying is blocked: no membership scope, and LearnLoop reports the activation in progress.
+    // Retrying is blocked: no membership scope, and Marrow reports the activation in progress.
     const retry = evaluateCase(env.repos, c, { ...c.recommendation!, action: "retry_provisioning" }, asOf);
     expect(retry.result).toBe("blocked");
     expect(retry.checks.filter((check) => check.status === "failed").map((check) => check.id)).toEqual(
       expect.arrayContaining(["permission_available", "outcome_still_missing"]),
     );
 
-    escalate(env.repos, c.id, "Membership activation stuck at LearnLoop", ACTORS.operator, asOf);
+    escalate(env.repos, c.id, "Membership activation stuck at Marrow", ACTORS.operator, asOf);
     expect(env.repos.cases.get(c.id)).toMatchObject({ status: "escalated" });
   });
 

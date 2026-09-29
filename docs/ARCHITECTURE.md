@@ -56,7 +56,7 @@ approval_recorded → policy_rechecking → idempotency_reserved → action_star
 | Interface | Demo implementation | Production replacement |
 |---|---|---|
 | Repository interfaces (`src/repositories/index.ts`) | `DataStore` over fixtures | API-backed repositories |
-| `MerchantAdapter`, `PaymentGateway` (`src/adapters/merchant/types.ts`) | `createDemoMerchant`, `createDemoGateway` | LearnLoop Enrolment API, Razorpay APIs |
+| `MerchantAdapter`, `PaymentGateway` (`src/adapters/merchant/types.ts`) | `createDemoMerchant`, `createDemoGateway` | Learning Access Service, Razorpay APIs |
 | `AgentGateway` (`src/services/agent/contracts.ts`) | fixtures and rules | already live via `/api/agent/*` |
 
 Wiring lives in `src/services/container.ts`.

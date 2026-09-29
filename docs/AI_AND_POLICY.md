@@ -63,7 +63,7 @@ The result:
 
 The AI cannot bypass this: recommendations are inputs to policy, never instructions to execute.
 
-Explanations that reach the merchant use each contract's own language, for example "Retry enrolment", "Reconfirm booking" or "Activate membership". The Automations entry keeps the generic name "Retry provisioning", because it covers every contract.
+Explanations that reach the merchant use each contract's own language, for example "Restore learning access", "Reconfirm booking" or "Activate membership". The Automations entry keeps the generic name "Retry provisioning", because it covers every contract.
 
 ## Context and authority
 

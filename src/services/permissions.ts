@@ -24,8 +24,8 @@ export function grantedScopes(repos: Repositories): string[] {
 const SOURCE_SCOPES: Record<string, string[] | undefined> = {
   razorpay: ["payment_status", "order_status"],
   "razorpay:webhook": ["webhook_deliveries"],
-  learnloop: ["course_access_status", "order_status", "inventory_status"],
-  learnloop_observability: ["deploy_events", "service_error_logs"],
+  merchant: ["learning_access_status", "order_status", "inventory_status"],
+  platform_monitoring: ["deploy_events", "service_error_logs"],
 };
 
 /**

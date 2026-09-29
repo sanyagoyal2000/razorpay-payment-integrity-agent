@@ -34,7 +34,7 @@ import { ExecutionProgress } from "./ExecutionProgress";
 import { PolicyVerdictSection } from "./PolicyVerdictSection";
 
 const OUTCOME_LABELS: Record<string, string> = {
-  course_access_granted: "Course access granted",
+  learning_access_granted: "Learning access restored",
   booking_confirmed: "Booking confirmed",
   membership_activated: "Membership activated",
   wallet_credited: "Wallet credited",
@@ -384,10 +384,10 @@ export function DecisionPanel({ model, services }: { model: CaseDetailModel; ser
           <Text size="small">
             {dialog?.kind === "confirm"
               ? {
-                  capture: `Captures ${c.paymentId}, after which LearnLoop grants access. Policy is re-checked first.`,
-                  prepare_refund: "Prepares a refund for LearnLoop finance to issue. Payment Integrity cannot issue refunds itself.",
+                  capture: `Captures ${c.paymentId}, after which Marrow restores access. Policy is re-checked first.`,
+                  prepare_refund: "Prepares a refund for the merchant's finance team to issue. Payment Integrity cannot issue refunds itself.",
                   notify_customer: "Sends: “Your payment is safe. A specialist is reviewing your order before any further action.”",
-                  review_alternate_inventory: "Asks LearnLoop to confirm a valid replacement seat. Fulfilment stays blocked until one is confirmed.",
+                  review_alternate_inventory: "Asks Marrow to confirm a valid replacement seat. Fulfilment stays blocked until one is confirmed.",
                 }[dialog.option.action as string] ?? ""
               : ""}
           </Text>

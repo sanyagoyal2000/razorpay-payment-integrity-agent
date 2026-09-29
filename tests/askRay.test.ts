@@ -65,9 +65,9 @@ describe("Ask RAY", () => {
 
   it("respects the same source permissions as the investigator", async () => {
     const env = setup();
-    setIntegrationConnected(env.repos, "learnloop_observability", false, ACTORS.operator, NOW);
+    setIntegrationConnected(env.repos, "platform_monitoring", false, ACTORS.operator, NOW);
     const input = buildAskInput(env.repos, "INC-0017", "What changed after deployment v2.3?", NOW);
-    expect(input.evidence.some((e) => e.source === "learnloop_observability")).toBe(false);
+    expect(input.evidence.some((e) => e.source === "platform_monitoring")).toBe(false);
     const answer = await askRay(env, "INC-0017", "What changed after deployment v2.3?");
     expect(answer.answer).toMatch(/No deployment or service events are available/);
 

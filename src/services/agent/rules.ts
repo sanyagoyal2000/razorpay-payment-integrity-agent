@@ -40,14 +40,14 @@ const OUTCOME_RULES: Array<{ pattern: RegExp; outcome: ContractDraft["expectedOu
   { pattern: /\b(membership|member|plus)\b/i, outcome: "membership_activated", service: "membership-service", kinds: ["membership"], name: "Membership activation", deadline: 300 },
   { pattern: /\b(credit|credits|wallet)\b/i, outcome: "wallet_credited", service: "wallet-service", kinds: ["credits"], name: "Wallet credit purchase", deadline: 60 },
   { pattern: /\b(upgrade|plan|team|teams)\b/i, outcome: "plan_upgraded", service: "billing-service", kinds: ["plan_upgrade"], name: "SaaS upgrade", deadline: 300 },
-  { pattern: /\b(course|courses|access|bundle|class)\b/i, outcome: "course_access_granted", service: "enrolment-service", kinds: ["course", "bundle"], name: "Course purchase", deadline: 120 },
+  { pattern: /\b(course|courses|package|packages|module|modules|learning|access|bundle|class)\b/i, outcome: "learning_access_granted", service: "learning-access-service", kinds: ["course", "bundle"], name: "Medical learning package purchase", deadline: 120 },
 ];
 
 export function draftContractByRule(input: ContractDraftInput): ContractDraft {
   const text = input.description;
   const assumptions: string[] = [];
   const rule = OUTCOME_RULES.find((r) => r.pattern.test(text)) ?? OUTCOME_RULES.at(-1)!;
-  if (!OUTCOME_RULES.some((r) => r.pattern.test(text))) assumptions.push("The description did not name a product type, so course access is assumed.");
+  if (!OUTCOME_RULES.some((r) => r.pattern.test(text))) assumptions.push("The description did not name a product type, so learning package access is assumed.");
 
   const duration = text.match(/(\d+)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?)\b/i);
   let deadlineSeconds = rule.deadline;
@@ -126,7 +126,7 @@ export function askByRule(input: AskIncidentInput): AskAnswer {
     return { inScope: true, answer: held.map((f) => f.statement).join(" "), citedIds: held.map((f) => f.id), nextStep: "review_recovery" };
   }
   if (/deploy|release|\bv\d+(\.\d+)+|what changed/.test(q)) {
-    const signals = input.evidence.filter((e) => e.source === "learnloop_observability");
+    const signals = input.evidence.filter((e) => e.source === "platform_monitoring");
     if (signals.length === 0) {
       return { inScope: true, answer: "No deployment or service events are available for this incident from the connected sources.", citedIds: [], nextStep: "view_evidence" };
     }

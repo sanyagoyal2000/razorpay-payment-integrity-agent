@@ -53,7 +53,7 @@ export function evaluateBaseline(scenario: Scenario): BaselineResult {
 
   // 1. The contracted outcome is already recorded as completed.
   const forThisOrder = (e: EvidenceItem) => detail(e, "merchantOrderId") === undefined || detail(e, "merchantOrderId") === scenario.input.merchantOrderId;
-  const completed = evidence.find((e) => e.source === "learnloop" && e.type === contract.expectedOutcome && detail(e, "status") === "completed" && forThisOrder(e));
+  const completed = evidence.find((e) => e.source === "merchant" && e.type === contract.expectedOutcome && detail(e, "status") === "completed" && forThisOrder(e));
   if (completed) return result("outcome_already_verified", "already_fulfilled", "wait", [completed.id]);
 
   // 2. Two different payments captured for the same merchant order.
@@ -63,18 +63,18 @@ export function evaluateBaseline(scenario: Scenario): BaselineResult {
   // 3. Authorised but never captured: active order → capture, expired → escalate.
   const authorized = of("razorpay", "payment.authorized").at(-1);
   if (authorized && captures.length === 0 && of("razorpay", "payment.captured").length === 0) {
-    const expired = of("learnloop", "order.expired").at(-1);
+    const expired = of("merchant", "order.expired").at(-1);
     if (expired) return result("late_authorization_expired", "late_authorization", "escalate", [authorized.id, expired.id]);
-    const active = evidence.find((e) => e.source === "learnloop" && detail(e, "orderStatus") === "active");
+    const active = evidence.find((e) => e.source === "merchant" && detail(e, "orderStatus") === "active");
     if (active) return result("late_authorization_active", "late_authorization", "capture", [authorized.id, active.id]);
   }
 
   // 4. Inventory changed after payment.
-  const inventory = of("learnloop", "inventory_changed").at(-1);
+  const inventory = of("merchant", "inventory_changed").at(-1);
   if (inventory) return result("inventory_changed", "inventory_conflict", "escalate", [inventory.id]);
 
   // 5. The latest service signal says the fulfilment service is failing.
-  const health = evidence.filter((e) => e.source === "learnloop_observability" && e.type !== "deploy.completed").at(-1);
+  const health = evidence.filter((e) => e.source === "platform_monitoring" && e.type !== "deploy.completed").at(-1);
   if (health?.type === "service.errors_detected") return result("service_unhealthy", "fulfilment_failure", "wait", [health.id]);
 
   // 6. order.paid failed and never succeeded.

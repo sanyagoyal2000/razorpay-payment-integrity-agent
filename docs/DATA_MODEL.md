@@ -8,16 +8,16 @@ All types are in `src/domain/types.ts`. Types from the specification keep its fi
 |---|---|
 | `Payment` | A Razorpay payment. `captureDeadline` is set for authorised payments: creation + 3 days, Razorpay's default auto-refund window. |
 | `PaymentEvent` | `order.created`, `payment.authorized`, `payment.captured`, `order.paid`, `payment.refunded`. |
-| `WebhookDelivery` | Each `order.paid` delivery attempt to LearnLoop's endpoint, with response code and latency. |
+| `WebhookDelivery` | Each `order.paid` delivery attempt to Marrow's endpoint, with response code and latency. |
 
-## Merchant side (LearnLoop)
+## Merchant side (Marrow, simulated)
 
 | Type | Purpose |
 |---|---|
-| `MerchantOrder` | The LearnLoop order, keyed by `merchant_order_id` (e.g. `LL-4301232`). |
+| `MerchantOrder` | The Marrow order, keyed by `merchant_order_id` (e.g. `MR-4301232`). |
 | `Customer` | **Extended** with `emailOptOut`. Opted-out customers are never messaged; one fixture customer in INC-0017 is opted out. Operations views show email and phone masked (`domain/privacy.ts`). |
-| `MerchantOutcomeEvent` | Fulfilment events. Request and failure event types follow each contract's fulfilment service (`domain/fulfilment.ts`): enrolment, booking, membership activation, wallet credit, plan upgrade. **Extended** beyond course access with `booking_confirmed`, `booking.failed`, `membership_activated`, `wallet_credited` and `plan_upgraded`, so the non-course contracts have outcomes. |
-| `ObservabilityEvent` | **Added.** LearnLoop Observability: `deploy.completed` (v2.3), `service.errors_detected`, `service.recovered`. This is the only source for mentioning the deployment. |
+| `MerchantOutcomeEvent` | Fulfilment events. Request and failure event types follow each contract's fulfilment service (`domain/fulfilment.ts`): learning access, booking, membership activation, wallet credit, plan upgrade. **Extended** beyond learning package access with `booking_confirmed`, `booking.failed`, `membership_activated`, `wallet_credited` and `plan_upgraded`, so the non-course contracts have outcomes. |
+| `ObservabilityEvent` | **Added.** Platform Monitoring: `deploy.completed` (v2.3), `service.errors_detected`, `service.recovered`. This is the only source for mentioning the deployment. |
 | `ScheduledPurchase` | **Added.** Healthy purchases after the fixture horizon. They become visible as real time passes, which feeds "Monitor the next 50 purchases". |
 
 ## Payment Integrity
@@ -37,7 +37,7 @@ All types are in `src/domain/types.ts`. Types from the specification keep its fi
 | `InvestigationRun` | **Extended** with `casesCompared`, `serviceHealth` and `stages`: the observable stage log. `eventsExamined` counts events only; cases are counted separately. |
 | `Integration.writeAuthority` | **Added.** Write authority is recorded separately from the connection. Reconnecting sets it to `not_granted`; only an explicit, audited grant restores it. Undefined means granted. |
 | `ActionPolicy`, `GlobalControls`, `Integration`, `ConnectorLog`, `SystemFlags` | Automations modes, global limits and the kill switch, connections and scopes, connector errors, and simulated dependency health. |
-| `DailyOutcomeStat` | Aggregates for high-volume healthy traffic (about 2,000 course purchases a day). Each stat carries the IDs of its cases, so completion rates reconcile with the case list exactly. |
+| `DailyOutcomeStat` | Aggregates for high-volume healthy traffic (about 2,000 learning package purchases a day). Each stat carries the IDs of its cases, so completion rates reconcile with the case list exactly. |
 
 ## Invariants (tested)
 

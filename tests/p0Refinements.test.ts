@@ -41,12 +41,12 @@ describe("P0.1 Three confidence concepts", () => {
       mode: "Suggest only",
       consequence: "Merchant approval required",
       blocked: false,
-      tooltip: "Automatic execution requires at least 95% action confidence and an eligible automation mode. Retry enrolment is currently configured as Suggest only.",
+      tooltip: "Automatic execution requires at least 95% action confidence and an eligible automation mode. Restore learning access is currently configured as Suggest only.",
     });
     env.repos.config.saveGlobalControls({ ...env.repos.config.globalControls(), minimumConfidence: 0.98 });
     setActionMode(env.repos, "retry_provisioning", "always_require_approval", ACTORS.operator, NOW);
     const changed = recoveryModeView(env.repos, env.incident, NOW);
-    expect(changed.tooltip).toBe("Automatic execution requires at least 98% action confidence and an eligible automation mode. Retry enrolment is currently configured as Always require approval.");
+    expect(changed.tooltip).toBe("Automatic execution requires at least 98% action confidence and an eligible automation mode. Restore learning access is currently configured as Always require approval.");
     expect(changed.mode).toBe("Always require approval");
   });
 
@@ -142,7 +142,7 @@ describe("P0.4 Merchant intent in plain language", () => {
   it("shows the outcome and verification source without raw keys on Decision", () => {
     const env = setup();
     const intent = merchantIntent(env.repos, env.incident);
-    expect(intent).toMatchObject({ expectedOutcome: "Course access within 2 minutes", verifiedThrough: "LearnLoop Enrolment API" });
+    expect(intent).toMatchObject({ expectedOutcome: "Learning package access within 2 minutes", verifiedThrough: "Learning Access Service" });
     expect(`${intent.expectedOutcome} ${intent.verifiedThrough}`).not.toMatch(/_/);
     const whatHappened = source("ui/incidents/WhatHappened.tsx");
     expect(whatHappened).not.toMatch(/expectedOutcome\}|verificationMethod|matchingKey/);
@@ -150,7 +150,7 @@ describe("P0.4 Merchant intent in plain language", () => {
 
   it("keeps event names and matching keys on the technical view", () => {
     const env = setup();
-    expect(merchantIntent(env.repos, env.incident).technical).toMatchObject({ outcomeEvent: "course_access_granted", matchingKey: "merchant_order_id" });
+    expect(merchantIntent(env.repos, env.incident).technical).toMatchObject({ outcomeEvent: "learning_access_granted", matchingKey: "merchant_order_id" });
     const page = source("ui/incidents/IncidentWorkspacePage.tsx");
     const evidenceTab = page.slice(page.indexOf('<TabPanel value="evidence">'));
     expect(evidenceTab).toContain("intent.technical.outcomeEvent");
@@ -158,7 +158,7 @@ describe("P0.4 Merchant intent in plain language", () => {
   });
 
   it("uses each contract's own language", () => {
-    expect(outcomeLabel("course_access_granted")).toBe("Course access");
+    expect(outcomeLabel("learning_access_granted")).toBe("Learning package access");
     expect(outcomeLabel("booking_confirmed")).toBe("Confirmed booking");
     expect(outcomeLabel("membership_activated")).toBe("Membership activation");
     expect(outcomeLabel("wallet_credited")).toBe("Wallet credit");
@@ -168,6 +168,6 @@ describe("P0.4 Merchant intent in plain language", () => {
     const asBooking = { ...booking, outcomeContractId: "ctr_event_booking" };
     const intent = merchantIntent(env.repos, asBooking);
     expect(intent.expectedOutcome).toBe("Confirmed booking within 5 minutes");
-    expect(intent.verifiedThrough).toBe("LearnLoop booking service");
+    expect(intent.verifiedThrough).toBe("Booking service");
   });
 });

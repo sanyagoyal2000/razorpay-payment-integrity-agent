@@ -14,8 +14,9 @@ import { investigationSchema } from "@/services/investigation/schema";
 import { structuredCall } from "./claude";
 import { z } from "zod/v4";
 
-const PRODUCT_CONTEXT = `You work inside Payment Integrity, a Razorpay Agent Studio agent for the merchant LearnLoop (an Indian edtech company selling courses, workshop seats, memberships and credit packs in INR).
-Payment Integrity checks that every captured payment produces the outcome it promised (for example course access), investigates when it does not, and proposes recovery.
+const PRODUCT_CONTEXT = `You work inside Payment Integrity, a Razorpay Agent Studio agent for the merchant Marrow, a medical learning platform selling learning packages, workshop seats, memberships and credit packs in INR.
+This is a concept prototype on simulated data: every system, service name, deployment, incident and learner in the input is fictional. Refer only to the systems named in the input and make no claims about Marrow's real technology or operations.
+Payment Integrity checks that every captured payment produces the outcome it promised (for example learning package access), investigates when it does not, and proposes recovery.
 You never execute anything. A deterministic policy engine and a person decide what runs.`;
 
 const evidenceItemSchema = z.object({
@@ -80,7 +81,7 @@ export const AGENT_TASK_HANDLERS: Record<AgentTask, TaskHandler> = {
       structuredCall({
         schema: messageDraftSchema,
         effort: "low",
-        system: `${PRODUCT_CONTEXT}\n\nDraft a short message from LearnLoop to a customer. Warm, plain and specific; at most 80 words; address the customer as {first_name}.
+        system: `${PRODUCT_CONTEXT}\n\nDraft a short message from Marrow to a learner. Warm, plain and specific; at most 80 words; address the learner as {first_name}.
 Never mention: confidence scores, AI or agents, webhooks, HTTP codes, APIs, policies or thresholds, deployments, internal errors or system names.
 Only state facts from the input. Do not promise timelines or refunds that are not in the facts.`,
         prompt: JSON.stringify(input),

@@ -198,7 +198,7 @@ describe("re-investigation", () => {
     const env = setup();
     const run = describeCaseInvestigation(env.repos, env.safeCases[0]!)!;
     expect(run.citationsRemoved).toEqual([]);
-    expect(Object.keys(run.sources)).toEqual(expect.arrayContaining(["Razorpay", "LearnLoop", "LearnLoop Observability"]));
+    expect(Object.keys(run.sources)).toEqual(expect.arrayContaining(["Razorpay", "Marrow", "Platform Monitoring"]));
     const incident = await reinvestigateIncident(env, "INC-0017");
     expect(incident.status).toBe("valid");
     expect(env.repos.incidents.get("INC-0017")!.investigationRun!.status).toBe("valid");
@@ -222,7 +222,7 @@ describe("drafts and suggestions", () => {
 
   it("flags unsafe live drafts instead of hiding them", async () => {
     const env = setup();
-    const agent: AgentGateway = { ...env.agent, draftMessage: async () => ({ subject: "Update", body: "Hi {first_name}, our enrolment service had an outage after a deployment." }) };
+    const agent: AgentGateway = { ...env.agent, draftMessage: async () => ({ subject: "Update", body: "Hi {first_name}, our Learning Access Service had an outage after a deployment." }) };
     const draft = await draftCustomerMessage(agent, messageInputForCase(env.repos, env.safeCases[0]!));
     expect(draft.flagged).toEqual(["system internals"]);
   });
@@ -230,14 +230,14 @@ describe("drafts and suggestions", () => {
   it("drafts Outcome Contracts from plain language and enforces limits", async () => {
     const workshop = draftContractByRule({
       description: "Workshop seats must be confirmed within 3 minutes. Recover automatically for bookings under ₹2,000.",
-      products: [{ id: "prd_system_design_workshop", name: "System Design Live Workshop", kind: "event_seat", price: 2499 }],
-      fulfilmentServices: ["enrolment-service"],
+      products: [{ id: "prd_system_design_workshop", name: "Live clinical skills workshop seat", kind: "event_seat", price: 2499 }],
+      fulfilmentServices: ["learning-access-service"],
       globalMaxAutomaticValue: 5000,
     });
     expect(workshop).toMatchObject({ expectedOutcome: "booking_confirmed", deadlineSeconds: 180, maxAutomaticValue: 2000, requiresInventoryCheck: true, productScope: ["prd_system_design_workshop"] });
     const env = setup();
     const agent: AgentGateway = { ...env.agent, draftContract: async (input) => ({ ...draftContractByRule(input), maxAutomaticValue: 50_000, productScope: ["prd_unknown"] }) };
-    const checked = await draftContract({ repos: env.repos, agent }, "Course access within 2 minutes");
+    const checked = await draftContract({ repos: env.repos, agent }, "Learning package access within 2 minutes");
     expect(checked.maxAutomaticValue).toBe(5000);
     expect(checked.productScope).toEqual([]);
     expect(checked.corrections).toHaveLength(2);

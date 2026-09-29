@@ -36,10 +36,10 @@ describe("execution state machine", () => {
     const receipt = env.repos.outcomes.receiptForPayment(c.paymentId)!;
     expect(receipt.status).toBe("confirmed");
     const granted = env.repos.outcomes.receipt(receipt.id)!.outcomeEventId!;
-    expect(env.repos.outcomes.events(env.repos.payments.get(c.paymentId)!.merchantOrderId).find((e) => e.id === granted)?.type).toBe("course_access_granted");
+    expect(env.repos.outcomes.events(env.repos.payments.get(c.paymentId)!.merchantOrderId).find((e) => e.id === granted)?.type).toBe("learning_access_granted");
 
     const actions = env.repos.audit.forCase(c.id).map((e) => e.action);
-    for (const action of ["Approved recovery", "Re-checked policy before execution", "Retry enrolment: request sent", "Verified outcome", "Resolved case"]) {
+    for (const action of ["Approved recovery", "Re-checked policy before execution", "Restore learning access: request sent", "Verified outcome", "Resolved case"]) {
       expect(actions).toContain(action);
     }
   });
@@ -72,7 +72,7 @@ describe("execution state machine", () => {
 
     await runExecution(env, first.id, { sleep: clockSleep(env.clock) });
     const order = env.repos.payments.get(c.paymentId)!.merchantOrderId;
-    const grants = env.repos.outcomes.events(order).filter((e) => e.type === "course_access_granted");
+    const grants = env.repos.outcomes.events(order).filter((e) => e.type === "learning_access_granted");
     expect(grants).toHaveLength(1);
     expect(env.repos.executions.withKey(idempotencyKey(c.paymentId, "retry_provisioning")).filter((e) => e.status === "resolved")).toHaveLength(1);
   });

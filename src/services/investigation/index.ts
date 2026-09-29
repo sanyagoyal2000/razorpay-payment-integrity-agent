@@ -7,7 +7,7 @@ import { investigationSchema } from "./schema";
 /** One evidence item as supplied to the investigator. Contains no customer PII. */
 export type EvidenceItem = {
   id: string;
-  source: "razorpay" | "learnloop" | "learnloop_observability" | "payment_integrity";
+  source: "razorpay" | "merchant" | "platform_monitoring" | "payment_integrity";
   type: string;
   occurredAt: string;
   detail?: Record<string, unknown>;
@@ -124,7 +124,7 @@ function caseEvidence(repos: Repositories, caseId: string): EvidenceItem[] {
       items.push({ id: d.id, source: "razorpay", type: `webhook.${d.status}`, occurredAt: d.occurredAt, detail: { attempt: d.attempt, responseCode: d.responseCode } });
     }
     for (const e of repos.outcomes.events(payment.merchantOrderId)) {
-      items.push({ id: e.id, source: "learnloop", type: e.type, occurredAt: e.occurredAt, detail: { status: e.status, responseCode: e.responseCode, ...e.metadata } });
+      items.push({ id: e.id, source: "merchant", type: e.type, occurredAt: e.occurredAt, detail: { status: e.status, responseCode: e.responseCode, ...e.metadata } });
     }
     const receipt = repos.outcomes.receiptForPayment(paymentId);
     if (receipt) {
@@ -135,7 +135,7 @@ function caseEvidence(repos: Repositories, caseId: string): EvidenceItem[] {
   const windowStart = new Date(Date.parse(c.detectedAt) - 86_400_000).toISOString();
   for (const e of repos.outcomes.observability(contract.fulfilmentService)) {
     if (e.occurredAt >= windowStart) {
-      items.push({ id: e.id, source: "learnloop_observability", type: e.type, occurredAt: e.occurredAt, ...(e.metadata ? { detail: e.metadata } : {}) });
+      items.push({ id: e.id, source: "platform_monitoring", type: e.type, occurredAt: e.occurredAt, ...(e.metadata ? { detail: e.metadata } : {}) });
     }
   }
   return items.sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
@@ -169,7 +169,7 @@ export function buildIncidentInvestigationInput(repos: Repositories, incidentId:
   for (const order of repos.payments.list().filter((p) => p.capturedAt && p.capturedAt >= since)) {
     for (const e of repos.outcomes.events(order.merchantOrderId)) {
       if (e.type === contract.expectedOutcome && e.status === "completed") {
-        evidence.set(e.id, { id: e.id, source: "learnloop", type: e.type, occurredAt: e.occurredAt });
+        evidence.set(e.id, { id: e.id, source: "merchant", type: e.type, occurredAt: e.occurredAt });
       }
     }
   }

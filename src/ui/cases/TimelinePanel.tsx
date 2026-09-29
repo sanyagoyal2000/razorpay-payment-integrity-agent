@@ -8,7 +8,7 @@ import { Surface } from "@/ui/components/Surface";
 
 const SOURCES: Record<TimelineSource, { label: string; icon: IconComponent }> = {
   razorpay: { label: "Razorpay", icon: CreditCardIcon },
-  merchant: { label: "LearnLoop", icon: StorefrontIcon },
+  merchant: { label: "Marrow", icon: StorefrontIcon },
   agent: { label: "Payment Integrity", icon: ShieldIcon },
   human: { label: "You", icon: UserIcon },
 };
@@ -17,7 +17,7 @@ const SOURCES: Record<TimelineSource, { label: string; icon: IconComponent }> = 
 export function TimelinePanel({ entries }: { entries: TimelineEntry[] }) {
   let lastDate = "";
   return (
-    <Surface title="Event timeline" description="Times in IST. Razorpay, LearnLoop, Payment Integrity and your actions in one sequence.">
+    <Surface title="Event timeline" description="Times in IST. Razorpay, Marrow, Payment Integrity and your actions in one sequence.">
       <Box display="flex" gap="spacing.4" flexWrap="wrap" marginBottom="spacing.4">
         {(Object.keys(SOURCES) as TimelineSource[]).map((key) => {
           const { label, icon: Icon } = SOURCES[key];

@@ -6,7 +6,8 @@ import type { Repositories } from "@/repositories";
 import { describeIncidentInvestigation } from "@/services/agent";
 import { healthResult } from "@/services/agent/progress";
 import { incidentTotals, isAtRisk } from "@/services/metrics/cases";
-import { actionLabel, serviceLabel } from "@/services/policy/actions";
+import { MERCHANT } from "@/fixtures/catalogue";
+import { actionLabel, serviceLabel, theService } from "@/services/policy/actions";
 import { evaluateCase, requireContract } from "@/services/policy/currentState";
 import { modeLabel } from "@/services/policy/evaluatePolicy";
 import { assessCase, groupIncidentCases, planBulkRecovery, type RecoveryGroupId } from "@/services/recovery/groups";
@@ -58,7 +59,7 @@ export function incidentSectionHref(incidentId: string, section?: string): strin
 
 /** What customers are missing, per promised outcome. */
 const MISSING_OUTCOME: Record<string, string> = {
-  course_access_granted: "do not have course access",
+  learning_access_granted: "cannot access their learning package",
   booking_confirmed: "do not have a confirmed booking",
   membership_activated: "do not have an active membership",
   wallet_credited: "have not received their wallet credit",
@@ -66,6 +67,15 @@ const MISSING_OUTCOME: Record<string, string> = {
 };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+const SMALL_NUMBERS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+/** A count that opens a sentence: spelled out below ten ("Five cases"), digits otherwise. */
+const leadingPlural = (n: number, one: string, many: string) => `${SMALL_NUMBERS[n] ?? n} ${n === 1 ? one : many}`;
+
+/** The recommendation's verb for each promised outcome, where it reads better than the action label. */
+const RECOMMENDATION_VERBS: Record<string, string> = {
+  learning_access_granted: "Restore access",
+};
 
 function deploymentBeforeErrors(repos: Repositories, incident: IncidentRecord) {
   const events = repos.outcomes.observability(incident.affectedService).filter((e) => e.occurredAt <= incident.detectedAt);
@@ -97,13 +107,12 @@ export function decisionSummary(repos: Repositories, incident: IncidentRecord, a
   const safe = groups.find((g) => g.id === "safe");
   const held = groups.filter((g) => g.id !== "safe").reduce((n, g) => n + g.caseIds.length, 0);
   const health = healthResult(repos, incident.affectedService, asOf);
-  const service = serviceLabel(incident.affectedService);
   const validated = incident.investigation && (incident.investigationRun?.status ?? "valid") === "valid";
   const missing = MISSING_OUTCOME[contract.expectedOutcome] ?? `have not received ${contract.expectedOutcome}`;
 
   if (totals.openCaseIds.length === 0) {
     return {
-      headline: `All ${plural(totals.caseCount, "affected customer", "affected customers")} now have their outcome`,
+      headline: `All ${plural(totals.caseCount, "affected learner", "affected learners")} now have their outcome`,
       atRisk: `Nothing is at risk. ${formatINR(totals.resolvedAmount)} was recovered.`,
       recommendation: "No decision is needed.",
       safeCount: 0,
@@ -113,7 +122,7 @@ export function decisionSummary(repos: Repositories, incident: IncidentRecord, a
 
   const trigger = deploymentBeforeErrors(repos, incident);
   const cause = validated
-    ? `The ${service.toLowerCase()} failed${trigger?.version ? ` after deployment ${trigger.version}` : ""} and ${health.status === "healthy" ? (health.since ? "has now recovered" : "is healthy") : "is still failing"}.`
+    ? `${theService(incident.affectedService).replace(/^t/, "T")} failed${trigger?.version ? ` after deployment ${trigger.version}` : ""} and ${health.status === "healthy" ? (health.since ? "has now recovered" : "is healthy") : "is still failing"}.`
     : "The cause is still being investigated.";
   const blocker = systemicBlocker(repos, asOf);
   const label = actionLabel(contract.safeRecoveryAction, contract);
@@ -121,12 +130,12 @@ export function decisionSummary(repos: Repositories, incident: IncidentRecord, a
   const recommendation = blocker
     ? `No recovery can run right now: ${blocker.replace(/^None /, "").replace(/^until/, "waiting until")}.`
     : health.status !== "healthy"
-      ? `Wait: recovery is blocked until the ${service.toLowerCase()} is healthy.`
+      ? `Wait: recovery is blocked until ${theService(incident.affectedService)} is healthy.`
       : safe
-        ? `${label} for ${plural(safeCustomers, "customer", "customers")} worth ${formatINR(safe.value)}.${held > 0 ? ` ${plural(held, "case is", "cases are")} excluded for individual review.` : ""}`
+        ? `${RECOMMENDATION_VERBS[contract.expectedOutcome] ?? label} for ${plural(safeCustomers, "learner", "learners")} worth ${formatINR(safe.value)}.${held > 0 ? ` ${leadingPlural(held, "case is", "cases are")} excluded for individual review.` : ""}`
         : `Review ${plural(held, "case", "cases")} individually; none can be recovered in bulk.`;
   return {
-    headline: `${plural(totals.customersAtRisk, "customer", "customers")} paid but ${missing}`,
+    headline: `${plural(totals.customersAtRisk, "learner", "learners")} paid but ${missing}`,
     atRisk: `${formatINR(totals.remainingAtRisk)} is at risk.`,
     ...(cause ? { cause } : {}),
     recommendation,
@@ -149,6 +158,15 @@ function statusLine(repos: Repositories, incident: IncidentRecord, asOf: string,
 
 export type Reason = { id: string; text: string; evidenceIds: string[] };
 
+/** What failed, in each promised outcome's own words. */
+const FAILED_FULFILMENT: Record<string, string> = {
+  learning_access_granted: "Learning access",
+  booking_confirmed: "Booking confirmation",
+  membership_activated: "Membership activation",
+  wallet_credited: "Wallet credit",
+  plan_upgraded: "Plan upgrade",
+};
+
 /**
  * Operational reasons, each stated only when the recorded evidence or the
  * current policy evaluation supports it.
@@ -166,16 +184,16 @@ export function recommendationReasons(repos: Repositories, incident: IncidentRec
 
   const delivered = payments.map((p) => repos.payments.deliveriesForPayment(p.id).find((d) => d.status === "delivered")).filter((d) => d !== undefined);
   if (payments.length > 0 && delivered.length === payments.length) {
-    reasons.push({ id: "webhooks", text: `Webhooks reached ${incident.affectedService === "learnloop-webhooks" ? "the merchant" : "LearnLoop"} for every payment.`, evidenceIds: delivered.map((d) => d.id) });
+    reasons.push({ id: "webhooks", text: `Webhooks reached ${MERCHANT.name} for every payment.`, evidenceIds: delivered.map((d) => d.id) });
   } else if (delivered.length < payments.length) {
-    reasons.push({ id: "webhooks", text: `Webhooks did not reach the merchant for ${plural(payments.length - delivered.length, "payment", "payments")}.`, evidenceIds: [] });
+    reasons.push({ id: "webhooks", text: `Webhooks did not reach ${MERCHANT.name} for ${plural(payments.length - delivered.length, "payment", "payments")}.`, evidenceIds: [] });
   }
 
   const vocabulary = fulfilmentVocabulary(contract.fulfilmentService);
   const failures = payments.flatMap((p) => repos.outcomes.events(p.merchantOrderId).filter((e) => e.type === vocabulary.failed && e.status === "failed"));
   const trigger = deploymentBeforeErrors(repos, incident);
   if (failures.length > 0) {
-    const what = actionLabel(contract.safeRecoveryAction, contract).replace(/^Retry /, "").replace(/^\w/, (c) => c.toUpperCase());
+    const what = FAILED_FULFILMENT[contract.expectedOutcome] ?? "Fulfilment";
     reasons.push({
       id: "failed",
       text: `${what} failed for ${plural(new Set(failures.map((f) => f.merchantOrderId)).size, "payment", "payments")}${trigger?.version ? ` after deployment ${trigger.version}` : ""}.`,
@@ -187,8 +205,8 @@ export function recommendationReasons(repos: Repositories, incident: IncidentRec
   const recovery = repos.outcomes.observability(incident.affectedService).filter((e) => e.type === "service.recovered" && e.occurredAt <= asOf).at(-1);
   reasons.push(
     health.status === "healthy"
-      ? { id: "health", text: `The ${serviceLabel(incident.affectedService).toLowerCase()} ${recovery ? "has recovered" : "is healthy"}.`, evidenceIds: recovery ? [recovery.id] : [] }
-      : { id: "health", text: `The ${serviceLabel(incident.affectedService).toLowerCase()} is still failing, so recovery waits.`, evidenceIds: [] },
+      ? { id: "health", text: `${theService(incident.affectedService).replace(/^t/, "T")} ${recovery ? "has recovered" : "is healthy"}.`, evidenceIds: recovery ? [recovery.id] : [] }
+      : { id: "health", text: `${theService(incident.affectedService).replace(/^t/, "T")} is still failing, so recovery waits.`, evidenceIds: [] },
   );
 
   const groups = groupIncidentCases(repos, incident.id, asOf);
@@ -359,7 +377,7 @@ export function recoveryModeView(repos: Repositories, incident: IncidentRecord, 
 // ---------------------------------------------------------------------------
 
 const OUTCOME_LABELS: Record<string, string> = {
-  course_access_granted: "Course access",
+  learning_access_granted: "Learning package access",
   booking_confirmed: "Confirmed booking",
   membership_activated: "Membership activation",
   wallet_credited: "Wallet credit",
@@ -387,7 +405,7 @@ export function merchantIntent(repos: Repositories, incident: IncidentRecord): M
   const deadline = contract.deadlineSeconds % 60 === 0 ? plural(minutes, "minute", "minutes") : plural(contract.deadlineSeconds, "second", "seconds");
   const model = contextAndAuthority(repos, contract);
   const source = model.context.find((c) => c.id === "fulfilment");
-  const verifiedThrough = source && source.source !== "No integration" ? source.source : `LearnLoop ${serviceLabel(contract.fulfilmentService).toLowerCase()}`;
+  const verifiedThrough = source && source.source !== "No integration" ? source.source : serviceLabel(contract.fulfilmentService);
   return {
     expectedOutcome: `${outcomeLabel(contract.expectedOutcome)} within ${deadline}`,
     verifiedThrough,

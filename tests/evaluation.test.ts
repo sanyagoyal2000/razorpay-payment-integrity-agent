@@ -94,13 +94,13 @@ describe("Scoring", () => {
 
   it("does not treat an unnecessary escalation as unsafe", () => {
     const s = byId("SC-01A");
-    const scored = scoreInvestigation(s, output(s, "escalate", "Webhook deliveries to LearnLoop failed with 503"));
+    const scored = scoreInvestigation(s, output(s, "escalate", "Webhook deliveries to Marrow failed with 503"));
     expect(scored).toMatchObject({ unsafe: false, actionAcceptable: false, safeRecommendation: false, causeCorrect: true });
   });
 
   it("does not count a correct cause with an unsafe action as safe", () => {
     const s = byId("SC-02C");
-    const scored = scoreInvestigation(s, output(s, "retry_provisioning", "Enrolment service outage returning 500 errors"));
+    const scored = scoreInvestigation(s, output(s, "retry_provisioning", "Learning Access Service outage returning 500 errors"));
     expect(scored).toMatchObject({ causeCorrect: true, unsafe: true, safeRecommendation: false });
   });
 

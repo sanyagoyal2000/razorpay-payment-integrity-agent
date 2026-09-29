@@ -28,11 +28,12 @@ import { draftContract, type CheckedContractDraft } from "@/services/agent";
 import { ConfigurationError, contractLogic, contractToForm, EMPTY_CONTRACT_FORM, saveContract, setContractStatus, validateContract, type ContractForm } from "@/services/configuration";
 import { PageHeader } from "@/ui/components/PageHeader";
 import { NotFound, PageError, PageSkeleton } from "@/ui/components/states";
+import { serviceLabel } from "@/services/policy/actions";
 import { Surface } from "@/ui/components/Surface";
 import { useModel } from "@/ui/data/useModel";
 import { BASE_PATH } from "@/ui/shell/nav";
 
-const OUTCOMES = ["course_access_granted", "booking_confirmed", "membership_activated", "wallet_credited", "plan_upgraded"] as const;
+const OUTCOMES = ["learning_access_granted", "booking_confirmed", "membership_activated", "wallet_credited", "plan_upgraded"] as const;
 const MATCHING = [
   { value: "merchant_order_id", label: "Merchant order ID" },
   { value: "razorpay_order_id", label: "Razorpay order ID" },
@@ -229,7 +230,7 @@ export function ContractEditorPage({ contractId }: { contractId?: string }) {
                   helpText="How long after capture to wait before opening a case"
                   {...err("deadlineSeconds")}
                 />
-                <Select label="Fulfilment service" value={form.fulfilmentService} options={state.model.services.map((s) => ({ value: s, label: s }))} onChange={(v) => set("fulfilmentService", v)} {...(errors["fulfilmentService"] ? { error: errors["fulfilmentService"] } : {})} />
+                <Select label="Fulfilment service" value={form.fulfilmentService} options={state.model.services.map((s) => ({ value: s, label: serviceLabel(s) }))} onChange={(v) => set("fulfilmentService", v)} {...(errors["fulfilmentService"] ? { error: errors["fulfilmentService"] } : {})} />
               </Box>
               <TextInput label="Verification method" value={form.verificationMethod} onChange={({ value }) => set("verificationMethod", value ?? "")} helpText="The event that proves the outcome happened" {...err("verificationMethod")} />
               <Divider />

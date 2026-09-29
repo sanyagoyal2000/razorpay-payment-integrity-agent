@@ -49,7 +49,7 @@ export function askFacts(repos: Repositories, incidentId: string, asOf: string):
   const facts: AskIncidentInput["facts"] = [
     {
       id: "fact:summary",
-      statement: `${totals.caseCount} payments missed ${contract.expectedOutcome}; ${formatINR(totals.remainingAtRisk)} is still at risk across ${totals.customersAtRisk} customers.`,
+      statement: `${totals.caseCount} payments missed ${contract.expectedOutcome}; ${formatINR(totals.remainingAtRisk)} is still at risk across ${totals.customersAtRisk} learners.`,
     },
     { id: "fact:service", statement: healthStage(healthResult(repos, incident.affectedService, asOf), asOf).detail },
   ];
@@ -69,7 +69,7 @@ export function askFacts(repos: Repositories, incidentId: string, asOf: string):
   if (safe) {
     const plan = recoveryPlan(repos, incident, ["safe"], asOf);
     facts.push(
-      { id: "fact:plan:actions", statement: `Approving the safe batch would start ${plan.actions}, for ${plan.customers} customers and ${formatINR(plan.revenueAddressed)}. Policy is checked again before each one runs.` },
+      { id: "fact:plan:actions", statement: `Approving the safe batch would start ${plan.actions}, for ${plan.customers} learners and ${formatINR(plan.revenueAddressed)}. Policy is checked again before each one runs.` },
       { id: "fact:plan:verification", statement: plan.verification },
       { id: "fact:plan:escalation", statement: plan.escalation },
       { id: "fact:plan:communication", statement: plan.communication },

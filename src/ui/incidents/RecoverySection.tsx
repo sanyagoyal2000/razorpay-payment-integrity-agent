@@ -82,7 +82,7 @@ export function RecoverySection({
         color: failed === 0 ? "positive" : "notice",
         content:
           failed === 0
-            ? `${resolved} cases resolved. Course access confirmed for ${resolved} customers.`
+            ? `${resolved} cases resolved. Access restored and verified for ${resolved} learners.`
             : `${resolved} cases resolved; ${failed} escalated because the outcome could not be verified.`,
       });
     });

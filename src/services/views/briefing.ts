@@ -6,7 +6,7 @@ import { healthResult } from "@/services/agent/progress";
 import { agentLifecycle, type Lifecycle } from "@/services/lifecycle";
 import { statusLabel } from "@/services/incidents";
 import { incidentTotals, isAtRisk } from "@/services/metrics/cases";
-import { serviceLabel } from "@/services/policy/actions";
+import { serviceLabel, theService } from "@/services/policy/actions";
 import { groupIncidentCases } from "@/services/recovery/groups";
 import { lastDataRefresh, requiredDecision } from "./overview";
 import { systemicBlocker, systemStatus, type StatusNotice } from "./systemStatus";
@@ -174,8 +174,8 @@ export function proactiveBriefing(repos: Repositories, asOf: string): ProactiveB
   const run = describeIncidentInvestigation(repos, top.id, asOf);
   const withRun = { ...base, featured, ...(run ? { lastInvestigatedAt: run.at } : {}) };
   const multiple = ranked.length > 1;
-  const exposure = `${formatINR(featured.revenueAtRisk)} across ${plural(featured.customers, "customer", "customers")} is at risk in ${top.id}.`;
-  const totalExposure = `${formatINR(totalAtRisk)} across ${plural(totalCustomers, "customer", "customers")} is at risk in ${ranked.length} incidents. Highest priority: ${top.title}.`;
+  const exposure = `${formatINR(featured.revenueAtRisk)} across ${plural(featured.customers, "learner", "learners")} is at risk in ${top.id}.`;
+  const totalExposure = `${formatINR(totalAtRisk)} across ${plural(totalCustomers, "learner", "learners")} is at risk in ${ranked.length} incidents. Highest priority: ${top.title}.`;
   const view: BriefingAction = { label: "View incident", target: { kind: "incident", incidentId: top.id } };
   const allIncidents: BriefingAction[] = multiple ? [{ label: "View all incidents", target: { kind: "incidents" } }] : [];
   const countHeading = (what: string) =>
@@ -222,13 +222,12 @@ export function proactiveBriefing(repos: Repositories, asOf: string): ProactiveB
 
   const cause = featured.likelyCause ? ` Likely cause: ${sentence(featured.likelyCause)}` : "";
   if (!featured.service.healthy) {
-    const service = serviceLabel(top.affectedService);
     return {
       ...withRun,
       state: "service_unhealthy",
       eyebrow: "Needs your attention",
       heading: countHeading("needing attention"),
-      body: `The ${service.toLowerCase()} is still failing. Recovery is blocked until the service becomes healthy. ${multiple ? totalExposure : exposure}${cause}`,
+      body: `${theService(top.affectedService).replace(/^t/, "T")} is still failing. Recovery is blocked until the service becomes healthy. ${multiple ? totalExposure : exposure}${cause}`,
       primaryAction: view,
       secondaryActions: [{ label: "View investigation", target: { kind: "incident", incidentId: top.id, section: "investigation" } }, ...allIncidents],
     };

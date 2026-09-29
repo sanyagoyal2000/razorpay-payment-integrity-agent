@@ -59,12 +59,12 @@ describe("Case detail", () => {
       "14:07:09 razorpay Payment captured",
       "14:07:10 razorpay order.paid webhook sent",
       "14:07:10 merchant Merchant webhook returned HTTP 200",
-      "14:07:11 merchant Enrolment requested",
-      "14:07:11 merchant Enrolment request failed: HTTP 500",
+      "14:07:11 merchant Learning access requested",
+      "14:07:11 merchant Learning access request failed: HTTP 500",
     ]);
     expect(titles).toContain("14:09:09 agent Outcome deadline missed");
     expect(titles).toContain("14:09:10 agent Integrity case opened");
-    expect(titles).toContain("14:18:40 merchant Enrolment service recovered");
+    expect(titles).toContain("14:18:40 merchant Learning Access Service recovered");
     expect(detail.unresolvedEvidence).toEqual([]);
   });
 
@@ -152,7 +152,7 @@ describe("Merchant decisions", () => {
     await runExecution(env, result.executionId, { sleep: clockSleep(env.clock) });
     const detail = caseDetail(env.repos, c.id, env.clock.now().toISOString())!;
     expect(detail.caseData.status).toBe("resolved");
-    expect(detail.outcome!.event!.type).toBe("course_access_granted");
+    expect(detail.outcome!.event!.type).toBe("learning_access_granted");
     expect(detail.latestExecution!.status).toBe("resolved");
     expect(detail.customerView.status).toBe("resolved");
   });

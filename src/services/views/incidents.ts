@@ -4,7 +4,7 @@ import { istDate } from "@/domain/time";
 import type { Repositories } from "@/repositories";
 import { containmentOptions, engineeringIncident, monitoringProgress, notificationPreview } from "@/services/containment";
 import { incidentTotals } from "@/services/metrics/cases";
-import { actionLabel, serviceLabel } from "@/services/policy/actions";
+import { actionLabel, serviceLabel, theService } from "@/services/policy/actions";
 import { requireContract, serviceHealth } from "@/services/policy/currentState";
 import { groupIncidentCases, planBulkRecovery, type RecoveryGroupId } from "@/services/recovery/groups";
 import { describeIncidentInvestigation } from "@/services/agent";
@@ -171,7 +171,7 @@ export function incidentHistory(repos: Repositories, incident: IncidentRecord): 
     decisions.push({
       id: events[0]!.id,
       occurredAt,
-      change: `Approved ${events[0]!.result.toLowerCase()} for ${events.length} cases (${formatINR(amount)})`,
+      change: `Approved recovery for ${events.length} cases: ${events[0]!.result} (${formatINR(amount)})`,
       actor: events[0]!.actor,
     });
   }
@@ -181,7 +181,7 @@ export function incidentHistory(repos: Repositories, incident: IncidentRecord): 
     decisions.push({
       id: `${last.id}-summary`,
       occurredAt: last.occurredAt,
-      change: `${verified.length} customer ${verified.length === 1 ? "outcome" : "outcomes"} verified to date`,
+      change: `${verified.length} learner ${verified.length === 1 ? "outcome" : "outcomes"} verified to date`,
     });
   }
   return [...snapshots, ...decisions].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
@@ -215,11 +215,11 @@ export function recoveryPlan(repos: Repositories, incident: IncidentRecord, sele
     actions:
       plan.eligible.length === 0
         ? "No actions. None of the selected cases can be recovered in bulk."
-        : `${plan.eligible.length} × ${actionLabel(plan.action, contract)} through ${contract.fulfilmentService === "enrolment-service" ? "the LearnLoop Enrolment API" : `LearnLoop's ${serviceLabel(contract.fulfilmentService).toLowerCase()}`}, one idempotent request per payment`,
+        : `${plan.eligible.length} × ${actionLabel(plan.action, contract)} through ${theService(contract.fulfilmentService)}, one idempotent request per payment`,
     excluded: plan.excluded,
     communication:
       notifyMode === "automatic_below_threshold" && !repos.config.globalControls().requireApprovalForCustomerCommunication
-        ? "Customers are notified automatically once access is confirmed."
+        ? "Learners are notified automatically once access is confirmed."
         : `No message is sent as part of this recovery. Customer messages need separate approval${notified > 0 ? `; ${notified} of these customers were already notified` : ""}.`,
     verification: `Each case resolves only when ${contract.expectedOutcome} is received for its merchant order (${contract.verificationMethod}).`,
     escalation: `If ${contract.expectedOutcome} does not arrive within ${contract.deadlineSeconds / 60} minutes of the request, the case is escalated to you. Payments are never changed, and nothing is retried automatically.`,
@@ -245,9 +245,9 @@ export function recoveryFacts(repos: Repositories, incident: IncidentRecord, sel
   const deadline = contract.deadlineSeconds >= 60 ? plural(Math.round(contract.deadlineSeconds / 60), "minute", "minutes") : plural(contract.deadlineSeconds, "second", "seconds");
   return {
     facts: [
-      `${plural(plan.customers, "customer", "customers")} · ${formatINR(plan.revenueAddressed)}`,
+      `${plural(plan.customers, "learner", "learners")} · ${formatINR(plan.revenueAddressed)}`,
       `${label} once for each payment`,
-      notifies ? "Customers are notified automatically once the outcome is confirmed" : "No customer message will be sent",
+      notifies ? "Learners are notified automatically once the outcome is confirmed" : "No customer message will be sent",
       `Success requires ${contract.expectedOutcome}`,
     ],
     ifItFails: [
@@ -257,7 +257,7 @@ export function recoveryFacts(repos: Repositories, incident: IncidentRecord, sel
       "Never change the payment.",
       "Idempotency keys prevent a second request for the same payment.",
     ],
-    learning: `Verified outcomes from this recovery will update ${label.toLowerCase()} automation eligibility.`,
+    learning: `Verified outcomes from this recovery count towards automation eligibility for ${label}.`,
   };
 }
 

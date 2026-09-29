@@ -319,7 +319,7 @@ export const FORBIDDEN_MESSAGE_TERMS: Array<{ label: string; pattern: RegExp }> 
   { label: "HTTP or error codes", pattern: /\bHTTP\b|(?<![\d,.₹])\b[45]\d{2}\b(?![\d,])|\berror code\b/i },
   { label: "policies or thresholds", pattern: /\bpolic(y|ies)\b|\bthreshold\b/i },
   { label: "AI or agents", pattern: /\bAI\b|\bagent\b|\bmodel\b|\bautomated\b/i },
-  { label: "system internals", pattern: /\bdeploy(ment)?\b|\bserver\b|\bservice\b|\boutage\b|\benrol(l)?ment service\b/i },
+  { label: "system internals", pattern: /\bdeploy(ment)?\b|\bserver\b|\bservice\b|\boutage\b|\benrol(l)?ment service\b|\blearning access service\b/i },
 ];
 
 export type CheckedDraft = MessageDraft & { flagged: string[] };
@@ -347,7 +347,7 @@ export function messageInputForIncident(repos: Repositories, incidentId: string)
   return {
     audience: "all_affected_customers",
     situation: "access_being_restored",
-    productName: contract?.name === "Course purchase" ? "your course" : "your purchase",
+    productName: contract?.expectedOutcome === "learning_access_granted" ? "your learning package" : "your purchase",
     facts: ["The payment was successful.", "Access is being restored.", "The customer will not be charged again."],
   };
 }
@@ -388,7 +388,7 @@ export async function draftContract(deps: { repos: Repositories; agent: AgentGat
   const corrections: string[] = [];
   const known = new Set(catalogue.map((p) => p.id));
   const scope = draft.productScope.filter((id) => known.has(id));
-  if (scope.length !== draft.productScope.length) corrections.push("Removed products that are not in the LearnLoop catalogue.");
+  if (scope.length !== draft.productScope.length) corrections.push("Removed products that are not in the Marrow catalogue.");
   let maxAutomaticValue = draft.maxAutomaticValue;
   if (maxAutomaticValue > globalMax) {
     maxAutomaticValue = globalMax;

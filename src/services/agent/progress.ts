@@ -29,8 +29,8 @@ export function stageTitle(step: InvestigationStepId, subject: "case" | "inciden
 
 export const SOURCE_LABELS: Record<EvidenceItem["source"], string> = {
   razorpay: "Razorpay",
-  learnloop: "LearnLoop",
-  learnloop_observability: "LearnLoop Observability",
+  merchant: "Marrow",
+  platform_monitoring: "Platform Monitoring",
   payment_integrity: "Payment Integrity",
 };
 
@@ -42,8 +42,8 @@ export function countSources(evidence: readonly EvidenceItem[]): Record<string, 
 
 function evidenceKind(item: EvidenceItem): string {
   if (item.source === "razorpay") return item.type.startsWith("webhook.") ? "webhook" : "payment";
-  if (item.source === "learnloop") return "merchant";
-  if (item.source === "learnloop_observability") return "observability";
+  if (item.source === "merchant") return "merchant";
+  if (item.source === "platform_monitoring") return "observability";
   return "outcome receipt";
 }
 

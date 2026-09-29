@@ -6,7 +6,7 @@ import { formatIstShort } from "@/domain/time";
 import { evaluateAutonomyEligibility, type AutonomyEligibility } from "@/services/autonomyEligibility";
 import { grantedScopes } from "@/services/permissions";
 import { earnedAutonomy, type AutonomyEvidence } from "@/services/metrics/autonomy";
-import { actionLabel, POLICY_ACTION_LABELS } from "@/services/policy/actions";
+import { actionLabel, POLICY_ACTION_LABELS, theService } from "@/services/policy/actions";
 import { modeLabel } from "@/services/policy/evaluatePolicy";
 
 export class ConfigurationError extends Error {
@@ -172,7 +172,7 @@ export const contractFormSchema = z.object({
   name: z.string().trim().min(3, "Give the contract a name of at least 3 characters").max(60, "At most 60 characters"),
   paymentType: z.string().trim().min(3, "Describe which payments this covers"),
   productScope: z.array(z.string()).min(1, "Choose at least one product"),
-  expectedOutcome: z.enum(["course_access_granted", "booking_confirmed", "membership_activated", "wallet_credited", "plan_upgraded"]),
+  expectedOutcome: z.enum(["learning_access_granted", "booking_confirmed", "membership_activated", "wallet_credited", "plan_upgraded"]),
   matchingKey: z.enum(["merchant_order_id", "razorpay_order_id", "customer_id"]),
   deadlineSeconds: z.number().int().min(30, "At least 30 seconds").max(86_400, "At most 24 hours"),
   fulfilmentService: z.string().min(1, "Choose the service that fulfils the outcome"),
@@ -211,10 +211,10 @@ export const EMPTY_CONTRACT_FORM: ContractForm = {
   name: "",
   paymentType: "",
   productScope: [],
-  expectedOutcome: "course_access_granted",
+  expectedOutcome: "learning_access_granted",
   matchingKey: "merchant_order_id",
   deadlineSeconds: 120,
-  fulfilmentService: "enrolment-service",
+  fulfilmentService: "learning-access-service",
   safeRecoveryAction: "retry_provisioning",
   verificationMethod: "",
   maxAutomaticValue: 5000,
@@ -296,7 +296,7 @@ export function contractLogic(values: ContractForm, productNames: (id: string) =
   const recovery = { retry_provisioning: actionLabel("retry_provisioning", { expectedOutcome: values.expectedOutcome }).toLowerCase(), replay_webhook: "replay the order.paid webhook", escalate: "escalate to you" }[values.safeRecoveryAction];
   const limit = Math.min(values.maxAutomaticValue, globalMax);
   const lines = [
-    `When a payment for ${products} is captured, expect ${values.expectedOutcome} from ${values.fulfilmentService}, matched on ${values.matchingKey}, within ${deadline}.`,
+    `When a payment for ${products} is captured, expect ${values.expectedOutcome} from ${theService(values.fulfilmentService)}, matched on ${values.matchingKey}, within ${deadline}.`,
     `If it does not arrive, open a case and propose to ${recovery}.`,
     `The action may run without approval only if its Automations mode allows it, the amount is at most ${formatINR(limit)}, and confidence is at least ${Math.round(values.minimumConfidence * 100)}%.`,
   ];

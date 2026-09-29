@@ -52,7 +52,7 @@ export function decisionOption(repos: Repositories, c: IntegrityCase, action: Ac
   const option: DecisionOption = { action, label: actionLabel(action, requireContract(repos, c.outcomeContractId)), verdict, executes: EXECUTABLE_ACTIONS.has(action) };
   const notApplicable = applicability(c, action, repos);
   if (!DECIDABLE.has(c.status)) option.disabledReason = `The case is ${c.status.replace("_", " ")}.`;
-  else if (action === "notify_customer" && repos.payments.customer(c.customerId)?.emailOptOut) option.disabledReason = "The customer opted out of email. Contact them through LearnLoop support instead.";
+  else if (action === "notify_customer" && repos.payments.customer(c.customerId)?.emailOptOut) option.disabledReason = "The customer opted out of email. Contact them through Marrow support instead.";
   else if (notApplicable) option.disabledReason = notApplicable;
   else if (verdict.result === "blocked") {
     const failed = verdict.checks.filter((check) => check.status !== "passed" && check.enforcement === "hard");
@@ -155,7 +155,7 @@ export function waitAndRecheck(repos: Repositories, caseId: string, actor: strin
   return { resolved: false, message };
 }
 
-/** Prepares a refund for LearnLoop finance. Payment Integrity cannot issue refunds itself. */
+/** Prepares a refund for the merchant's finance team. Payment Integrity cannot issue refunds itself. */
 export function prepareRefund(repos: Repositories, caseId: string, actor: string, asOf: string): CaseFollowUp {
   const c = requireCase(repos, caseId);
   const option = decisionOption(repos, c, "prepare_refund", asOf);
@@ -163,7 +163,7 @@ export function prepareRefund(repos: Repositories, caseId: string, actor: string
   const duplicate = c.relatedPaymentIds.map((id) => repos.payments.get(id)).find((p) => p?.status === "captured");
   const target = duplicate ?? repos.payments.get(c.paymentId)!;
   if ((c.followUps ?? []).some((f) => f.kind === "refund_draft" && f.paymentId === target.id)) throw new DecisionError("A refund is already prepared for this payment.");
-  const detail = `${formatINR(target.amount)} refund of ${target.id} prepared for LearnLoop finance${duplicate ? " (second charge)" : ""}`;
+  const detail = `${formatINR(target.amount)} refund of ${target.id} prepared for merchant finance${duplicate ? " (second charge)" : ""}`;
   const saved = addFollowUp(repos, c, { kind: "refund_draft", createdAt: asOf, actor, detail, paymentId: target.id, amount: target.amount, status: "awaiting_finance" });
   audit(repos, c, { occurredAt: asOf, actor, action: "Prepared refund", result: detail, policyResult: option.verdict.result, evidenceIds: [target.id] });
   return saved.followUps!.at(-1)!;
@@ -189,7 +189,7 @@ export function requestAlternateInventory(repos: Repositories, caseId: string, a
   const c = requireCase(repos, caseId);
   const option = decisionOption(repos, c, "review_alternate_inventory", asOf);
   if (option.disabledReason) throw new DecisionError(option.disabledReason);
-  const detail = "Asked LearnLoop to confirm a valid replacement seat. Fulfilment stays blocked until one is confirmed.";
+  const detail = "Asked Marrow to confirm a valid replacement seat. Fulfilment stays blocked until one is confirmed.";
   const saved = addFollowUp(repos, c, { kind: "alternate_inventory_request", createdAt: asOf, actor, detail, status: "awaiting_merchant" });
   audit(repos, c, { occurredAt: asOf, actor, action: "Requested alternate inventory", result: detail });
   return saved.followUps!.at(-1)!;
@@ -220,7 +220,7 @@ export function applyDecision(deps: ExecutionDeps, caseId: string, action: Actio
       return { kind: "recorded", message: "Customer contacted." };
     case "review_alternate_inventory":
       requestAlternateInventory(deps.repos, caseId, actor, asOf);
-      return { kind: "recorded", message: "Replacement seat requested from LearnLoop." };
+      return { kind: "recorded", message: "Replacement seat requested from Marrow." };
     default:
       throw new DecisionError(`${ACTIONS[action].label} cannot be applied from a case.`);
   }

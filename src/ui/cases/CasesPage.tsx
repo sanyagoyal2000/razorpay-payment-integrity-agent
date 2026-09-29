@@ -267,8 +267,8 @@ export function CasesPage() {
           <ModalHeader title={`Approve recovery for ${selection.plan.eligible.length} cases?`} subtitle={`${formatINR(selection.plan.value)} across ${selection.plan.eligible.length} customers`} />
           <ModalBody>
             <Text size="small">
-              One idempotent enrolment request per payment. Policy is re-checked for each case before its request is sent, and each case resolves only
-              when course access is confirmed.
+              One idempotent access restoration request per payment. Policy is re-checked for each case before its request is sent, and each case resolves only
+              when learning package access is confirmed.
             </Text>
           </ModalBody>
           <ModalFooter>
