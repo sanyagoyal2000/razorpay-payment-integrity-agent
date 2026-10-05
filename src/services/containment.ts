@@ -77,17 +77,47 @@ function notifyBlockedReason(repos: Repositories, sample: ReturnType<Repositorie
   return failed.join(" ");
 }
 
-/** Customers who would receive the notification, and the message they would get. */
+export type NotificationAudience = {
+  /** Distinct customers with an open case in the incident. */
+  customers: number;
+  recipients: number;
+  optedOut: number;
+  /** Already notified, or contacted Marrow themselves. */
+  alreadyContacted: number;
+  /** "42 of 43 · 1 opted out of email". */
+  label: string;
+};
+
+/**
+ * Customers who would receive the notification, and the message they would
+ * get. Every customer with an open case is either a recipient or excluded for
+ * a stated reason, so recipients + exclusions = customers.
+ */
 export function notificationPreview(repos: Repositories, incident: IncidentRecord) {
   const contract = requireContract(repos, incident.outcomeContractId);
   const open = incidentTotals(incident, repos.cases.list()).openCaseIds.map((id) => repos.cases.get(id)!);
   const recipients = open.filter((c) => c.customerContact === "none");
   const { optedOut } = messageAudience(repos, recipients.map((c) => c.customerId));
   const sendable = recipients.filter((c) => !optedOut.includes(c.customerId));
+  const customers = new Set(open.map((c) => c.customerId));
+  const sendableCustomers = new Set(sendable.map((c) => c.customerId));
+  const contacted = [...customers].filter((id) => !sendableCustomers.has(id) && !optedOut.includes(id));
+  const exclusions = [
+    ...(optedOut.length > 0 ? [`${optedOut.length} opted out of email`] : []),
+    ...(contacted.length > 0 ? [`${contacted.length} already contacted`] : []),
+  ];
+  const audience: NotificationAudience = {
+    customers: customers.size,
+    recipients: sendableCustomers.size,
+    optedOut: optedOut.length,
+    alreadyContacted: contacted.length,
+    label: `${sendableCustomers.size} of ${customers.size}${exclusions.length > 0 ? ` · ${exclusions.join(" · ")}` : ""}`,
+  };
   return {
     template: contract.customerNotificationTemplate,
     recipientCaseIds: sendable.map((c) => c.id),
     optedOutCaseIds: recipients.filter((c) => optedOut.includes(c.customerId)).map((c) => c.id),
+    audience,
   };
 }
 

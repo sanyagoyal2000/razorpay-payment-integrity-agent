@@ -1,6 +1,7 @@
 import type { IncidentRecord, IncidentStatus, Severity } from "@/domain/types";
 import { formatINR, sum } from "@/domain/money";
 import type { Repositories } from "@/repositories";
+import { exposureOf } from "@/services/metrics/selectors";
 import { describeIncidentInvestigation } from "@/services/agent";
 import { healthResult } from "@/services/agent/progress";
 import { agentLifecycle, type Lifecycle } from "@/services/lifecycle";
@@ -174,7 +175,9 @@ export function proactiveBriefing(repos: Repositories, asOf: string): ProactiveB
   const run = describeIncidentInvestigation(repos, top.id, asOf);
   const withRun = { ...base, featured, ...(run ? { lastInvestigatedAt: run.at } : {}) };
   const multiple = ranked.length > 1;
-  const exposure = `${formatINR(featured.revenueAtRisk)} across ${plural(featured.customers, "learner", "learners")} is at risk in ${top.id}.`;
+  const duplicates = exposureOf(repos, repos.cases.forIncident(top.id).filter(isAtRisk));
+  const duplicateNote = duplicates.duplicateCharges > 0 ? ` A further ${formatINR(duplicates.duplicateCharges)} in ${plural(duplicates.duplicateChargeCount, "duplicate charge", "duplicate charges")} is under review.` : "";
+  const exposure = `${formatINR(featured.revenueAtRisk)} across ${plural(featured.customers, "learner", "learners")} is at risk in ${top.id}.${duplicateNote}`;
   const totalExposure = `${formatINR(totalAtRisk)} across ${plural(totalCustomers, "learner", "learners")} is at risk in ${ranked.length} incidents. Highest priority: ${top.title}.`;
   const view: BriefingAction = { label: "View incident", target: { kind: "incident", incidentId: top.id } };
   const allIncidents: BriefingAction[] = multiple ? [{ label: "View all incidents", target: { kind: "incidents" } }] : [];

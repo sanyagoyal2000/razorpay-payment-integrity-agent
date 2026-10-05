@@ -2,7 +2,6 @@
 
 import {
   Avatar,
-  Badge,
   Menu,
   MenuHeader,
   MenuItem,

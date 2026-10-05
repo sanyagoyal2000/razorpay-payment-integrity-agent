@@ -56,10 +56,13 @@ export function RaySurface({
                     </Heading>
                   </div>
                 ) : null}
-                {description ? (
+                {/* Rich descriptions (e.g. with an Indicator) render block content, which a <p> cannot hold. */}
+                {typeof description === "string" ? (
                   <Text size="small" color="surface.text.gray.muted">
                     {description}
                   </Text>
+                ) : description ? (
+                  <Box>{description}</Box>
                 ) : null}
               </Box>
               {actions ? <Box flexShrink={0}>{actions}</Box> : null}

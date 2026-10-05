@@ -1,8 +1,7 @@
-import type { IntegrityCase } from "@/domain/types";
 import { sum } from "@/domain/money";
-import { addDaysToDate, istDate, median, MS_PER_DAY, secondsBetween } from "@/domain/time";
+import { addDaysToDate, istDate, median, secondsBetween } from "@/domain/time";
 import type { Repositories } from "@/repositories";
-import { isAtRisk } from "./cases";
+import { exposureOf, openCases, resolvedMetrics, type Exposure } from "./selectors";
 
 /** A figure together with the cases it was computed from. */
 export type TracedFigure = { value: number; caseIds: string[] };
@@ -12,6 +11,10 @@ export type PrimaryMetrics = {
   customersAffected: TracedFigure;
   openIncidents: { value: number; incidentIds: string[] };
   resolvedBeforeContact: TracedFigure;
+  /** Cases, payments, customers and linked duplicate charges behind revenue at risk. */
+  exposure: Exposure;
+  /** How resolved-before-contact splits: one avoided contact or one prevented refund per case. */
+  resolvedSplit: { contactsAvoided: number; refundsPrevented: number };
 };
 
 export type ValueDelivered = {
@@ -20,74 +23,55 @@ export type ValueDelivered = {
   avoidableRefundsPrevented: TracedFigure & { amount: number };
   supportContactsAvoided: TracedFigure;
   medianDetectionToVerifiedSeconds: { value: number | null; caseIds: string[] };
+  /** Counted in GMV, but the learner had contacted Marrow before the outcome was verified. */
+  afterCustomerContact: string[];
 };
 
 export const VALUE_DELIVERED_EXPLANATIONS = {
   gmvResolvedBeforeRefundOrDispute:
-    "Amount at risk on cases resolved with a verified outcome in the last 30 days that would otherwise have been refunded or raised by the customer, and were not refunded.",
+    "Amount at risk (original payments) on cases resolved with a verified outcome in the last 30 days that would otherwise have been refunded or raised by the customer, and were not refunded. Includes cases where the learner had already contacted Marrow.",
   avoidableRefundsPrevented:
-    "Cases resolved with a verified outcome in the last 30 days whose payment Razorpay would otherwise have refunded automatically.",
+    "Late authorisations captured and resolved with a verified outcome in the last 30 days, before Razorpay's automatic refund and before the customer contacted Marrow.",
   supportContactsAvoided:
-    "Cases resolved with a verified outcome in the last 30 days, before the learner contacted Marrow. Counts one contact per case.",
+    "Cases resolved with a verified outcome in the last 30 days, before the learner contacted Marrow, whose default was a support contact. One estimated contact per case.",
   medianDetectionToVerifiedSeconds:
     "Median time from case detection to verified outcome, across the cases counted in GMV resolved.",
 } as const;
 
 const DEFAULT_COUNTED = new Set(["auto_refund", "customer_contact"]);
 
-function windowStart(asOf: string, days: number): string {
-  return new Date(Date.parse(asOf) - days * MS_PER_DAY).toISOString();
-}
-
-/** Resolved with a verified outcome (not merely closed) inside the window. */
-function verifiedInWindow(c: IntegrityCase, since: string, asOf: string): boolean {
-  return (
-    c.status === "resolved" &&
-    c.resolution !== undefined &&
-    c.resolution.method !== "manual" &&
-    c.resolution.resolvedAt >= since &&
-    c.resolution.resolvedAt <= asOf &&
-    c.wrongAction === undefined
-  );
-}
-
 export function primaryMetrics(repos: Repositories, asOf: string): PrimaryMetrics {
-  const cases = repos.cases.list();
-  const atRisk = cases.filter(isAtRisk);
-  const customers = new Map<string, string[]>();
-  for (const c of atRisk) customers.set(c.customerId, [...(customers.get(c.customerId) ?? []), c.id]);
-  const since = windowStart(asOf, 30);
-  const beforeContact = cases.filter(
-    (c) => verifiedInWindow(c, since, asOf) && DEFAULT_COUNTED.has(c.defaultOutcome) && c.customerContact !== "customer_initiated",
-  );
+  const atRisk = openCases(repos);
+  const customers = new Set(atRisk.map((c) => c.customerId));
+  const resolved = resolvedMetrics(repos, asOf);
   const openIncidents = repos.incidents.list().filter((i) => i.status !== "resolved");
   return {
     revenueAtRisk: { value: sum(atRisk.map((c) => c.amountAtRisk)), caseIds: atRisk.map((c) => c.id) },
     customersAffected: { value: customers.size, caseIds: atRisk.map((c) => c.id) },
     openIncidents: { value: openIncidents.length, incidentIds: openIncidents.map((i) => i.id) },
-    resolvedBeforeContact: { value: beforeContact.length, caseIds: beforeContact.map((c) => c.id) },
+    resolvedBeforeContact: { value: resolved.beforeContact.length, caseIds: resolved.beforeContact },
+    exposure: exposureOf(repos, atRisk),
+    resolvedSplit: { contactsAvoided: resolved.contactsAvoided.length, refundsPrevented: resolved.refundsPrevented.length },
   };
 }
 
 /**
  * "Value delivered (trailing 30 days)". Counts only cases whose default outcome
  * would have been an automatic refund or a customer contact. No projections.
+ * Built from the same sets as every other resolved figure (see resolvedMetrics).
  */
 export function valueDelivered(repos: Repositories, asOf: string): ValueDelivered {
-  const since = windowStart(asOf, 30);
-  const counted = repos.cases
-    .list()
-    .filter((c) => verifiedInWindow(c, since, asOf) && DEFAULT_COUNTED.has(c.defaultOutcome))
-    .filter((c) => repos.payments.get(c.paymentId)?.status !== "refunded");
-  const refunds = counted.filter((c) => c.defaultOutcome === "auto_refund");
-  const contacts = counted.filter((c) => c.defaultOutcome === "customer_contact" && c.customerContact !== "customer_initiated");
+  const resolved = resolvedMetrics(repos, asOf);
+  const counted = resolved.valueCounted.map((id) => repos.cases.get(id)!);
+  const amount = (ids: readonly string[]) => sum(ids.map((id) => repos.cases.get(id)!.amountAtRisk));
   const durations = counted.map((c) => secondsBetween(c.detectedAt, c.resolution!.resolvedAt));
   return {
     windowDays: 30,
-    gmvResolvedBeforeRefundOrDispute: { value: sum(counted.map((c) => c.amountAtRisk)), caseIds: counted.map((c) => c.id) },
-    avoidableRefundsPrevented: { value: refunds.length, amount: sum(refunds.map((c) => c.amountAtRisk)), caseIds: refunds.map((c) => c.id) },
-    supportContactsAvoided: { value: contacts.length, caseIds: contacts.map((c) => c.id) },
-    medianDetectionToVerifiedSeconds: { value: median(durations) ?? null, caseIds: counted.map((c) => c.id) },
+    gmvResolvedBeforeRefundOrDispute: { value: amount(resolved.valueCounted), caseIds: resolved.valueCounted },
+    avoidableRefundsPrevented: { value: resolved.refundsPrevented.length, amount: amount(resolved.refundsPrevented), caseIds: resolved.refundsPrevented },
+    supportContactsAvoided: { value: resolved.contactsAvoided.length, caseIds: resolved.contactsAvoided },
+    medianDetectionToVerifiedSeconds: { value: median(durations) ?? null, caseIds: resolved.valueCounted },
+    afterCustomerContact: resolved.afterCustomerContact,
   };
 }
 
@@ -134,13 +118,7 @@ export function dailyPerformance(repos: Repositories, asOf: string, days = 28): 
 }
 
 /** Share of executed recovery actions in the window that later proved wrong. */
-export function wrongActionRate(repos: Repositories, asOf: string, days = 30): { rate: number; wrong: string[]; executed: string[] } {
-  const since = windowStart(asOf, days);
-  const executed = repos.executions.list().filter((e) => e.status === "resolved" && e.finishedAt && e.finishedAt >= since && e.finishedAt <= asOf);
-  const wrong = executed.filter((e) => repos.cases.get(e.caseId)?.wrongAction !== undefined);
-  return {
-    rate: executed.length === 0 ? 0 : wrong.length / executed.length,
-    wrong: wrong.map((e) => e.caseId),
-    executed: executed.map((e) => e.caseId),
-  };
+export function wrongActionRate(repos: Repositories, asOf: string): { rate: number; wrong: string[]; executed: string[] } {
+  const { executedActions, reversedActions } = resolvedMetrics(repos, asOf);
+  return { rate: executedActions.length === 0 ? 0 : reversedActions.length / executedActions.length, wrong: reversedActions, executed: executedActions };
 }

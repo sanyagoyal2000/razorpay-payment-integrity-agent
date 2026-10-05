@@ -24,7 +24,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { CaseStatus, CaseType } from "@/domain/types";
 import { formatINR } from "@/domain/money";
-import { formatRelative } from "@/domain/time";
+import { formatRelative, istTime } from "@/domain/time";
 import { OPERATOR } from "@/fixtures/catalogue";
 import { approveBulk, runExecutions } from "@/services/execution";
 import {
@@ -45,6 +45,7 @@ import { PageHeader } from "@/ui/components/PageHeader";
 import { EmptyMessage, PageError, PageSkeleton } from "@/ui/components/states";
 import { Surface } from "@/ui/components/Surface";
 import { useModel } from "@/ui/data/useModel";
+import { openCasesSummary } from "@/services/metrics/selectors";
 import { usePreference } from "@/ui/data/usePreference";
 import { DateRangeFilterChip } from "@/ui/filters/DateRangeFilterChip";
 import { SelectFilterChip } from "@/ui/filters/SelectFilterChip";
@@ -62,6 +63,7 @@ export function CasesPage() {
   const [tableKey, setTableKey] = useState(0);
   const [confirming, setConfirming] = useState(false);
   const state = useModel((services, asOf) => caseRows(services.repos, asOf));
+  const summary = useModel((services, asOf) => openCasesSummary(services.repos, asOf));
 
   // A search from the top bar arrives as ?q=; it replaces the saved query once.
   const q = params.get("q");
@@ -128,6 +130,7 @@ export function CasesPage() {
               onClearButtonClick={() => update({ query: "" })}
             />
           </Box>
+          {summary.status === "ready" ? <Text size="small" color="surface.text.gray.subtle">{summary.model}</Text> : null}
           <FilterChipGroup showClearButton={active.length > 0} onClearButtonClick={reset}>
             <SelectFilterChip label="Status" multiple options={STATUS_OPTIONS} values={filters.statuses} onChange={(v) => update({ statuses: v as CaseStatus[] })} />
             <SelectFilterChip label="Case type" multiple options={TYPE_OPTIONS} values={filters.types} onChange={(v) => update({ types: v as CaseType[] })} />
@@ -194,7 +197,7 @@ export function CasesPage() {
             onSelectionChange={({ selectedIds }) => setSelected(selectedIds.map(String))}
             rowDensity="normal"
             isHeaderSticky
-            gridTemplateColumns="min-content 96px minmax(110px, 1fr) 168px 112px 84px 64px minmax(118px, 1fr) 172px 118px"
+            gridTemplateColumns="min-content 96px minmax(110px, 1fr) 168px 112px 124px 64px minmax(118px, 1fr) 172px 118px"
           >
             {(items) => (
               <>
@@ -226,6 +229,9 @@ export function CasesPage() {
                       <TableCell>
                         <Box display="flex" flexDirection="column" gap="spacing.1">
                           <Code size="small">{row.paymentId}</Code>
+                          {row.relatedPaymentIds.map((id) => (
+                            <Text key={id} size="xsmall" color="surface.text.gray.muted">{`+ ${id} (second charge)`}</Text>
+                          ))}
                           <Text size="xsmall" color="surface.text.gray.muted">{row.orderId}</Text>
                         </Box>
                       </TableCell>
@@ -233,10 +239,16 @@ export function CasesPage() {
                         <Text size="small">{row.typeLabel}</Text>
                       </TableCell>
                       <TableCell>
-                        <Money value={row.amount} />
+                        <Box display="flex" flexDirection="column" gap="spacing.1">
+                          <Money value={row.amount} />
+                          {row.duplicateCharges > 0 ? <Text size="xsmall" color="surface.text.gray.muted">{`+ ${formatINR(row.duplicateCharges)} second charge`}</Text> : null}
+                        </Box>
                       </TableCell>
                       <TableCell>
-                        <Text size="small">{formatRelative(row.detectedAt, state.now).replace(" ago", "")}</Text>
+                        <Box display="flex" flexDirection="column" gap="spacing.1">
+                          <Text size="small">{formatRelative(row.detectedAt, state.now).replace(" ago", "")}</Text>
+                          {row.failedAt ? <Text size="xsmall" color="surface.text.gray.muted">{`Failed ${istTime(row.failedAt).slice(0, 5)} · opened ${istTime(row.detectedAt).slice(0, 5)}`}</Text> : null}
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Text size="small">{row.recommendation}</Text>

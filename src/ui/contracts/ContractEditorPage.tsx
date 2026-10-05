@@ -21,6 +21,7 @@ import {
   useToast,
 } from "@razorpay/blade/components";
 import { useRouter } from "next/navigation";
+import { productClaims } from "@/services/metrics/selectors";
 import { useEffect, useMemo, useState } from "react";
 import { OPERATOR } from "@/fixtures/catalogue";
 import { formatINR } from "@/domain/money";
@@ -78,6 +79,8 @@ export function ContractEditorPage({ contractId }: { contractId?: string }) {
   const state = useModel((services) => ({
     contract: contractId ? services.repos.config.contract(contractId) ?? null : null,
     products: services.repos.config.contracts().flatMap((c) => c.productScope).map((id) => services.repos.payments.product(id)!).filter(Boolean),
+    // Products covered by another active contract; a product may belong to at most one.
+    claims: productClaims(services.repos, contractId),
     services: [...new Set(services.repos.config.contracts().map((c) => c.fulfilmentService))],
     globalMax: services.repos.config.globalControls().maxAutomaticValue,
   }), [contractId]);
@@ -116,7 +119,7 @@ export function ContractEditorPage({ contractId }: { contractId?: string }) {
   }
 
   const { services } = state;
-  const { products, globalMax } = state.model;
+  const { products, globalMax, claims } = state.model;
   const set = <K extends keyof ContractForm>(key: K, value: ContractForm[K]) => setForm((f) => ({ ...f, [key]: value }));
   const err = (key: keyof ContractForm) => (errors[key] ? { validationState: "error" as const, errorText: errors[key] } : {});
 
@@ -214,9 +217,16 @@ export function ContractEditorPage({ contractId }: { contractId?: string }) {
                 onChange={({ values }) => set("productScope", values)}
                 {...(errors["productScope"] ? { validationState: "error" as const, errorText: errors["productScope"] } : {})}
               >
-                {products.map((p) => (
-                  <Checkbox key={p.id} value={p.id}>{`${p.name} (${formatINR(p.price)})`}</Checkbox>
-                ))}
+                {products.map((p) => {
+                  const claim = claims.get(p.id);
+                  // A product already in another active contract can only be chosen while this one stays a draft.
+                  const locked = claim !== undefined && form.status === "active" && !form.productScope.includes(p.id);
+                  return (
+                    <Checkbox key={p.id} value={p.id} isDisabled={locked} {...(claim ? { helpText: `Used by ${claim.contractName}` } : {})}>
+                      {`${p.name} (${formatINR(p.price)})`}
+                    </Checkbox>
+                  );
+                })}
               </CheckboxGroup>
               <Divider />
               <Box display="grid" gridTemplateColumns={{ base: "1fr", m: "1fr 1fr" }} gap="spacing.5">

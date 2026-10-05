@@ -13,7 +13,7 @@ import {
   Text,
 } from "@razorpay/blade/components";
 import { formatRelative } from "@/domain/time";
-import type { AttentionRow } from "@/services/views/overview";
+import { attentionSummary, type AttentionRow } from "@/services/views/overview";
 import { AppLink } from "@/ui/components/AppLink";
 import { NoticeLabel } from "@/ui/components/badges";
 import { Money } from "@/ui/components/Money";
@@ -22,11 +22,11 @@ import { Surface } from "@/ui/components/Surface";
 import { BASE_PATH, caseHref } from "@/ui/shell/nav";
 
 export function AttentionCases({ rows, now }: { rows: AttentionRow[]; now: Date }) {
-  const needed = rows.filter((r) => r.attentionRequired).length;
+  const summary = attentionSummary(rows);
   return (
     <Surface
       title="Cases requiring attention"
-      description={`${needed} ${needed === 1 ? "case needs" : "cases need"} an individual decision. Cases in an incident's safe group are handled on the incident.`}
+      description={`${summary.heading}. Cases in an incident's safe group are handled on the incident.`}
       padded={rows.length === 0}
     >
       {rows.length === 0 ? (
@@ -69,7 +69,7 @@ export function AttentionCases({ rows, now }: { rows: AttentionRow[]; now: Date 
                       {row.attentionRequired ? (
                         <NoticeLabel>Decision needed</NoticeLabel>
                       ) : (
-                        <Badge color="neutral" size="medium">No action</Badge>
+                        <Badge color="neutral" size="medium">Observing</Badge>
                       )}
                     </TableCell>
                     <TableCell>

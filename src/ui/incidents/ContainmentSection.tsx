@@ -93,7 +93,7 @@ export function ContainmentSection({ model, services, now }: { model: IncidentWo
                   </Text>
                 ) : (
                   <Button variant="secondary" size="small" onClick={() => setPending(option)}>
-                    {option.action === "notify_customers" ? `Review message for ${recipients}` : "Record decision"}
+                    {option.action === "notify_customers" ? `Review message for ${model.notification.audience.label}` : "Record decision"}
                   </Button>
                 )}
               </Box>

@@ -113,13 +113,13 @@ export function RecoverySection({
             items={[
               {
                 label: "Incident diagnosis",
-                value: confidence.investigation !== undefined ? `${Math.round(confidence.investigation * 100)}% confidence` : "Not yet validated",
-                help: "Confidence in the likely cause",
+                value: confidence.investigation !== undefined ? `${Math.round(confidence.investigation * 100)}% confidence in the likely cause` : "Not yet validated",
+                help: "No threshold applies: the diagnosis does not authorise any action",
               },
               {
-                label: "Selected recovery actions",
-                value: actionConfidence !== undefined ? `Minimum ${Math.round(actionConfidence * 100)}% confidence` : "No eligible cases selected",
-                help: "Lowest confidence among the selected cases' actions",
+                label: "Lowest confidence among selected cases",
+                value: actionConfidence !== undefined ? `${Math.round(actionConfidence * 100)}% · ${confidence.thresholdLabel}` : "No eligible cases selected",
+                help: "The lowest action confidence among the selected cases, next to the threshold policy applies to each case",
               },
               {
                 label: "Current mode",

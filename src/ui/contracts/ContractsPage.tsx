@@ -25,6 +25,7 @@ import { PageHeader } from "@/ui/components/PageHeader";
 import { PageError, PageSkeleton } from "@/ui/components/states";
 import { Surface } from "@/ui/components/Surface";
 import { useModel } from "@/ui/data/useModel";
+import { openCasesSummary } from "@/services/metrics/selectors";
 import { BASE_PATH } from "@/ui/shell/nav";
 
 const STATUS = {
@@ -36,6 +37,7 @@ const STATUS = {
 export function ContractsPage() {
   const router = useRouter();
   const state = useModel((services, asOf) => contractRows(services.repos, asOf));
+  const summary = useModel((services, asOf) => openCasesSummary(services.repos, asOf));
   const [drawer, setDrawer] = useState<CaseListRequest | null>(null);
   const header = (
     <PageHeader
@@ -54,6 +56,9 @@ export function ContractsPage() {
   return (
     <>
       {header}
+      {summary.status === "ready" ? (
+        <Text size="small" color="surface.text.gray.subtle" marginBottom="spacing.4">{`${summary.model}. The Open cases column sums to the same total.`}</Text>
+      ) : null}
       <Surface padded={false}>
         <Table data={{ nodes: state.model }} rowDensity="normal" gridTemplateColumns="minmax(200px, 1.6fr) 96px minmax(170px, 1.2fr) 88px 148px 116px 120px 96px">
           {(items) => (

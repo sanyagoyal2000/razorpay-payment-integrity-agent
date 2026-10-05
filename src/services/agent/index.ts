@@ -54,6 +54,7 @@ import {
   validateStage,
 } from "./progress";
 import { draftMessageByRule, explainAutonomyByRule } from "./rules";
+import { resolveEvidence } from "@/services/views/evidence";
 
 export type AgentDeps = { repos: Repositories; agent: AgentGateway; clock: { now(): Date } };
 
@@ -119,7 +120,10 @@ export function describeCaseInvestigation(repos: Repositories, c: IntegrityCase,
   const ids = new Set(evidence.map((e) => e.id));
   const cited = citedIds(c.investigation);
   const removed = cited.filter((id) => !ids.has(id));
-  const at = c.investigationRun?.at ?? c.recommendation?.createdAt ?? c.detectedAt;
+  // An investigation cannot predate the evidence it cites (for example a service recovery it relies on).
+  const recorded = c.investigationRun?.at ?? c.recommendation?.createdAt ?? c.detectedAt;
+  const latestCited = cited.map((id) => resolveEvidence(repos, id)?.occurredAt).filter((t): t is string => t !== undefined).sort().at(-1);
+  const at = !c.investigationRun && latestCited && latestCited > recorded ? latestCited : recorded;
   const contract = requireContract(repos, c.outcomeContractId);
   const health = healthResult(repos, contract.fulfilmentService, at);
   const status = c.investigationRun?.status ?? "valid";

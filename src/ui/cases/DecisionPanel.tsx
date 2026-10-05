@@ -18,12 +18,13 @@ import {
 } from "@razorpay/blade/components";
 import { useState, type ReactNode } from "react";
 import type { ActionType } from "@/domain/types";
-import { istTime } from "@/domain/time";
+import { formatDuration, istTime } from "@/domain/time";
 import { OPERATOR } from "@/fixtures/catalogue";
 import type { AppServices } from "@/services/container";
 import { applyDecision, DecisionError, MIN_REJECTION_REASON, rejectRecommendation, type DecisionOption } from "@/services/decisions";
 import { runExecution } from "@/services/execution";
 import { actionLabel } from "@/services/policy/actions";
+import { thresholdLabel } from "@/services/policy/thresholds";
 import type { CaseDetailModel } from "@/services/views/cases";
 import { Surface } from "@/ui/components/Surface";
 import { draftCustomerMessage, messageInputForCase } from "@/services/agent";
@@ -138,11 +139,17 @@ export function DecisionPanel({ model, services }: { model: CaseDetailModel; ser
             isDismissible={false}
             isFullWidth
           />
-        ) : c.status === "observing" && c.observation ? (
+        ) : model.observation ? (
           <Alert
-            color="information"
-            title="Observing: within normal processing range"
-            description={`The outcome is ${c.observation.observedDelaySeconds} s late, inside this contract's normal range (median ${c.observation.normalRangeSeconds.p50} s, 95th percentile ${c.observation.normalRangeSeconds.p95} s). No action is recommended.`}
+            color={model.observation.withinNormalRange && !model.observation.deadlinePassed ? "information" : "notice"}
+            title={model.observation.deadlinePassed ? "Observing: contract deadline passed" : model.observation.withinNormalRange ? "Observing: within normal processing range" : "Observing: slower than this contract's normal range"}
+            description={`The outcome has been pending for ${formatDuration(model.observation.delaySeconds)} (median ${formatDuration(model.observation.p50)}, 95th percentile ${formatDuration(model.observation.p95)}). ${
+              model.observation.deadlinePassed
+                ? "The deadline has passed; the case opens as a missing outcome as soon as data is refreshed."
+                : model.observation.deadline
+                  ? `No action yet. It becomes a missing outcome at ${istTime(model.observation.deadline)} IST if the outcome has not arrived.`
+                  : "No action is recommended."
+            }`}
             isDismissible={false}
             isFullWidth
           />
@@ -164,7 +171,7 @@ export function DecisionPanel({ model, services }: { model: CaseDetailModel; ser
                 <Text size="small">{recommendation.summary}</Text>
               </Row>
               <Row label="Confidence">
-                <Text size="small">{Math.round(recommendation.confidence * 100)}%</Text>
+                <Text size="small">{`${Math.round(recommendation.confidence * 100)}% · ${thresholdLabel(model.confidenceThreshold)}${["escalate", "wait", "prepare_refund", "notify_customer", "review_alternate_inventory"].includes(recommendation.action) ? "; applies only to actions that change the payment or outcome" : ""}`}</Text>
               </Row>
               <Row label="Evidence">
                 {model.evidence.length === 0 ? (
@@ -205,7 +212,18 @@ export function DecisionPanel({ model, services }: { model: CaseDetailModel; ser
 
         <Section title="Policy verdict">
           {open && verdict && primary ? (
-            <PolicyVerdictSection verdict={verdict} actionLabel={primary.label} refusal={refusal} />
+            <>
+              <Text size="xsmall" color={model.investigationFreshness?.stale ? "feedback.text.notice.intense" : "surface.text.gray.muted"} marginBottom="spacing.2">
+                {`Evaluated ${istTime(verdict.evaluatedAt)} IST against current payment, outcome and service state.${
+                  model.investigationFreshness
+                    ? ` Confidence and evidence come from the investigation run at ${istTime(model.investigationFreshness.ranAt)} IST${
+                        model.investigationFreshness.stale && model.investigationFreshness.changedAt ? `, which is stale: conditions changed at ${istTime(model.investigationFreshness.changedAt)} IST.` : "."
+                      }`
+                    : ""
+                }`}
+              </Text>
+              <PolicyVerdictSection verdict={verdict} actionLabel={primary.label} refusal={refusal} />
+            </>
           ) : model.latestExecution?.verdict ? (
             <>
               <Text size="xsmall" color="surface.text.gray.muted" marginBottom="spacing.2">

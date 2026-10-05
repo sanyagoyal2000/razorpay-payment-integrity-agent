@@ -88,7 +88,7 @@ function audit(repos: Repositories, c: IntegrityCase, entry: { occurredAt: strin
     targetId: c.id,
     caseId: c.id,
     ...(c.incidentId ? { incidentId: c.incidentId } : {}),
-    approvalSource: entry.actor === ACTORS.operator ? "merchant" : "not_required",
+    approvalSource: entry.actor === ACTORS.operator ? "merchant" : entry.actor === ACTORS.policy ? "policy_automatic" : "not_required",
     ...entry,
   });
 }

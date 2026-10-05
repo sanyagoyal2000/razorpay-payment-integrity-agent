@@ -2,7 +2,9 @@
 
 import { Box, Button, Heading, Text } from "@razorpay/blade/components";
 import type { ReactNode } from "react";
+import { formatINR } from "@/domain/money";
 import type { PrimaryMetrics as Metrics } from "@/services/metrics/overview";
+import { exposureCountsLabel } from "@/services/metrics/selectors";
 import type { CaseListRequest } from "@/ui/components/CaseListDrawer";
 import { MoneyHeading } from "@/ui/components/Money";
 
@@ -59,13 +61,13 @@ export function PrimaryMetrics({ metrics, onShowCases }: { metrics: Metrics; onS
       <Metric
         label="Revenue at risk across all open cases"
         value={<MoneyHeading value={metrics.revenueAtRisk.value} />}
-        footnote={`Across ${metrics.revenueAtRisk.caseIds.length} open cases, in incidents and on their own`}
+        footnote={`${exposureCountsLabel(metrics.exposure)}${metrics.exposure.duplicateCharges > 0 ? `. Original payments only; ${formatINR(metrics.exposure.duplicateCharges)} in ${metrics.exposure.duplicateChargeCount} duplicate ${metrics.exposure.duplicateChargeCount === 1 ? "charge" : "charges"} under review is not included` : ""}`}
         action={{
           label: "View cases",
           onClick: () =>
             onShowCases({
               title: "Revenue at risk across all open cases",
-              explanation: "Open, review-required, approved, executing and escalated cases. Observed cases are not yet at risk.",
+              explanation: "Open, review-required, approved, executing and escalated cases, one per purchase. The amount is the original payment; a second charge for the same purchase is linked to its case and counted separately as a duplicate charge. Observed cases are not yet at risk.",
               caseIds: metrics.revenueAtRisk.caseIds,
             }),
         }}
@@ -73,7 +75,7 @@ export function PrimaryMetrics({ metrics, onShowCases }: { metrics: Metrics; onS
       <Metric
         label="Customers affected"
         value={count(metrics.customersAffected.value)}
-        footnote="Distinct customers with a case at risk"
+        footnote={`Distinct customers across ${metrics.exposure.caseCount} open cases`}
       />
       <Metric
         label="Open incidents"
@@ -83,14 +85,14 @@ export function PrimaryMetrics({ metrics, onShowCases }: { metrics: Metrics; onS
       <Metric
         label="Cases resolved before customer contact"
         value={count(metrics.resolvedBeforeContact.value)}
-        footnote="Trailing 30 days"
+        footnote={`Trailing 30 days: ${metrics.resolvedSplit.contactsAvoided} support contacts avoided + ${metrics.resolvedSplit.refundsPrevented} automatic refunds prevented`}
         action={{
           label: "View cases",
           onClick: () =>
             onShowCases({
               title: "Resolved before customer contact",
               explanation:
-                "Cases resolved with a verified outcome in the last 30 days, before the learner contacted Marrow, where the default would have been a refund or a customer contact.",
+                "Cases resolved with a verified outcome in the last 30 days, before the learner contacted Marrow, where the default would have been an automatic refund or a customer contact. Equals support contacts avoided plus avoidable refunds prevented.",
               caseIds: metrics.resolvedBeforeContact.caseIds,
             }),
         }}

@@ -123,7 +123,7 @@ describe("Why the agent was needed", () => {
     const byId = Object.fromEntries(c.metrics.map((m) => [m.id, m]));
     expect(c.state).toBe("valid");
     expect(byId.detected!.value).toBe(43);
-    expect(byId.examined).toMatchObject({ value: run.eventsExamined, detail: "events across 3 connected sources" });
+    expect(byId.examined).toMatchObject({ value: run.eventsExamined, detail: "events across 3 connected sources + Payment Integrity receipts" });
     expect(byId.causes).toMatchObject({ value: 4, detail: "1 supported, 3 ruled out, 0 inconclusive" });
     expect(byId.safe).toMatchObject({ value: 38, detail: `cases worth ${formatINR(151962)}` });
     expect(byId.held).toMatchObject({ value: 5, detail: "3 duplicate payments, 2 above the value limit" });
@@ -165,7 +165,8 @@ describe("Observable investigation stages", () => {
     await reinvestigateIncident(env, "INC-0017", (s) => stages.push(s));
     expect(stages.map((s) => s.step)).toEqual(["gathering", "comparing", "checking_health", "validating", "preparing"]);
     const run = env.repos.incidents.get("INC-0017")!.investigationRun!;
-    expect(stages[0]!.detail).toBe(`Collected ${run.eventsExamined} payment, webhook, merchant, observability and outcome receipt events from ${Object.keys(run.sources).length} sources.`);
+    expect(stages[0]!.detail).toBe(`Collected ${run.eventsExamined} payment, webhook, merchant, observability and outcome receipt events from 3 connected sources + Payment Integrity receipts.`);
+    expect(Object.keys(run.sources)).toHaveLength(4);
     expect(stages[1]!.detail).toBe("Compared 43 cases for shared timing, service and outcome patterns.");
     expect(stages[2]!.detail).toMatch(/^Learning Access Service recovered at \d\d:\d\d IST\.$/);
     expect(stages[3]!.detail).toBe(`Checked ${run.citationsChecked} citations against recorded events; none removed.`);

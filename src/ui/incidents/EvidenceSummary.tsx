@@ -19,7 +19,7 @@ export function EvidenceSummary({ counts }: { counts: EvidenceCounts }) {
       <Stat value={counts.eventsAnalysed} label="Events analysed" />
       <Stat value={counts.citationsValidated} label="Citations validated" />
       <Stat value={counts.keyEventsShown} label="Key events shown" />
-      <Stat value={counts.connectedSources} label="Connected sources" />
+      <Stat value={counts.connectedSources} label={counts.ownReceipts ? "Connected sources + Payment Integrity receipts" : "Connected sources"} />
       <Tooltip content={EVIDENCE_COUNT_NOTE} placement="top">
         <IconButton icon={InfoIcon} size="small" accessibilityLabel="What these counts mean" onClick={() => undefined} />
       </Tooltip>

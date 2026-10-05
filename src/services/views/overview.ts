@@ -1,10 +1,12 @@
 import type { AuditEvent, IncidentRecord, IntegrityCase } from "@/domain/types";
 import { formatINR } from "@/domain/money";
-import { formatIstDateTime } from "@/domain/time";
+import { formatDuration, formatIstDateTime, formatIstShort } from "@/domain/time";
 import type { Repositories } from "@/repositories";
 import { incidentTotals, isAtRisk } from "@/services/metrics/cases";
 import { dailyPerformance, primaryMetrics, valueDelivered, wrongActionRate } from "@/services/metrics/overview";
-import { POLICY_ACTION_LABELS, theService } from "@/services/policy/actions";
+import { actionLabel, theService } from "@/services/policy/actions";
+import { automationSummary } from "@/services/automation";
+import { observationState } from "@/services/metrics/selectors";
 import { modeLabel } from "@/services/policy/evaluatePolicy";
 import { assessCase, groupIncidentCases } from "@/services/recovery/groups";
 import { serviceHealth } from "@/services/policy/currentState";
@@ -35,17 +37,13 @@ export function agentStatus(repos: Repositories, asOf: string): { label: string;
   };
 }
 
-export function automationStatus(repos: Repositories): { label: string; paused: boolean; detail: string } {
-  const controls = repos.config.globalControls();
-  if (controls.automationPaused) {
-    return { label: "Paused", paused: true, detail: "No automated actions will execute. Monitoring and investigation continue." };
-  }
-  const automatic = repos.config.actionPolicies().filter((p) => p.mode === "automatic_below_threshold");
-  const names = automatic.map((p) => POLICY_ACTION_LABELS[p.action]);
+export function automationStatus(repos: Repositories, asOf: string): { label: string; paused: boolean; detail: string } {
+  const summary = automationSummary(repos, asOf);
+  const n = summary.automaticActions.length;
   return {
-    label: automatic.length === 0 ? "Suggest only" : `${automatic.length} automatic ${automatic.length === 1 ? "action" : "actions"}`,
-    paused: false,
-    detail: automatic.length === 0 ? "Every action waits for approval." : `${names.join(", ")}: ${modeLabel("automatic_below_threshold").toLowerCase()}.`,
+    label: summary.paused ? "Paused" : n === 0 ? "Suggest only" : `${n} automatic ${n === 1 ? "action" : "actions"}`,
+    paused: summary.paused,
+    detail: summary.paused || n === 0 ? summary.detail : `${summary.automaticActions.join(", ")}: ${modeLabel("automatic_below_threshold").toLowerCase()}. ${summary.lastRunAt ? `Last automatic run ${formatIstShort(summary.lastRunAt, asOf)} IST.` : "No automatic run yet."}`,
   };
 }
 
@@ -107,8 +105,23 @@ export type AttentionRow = {
   attentionRequired: boolean;
   reason: string;
   deadline?: string;
+  /** For observed cases: when the case becomes a missing outcome. */
+  observationDeadline?: string;
   incidentId?: string;
 };
+
+export type AttentionSummary = { decisions: number; observing: number; heading: string };
+
+/** The attention table's heading, counted from the rows it shows. */
+export function attentionSummary(rows: readonly AttentionRow[]): AttentionSummary {
+  const decisions = rows.filter((r) => r.attentionRequired).length;
+  const observing = rows.length - decisions;
+  const parts = [
+    `${decisions} ${decisions === 1 ? "case needs" : "cases need"} an individual decision`,
+    ...(observing > 0 ? [`${observing} ${observing === 1 ? "is" : "are"} being observed`] : []),
+  ];
+  return { decisions, observing, heading: parts.join(" · ") };
+}
 
 /**
  * Cases that need an individual decision, plus observed cases that do not,
@@ -121,13 +134,20 @@ export function attentionRows(repos: Repositories, asOf: string): AttentionRow[]
   for (const c of repos.cases.list()) {
     const customer = repos.payments.customer(c.customerId)?.name ?? c.customerId;
     const base = { caseId: c.id, customer, type: CASE_TYPE_LABELS[c.type], amount: c.amountAtRisk, ...(c.incidentId ? { incidentId: c.incidentId } : {}) };
-    if (c.status === "observing" && c.observation) {
-      const { observedDelaySeconds, normalRangeSeconds } = c.observation;
+    const observed = observationState(repos, c, asOf);
+    if (observed) {
+      const at = observed.deadline ? formatIstShort(observed.deadline, asOf) : undefined;
+      const range = `median ${formatDuration(observed.p50)}, 95th percentile ${formatDuration(observed.p95)}`;
       rows.push({
         ...base,
         rank: 5,
         attentionRequired: false,
-        reason: `No action needed. Outcome delayed ${observedDelaySeconds} s, within the normal range for this contract (median ${normalRangeSeconds.p50} s, 95th percentile ${normalRangeSeconds.p95} s).`,
+        reason: observed.deadlinePassed
+          ? `Contract deadline passed at ${at} IST without the outcome. It opens as a missing outcome as soon as payment and outcome data are refreshed.`
+          : observed.withinNormalRange
+            ? `No action needed yet. Outcome pending for ${formatDuration(observed.delaySeconds)}, within the normal range for this contract (${range}).${at ? ` Becomes a missing outcome at ${at} IST if it has not arrived.` : ""}`
+            : `No action needed yet. Outcome pending for ${formatDuration(observed.delaySeconds)}, above this contract's normal range (${range}).${at ? ` Becomes a missing outcome at ${at} IST if it has not arrived.` : ""}`,
+        ...(observed.deadline && !observed.deadlinePassed ? { observationDeadline: observed.deadline } : {}),
       });
       continue;
     }
@@ -181,8 +201,12 @@ export function attentionRows(repos: Repositories, asOf: string): AttentionRow[]
     } else if (verdict?.result === "blocked" && group === "blocked") {
       const failed = verdict.checks.filter((check) => check.status !== "passed" && check.enforcement === "hard").map((check) => check.explanation);
       rows.push({ ...base, rank: 4, attentionRequired: true, reason: `Recovery blocked by policy. ${failed.join(" ")}` });
+    } else if (verdict?.result === "allowed") {
+      const label = actionLabel(c.recommendation!.action, contract);
+      rows.push({ ...base, rank: 4, attentionRequired: true, reason: `${label} is allowed by policy and runs automatically; review the case if you want to act differently.` });
     } else {
-      rows.push({ ...base, rank: 4, attentionRequired: true, reason: "Needs individual approval." });
+      const failed = verdict?.checks.filter((check) => check.status !== "passed" && check.enforcement === "review").map((check) => check.explanation) ?? [];
+      rows.push({ ...base, rank: 4, attentionRequired: true, reason: `Needs individual approval.${failed.length > 0 ? ` ${failed.join(" ")}` : ""}` });
     }
   }
   return rows
@@ -283,7 +307,7 @@ export function overviewModel(repos: Repositories, asOf: string) {
   return {
     lastRefresh: lastDataRefresh(repos, asOf),
     agent: agentStatus(repos, asOf),
-    automation: automationStatus(repos),
+    automation: automationStatus(repos, asOf),
     metrics,
     incidents: activeIncidentRows(repos, asOf),
     attention: attentionRows(repos, asOf),

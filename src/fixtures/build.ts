@@ -812,7 +812,7 @@ export function buildDataset(): Dataset {
       summary: "Membership payments succeeded, but activations took up to four minutes. All activations completed without intervention.",
     });
     integrity({ type: "incident.created", incidentId, occurredAt: addSeconds(first.detectedAt, 200) });
-    audit({ occurredAt: addSeconds(first.detectedAt, 200), actor: ACTORS.agent, action: "Created incident", targetType: "incident", targetId: incidentId, incidentId, result: "3 delayed membership activations clustered", evidenceIds: [errors.id, ...caseIds], approvalSource: "not_required" });
+    audit({ occurredAt: addSeconds(first.detectedAt, 200), actor: ACTORS.agent, action: "Created incident", targetType: "incident", targetId: incidentId, incidentId, result: "Incident created with 3 initial cases: delayed membership activations", evidenceIds: [errors.id, ...caseIds], approvalSource: "not_required" });
     audit({ occurredAt: last.resolution!.resolvedAt, actor: ACTORS.agent, action: "Resolved incident", targetType: "incident", targetId: incidentId, incidentId, result: "All outcomes arrived", evidenceIds: [recovered.id], approvalSource: "not_required" });
   }
 
@@ -885,7 +885,7 @@ export function buildDataset(): Dataset {
       summary: "Payments were captured, but Marrow's webhook endpoint rejected order.paid, so access was never requested.",
     });
     integrity({ type: "incident.created", incidentId, occurredAt: detectedAt });
-    audit({ occurredAt: detectedAt, actor: ACTORS.agent, action: "Created incident", targetType: "incident", targetId: incidentId, incidentId, result: "2 cases share webhook HTTP 503 failures", evidenceIds: [errors.id, ...caseIds.slice(0, 2)], approvalSource: "not_required" });
+    audit({ occurredAt: detectedAt, actor: ACTORS.agent, action: "Created incident", targetType: "incident", targetId: incidentId, incidentId, result: "Incident created with 2 initial cases sharing webhook HTTP 503 failures", evidenceIds: [errors.id, ...caseIds.slice(0, 2)], approvalSource: "not_required" });
     audit({ occurredAt: resolvedAt, actor: ACTORS.agent, action: "Resolved incident", targetType: "incident", targetId: incidentId, incidentId, result: "6 of 6 outcomes verified after webhook replay", evidenceIds: [recovered.id], approvalSource: "not_required" });
   }
 
@@ -1203,7 +1203,7 @@ export function buildDataset(): Dataset {
     investigation: incidentInvestigation,
   });
   integrity({ type: "incident.created", incidentId, occurredAt: incidentDetectedAt });
-  audit({ occurredAt: incidentDetectedAt, actor: ACTORS.agent, action: "Created incident", targetType: "incident", targetId: incidentId, incidentId, result: "3 learning package purchase cases share one failure signature", evidenceIds: incidentCases.slice(0, 3).map((c) => c.id), approvalSource: "not_required" });
+  audit({ occurredAt: incidentDetectedAt, actor: ACTORS.agent, action: "Created incident", targetType: "incident", targetId: incidentId, incidentId, result: `Incident created with ${Math.min(3, incidentCases.length)} initial cases sharing one failure signature`, evidenceIds: incidentCases.slice(0, 3).map((c) => c.id), approvalSource: "not_required" });
 
   // Incident history snapshots, computed from the cases known at each moment.
   const snapshot = (occurredAt: string, systemHealth: IncidentUpdate["systemHealth"], note: string, rootCauseConfidence?: number) => {
@@ -1224,7 +1224,7 @@ export function buildDataset(): Dataset {
   snapshot(addSeconds(incidentDetectedAt, 75), "down", "Failures began 81 seconds after deploy.completed for the Learning Access Service v2.3.", 0.86);
   for (const time of ["14:12:00", "14:15:00", "14:18:00"]) snapshot(at(D, time), "down", "Case count updated.");
   snapshot(enrolRecovered.occurredAt, "healthy", "Learning Access Service health checks passing; recovery is now possible.", 0.9);
-  snapshot(addSeconds(incidentCases.at(-1)!.detectedAt, 1), "healthy", "Final affected purchase added. No failures after recovery.", 0.93);
+  snapshot(addSeconds(incidentCases.at(-1)!.detectedAt, 1), "healthy", "Final affected case opened.", 0.93);
   snapshot(addSeconds(postRecovery[2]!.receipt!.confirmedAt!, 1), "healthy", "New purchases receiving learning package access within normal time.", 0.93);
 
   // =========================================================================

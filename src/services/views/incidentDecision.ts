@@ -4,12 +4,14 @@ import { formatINR } from "@/domain/money";
 import { formatRelative } from "@/domain/time";
 import type { Repositories } from "@/repositories";
 import { describeIncidentInvestigation } from "@/services/agent";
-import { healthResult } from "@/services/agent/progress";
+import { healthResult, sourceSummary } from "@/services/agent/progress";
 import { incidentTotals, isAtRisk } from "@/services/metrics/cases";
 import { MERCHANT } from "@/fixtures/catalogue";
 import { actionLabel, serviceLabel, theService } from "@/services/policy/actions";
 import { evaluateCase, requireContract } from "@/services/policy/currentState";
 import { modeLabel } from "@/services/policy/evaluatePolicy";
+import { confidenceThreshold, thresholdLabel } from "@/services/policy/thresholds";
+import { atRiskLabel, exposureOf } from "@/services/metrics/selectors";
 import { assessCase, groupIncidentCases, planBulkRecovery, type RecoveryGroupId } from "@/services/recovery/groups";
 import { contextAndAuthority } from "./agentProfile";
 import type { groupEvidence } from "./evidence";
@@ -136,7 +138,7 @@ export function decisionSummary(repos: Repositories, incident: IncidentRecord, a
         : `Review ${plural(held, "case", "cases")} individually; none can be recovered in bulk.`;
   return {
     headline: `${plural(totals.customersAtRisk, "learner", "learners")} paid but ${missing}`,
-    atRisk: `${formatINR(totals.remainingAtRisk)} is at risk.`,
+    atRisk: `${atRiskLabel(exposureOf(repos, totals.openCaseIds.map((id) => repos.cases.get(id)!)))}.`,
     ...(cause ? { cause } : {}),
     recommendation,
     safeCount: safe && !blocker && health.status === "healthy" ? safe.caseIds.length : 0,
@@ -286,6 +288,8 @@ export type RecoveryConfidence = {
   recommendation?: number;
   /** Confidence needed for automatic execution: the stricter of contract and global minimums. */
   automaticThreshold: number;
+  /** Which minimum sets the threshold, e.g. "required ≥95% (contract and global)". */
+  thresholdLabel: string;
   mode: string;
   explanation: string;
 };
@@ -298,7 +302,8 @@ export type RecoveryConfidence = {
 export function recoveryConfidence(repos: Repositories, incident: IncidentRecord, asOf: string): RecoveryConfidence {
   const contract = requireContract(repos, incident.outcomeContractId);
   const controls = repos.config.globalControls();
-  const threshold = Math.max(contract.minimumConfidence, controls.minimumConfidence);
+  const required = confidenceThreshold(contract, controls);
+  const threshold = required.value;
   const safe = groupIncidentCases(repos, incident.id, asOf).find((g) => g.id === "safe");
   const safeCases = (safe?.caseIds ?? []).map((id) => repos.cases.get(id)).filter((c): c is IntegrityCase => c?.recommendation !== undefined);
   const lowest = safeCases.length > 0 ? Math.min(...safeCases.map((c) => c.recommendation!.confidence)) : undefined;
@@ -321,7 +326,7 @@ export function recoveryConfidence(repos: Repositories, incident: IncidentRecord
     explanation = "No case is eligible for approval as a group. Each held case shows its own policy result.";
   } else {
     const automaticParts = [
-      `Automatic execution requires ${pct(threshold)} confidence`,
+      `Automatic execution requires ${pct(threshold)} action confidence (${required.source} minimum)`,
       ...(mode !== "automatic_below_threshold" ? [`and ${label} set to automatic in Automations (it is ${modeLabel(mode)})`] : []),
     ];
     explanation = `${automaticParts.join(" ")}. You may approve this recovery because all mandatory policy checks pass for these ${plural(safe.caseIds.length, "case", "cases")}. Policy is checked again before execution.`;
@@ -330,6 +335,7 @@ export function recoveryConfidence(repos: Repositories, incident: IncidentRecord
     ...(investigationConfidence !== undefined ? { investigation: investigationConfidence } : {}),
     ...(lowest !== undefined ? { recommendation: lowest } : {}),
     automaticThreshold: threshold,
+    thresholdLabel: thresholdLabel(required),
     mode: modeLabel(mode),
     explanation,
   };
@@ -353,7 +359,8 @@ export type ModeView = { mode: string; consequence: string; blocked: boolean; to
  */
 export function recoveryModeView(repos: Repositories, incident: IncidentRecord, asOf: string): ModeView {
   const contract = requireContract(repos, incident.outcomeContractId);
-  const { automaticThreshold, explanation } = recoveryConfidence(repos, incident, asOf);
+  const { explanation } = recoveryConfidence(repos, incident, asOf);
+  const required = confidenceThreshold(contract, repos.config.globalControls());
   const mode = repos.config.actionModes()[contract.safeRecoveryAction === "replay_webhook" ? "replay_webhook" : "retry_provisioning"];
   const label = actionLabel(contract.safeRecoveryAction, contract);
   const blocked = explanation.startsWith("Blocked by policy");
@@ -368,7 +375,7 @@ export function recoveryModeView(repos: Repositories, incident: IncidentRecord, 
     mode: modeLabel(mode),
     consequence,
     blocked,
-    tooltip: `Automatic execution requires at least ${Math.round(automaticThreshold * 100)}% action confidence and an eligible automation mode. ${label} is currently configured as ${modeLabel(mode)}.`,
+    tooltip: `Automatic execution requires at least ${Math.round(required.value * 100)}% action confidence (${required.source} minimum) and an eligible automation mode. ${label} is currently configured as ${modeLabel(mode)}.`,
   };
 }
 
@@ -420,7 +427,7 @@ export function merchantIntent(repos: Repositories, incident: IncidentRecord): M
 export const EVIDENCE_COUNT_NOTE =
   "Multiple citations may reference the same event. This view shows the events most relevant to the decision rather than every investigation input.";
 
-export type EvidenceCounts = { eventsAnalysed: number; citationsValidated: number; keyEventsShown: number; connectedSources: number };
+export type EvidenceCounts = { eventsAnalysed: number; citationsValidated: number; keyEventsShown: number; connectedSources: number; ownReceipts: boolean };
 
 /** Counts with distinct meanings; none is adjusted to match another. */
 export function evidenceCounts(repos: Repositories, incident: IncidentRecord, asOf: string, shown: ReturnType<typeof groupEvidence>): EvidenceCounts | undefined {
@@ -430,7 +437,8 @@ export function evidenceCounts(repos: Repositories, incident: IncidentRecord, as
     eventsAnalysed: run.eventsExamined,
     citationsValidated: run.citationsChecked,
     keyEventsShown: shown.reduce((n, g) => n + g.items.length, 0),
-    // Payment Integrity's own records are not a connected source.
-    connectedSources: Object.keys(run.sources).filter((s) => s !== "Payment Integrity").length,
+    // Payment Integrity's own receipts are evidence but not a connected source; they are labelled separately.
+    connectedSources: sourceSummary(run.sources).connected,
+    ownReceipts: sourceSummary(run.sources).ownReceipts,
   };
 }

@@ -1,9 +1,11 @@
 import type { IncidentRecord, IncidentStatus, Severity } from "@/domain/types";
 import { formatINR, sum } from "@/domain/money";
-import { istDate } from "@/domain/time";
+import { istDate, istTime } from "@/domain/time";
 import type { Repositories } from "@/repositories";
 import { containmentOptions, engineeringIncident, monitoringProgress, notificationPreview } from "@/services/containment";
-import { incidentTotals } from "@/services/metrics/cases";
+import { incidentTotals, isAtRisk } from "@/services/metrics/cases";
+import { exposureOf } from "@/services/metrics/selectors";
+import { incidentInvestigationFreshness } from "@/services/investigation/freshness";
 import { actionLabel, serviceLabel, theService } from "@/services/policy/actions";
 import { requireContract, serviceHealth } from "@/services/policy/currentState";
 import { groupIncidentCases, planBulkRecovery, type RecoveryGroupId } from "@/services/recovery/groups";
@@ -141,7 +143,7 @@ const HISTORY_ACTIONS = new Set([
  * Incident history: case count, exposure, confidence and health snapshots,
  * plus merchant decisions and bulk recoveries from the audit log.
  */
-export function incidentHistory(repos: Repositories, incident: IncidentRecord): HistoryEntry[] {
+export function incidentHistory(repos: Repositories, incident: IncidentRecord, asOf: string): HistoryEntry[] {
   const snapshots: HistoryEntry[] = repos.incidents.updates(incident.id).map((u) => ({
     id: u.id,
     occurredAt: u.occurredAt,
@@ -183,6 +185,11 @@ export function incidentHistory(repos: Repositories, incident: IncidentRecord): 
       occurredAt: last.occurredAt,
       change: `${verified.length} learner ${verified.length === 1 ? "outcome" : "outcomes"} verified to date`,
     });
+  }
+  // Failure time and case-opened time differ: a case opens only when its deadline passes.
+  const failures = failureWindow(repos, incident, asOf);
+  if (failures.lastFailureAt && failures.lastCaseOpenedAt && failures.lastCaseOpenedAt > failures.lastFailureAt) {
+    decisions.push({ id: `${incident.id}-failure-window`, occurredAt: failures.lastCaseOpenedAt, change: failures.summary });
   }
   return [...snapshots, ...decisions].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
 }
@@ -261,6 +268,62 @@ export function recoveryFacts(repos: Repositories, incident: IncidentRecord, sel
   };
 }
 
+export type FailureWindow = {
+  firstFailureAt?: string;
+  lastFailureAt?: string;
+  firstCaseOpenedAt?: string;
+  lastCaseOpenedAt?: string;
+  recoveredAt?: string;
+  /** Failures recorded after the service reported recovery. Zero when the recovery claim holds. */
+  failuresAfterRecovery: number;
+  deadlineSeconds: number;
+  summary: string;
+};
+
+/**
+ * When the incident's payments actually failed, kept apart from when their
+ * cases opened: a case opens only when its contract deadline passes, so cases
+ * can open after the service has recovered even though every failure came before.
+ */
+export function failureWindow(repos: Repositories, incident: IncidentRecord, asOf: string): FailureWindow {
+  const contract = requireContract(repos, incident.outcomeContractId);
+  const cases = repos.cases.forIncident(incident.id);
+  const failures = cases
+    .flatMap((c) => [c.paymentId, ...c.relatedPaymentIds])
+    .map((id) => repos.payments.get(id))
+    .flatMap((p) => (p ? repos.outcomes.events(p.merchantOrderId) : []))
+    .filter((e) => e.status === "failed" && e.occurredAt <= asOf)
+    .map((e) => e.occurredAt)
+    .sort();
+  const opened = cases.map((c) => c.detectedAt).filter((t) => t <= asOf).sort();
+  const recovered = repos.outcomes
+    .observability(incident.affectedService)
+    .filter((e) => e.type === "service.recovered" && e.occurredAt >= incident.startedAt && e.occurredAt <= asOf)
+    .at(0)?.occurredAt;
+  const after = recovered ? failures.filter((t) => t > recovered).length : 0;
+  const time = (iso: string) => istTime(iso);
+  const deadline = contract.deadlineSeconds % 60 === 0 ? `${contract.deadlineSeconds / 60}-minute` : `${contract.deadlineSeconds}-second`;
+  const last = failures.at(-1);
+  const lastOpened = opened.at(-1);
+  const summary = !last
+    ? "No fulfilment failures recorded."
+    : recovered && after === 0
+      ? `Last failure ${time(last)} IST, before recovery at ${time(recovered)} IST; cases opened up to ${lastOpened ? time(lastOpened) : time(last)} IST as their ${deadline} deadlines passed. No failures after recovery.`
+      : recovered
+        ? `${after} ${after === 1 ? "failure" : "failures"} recorded after recovery at ${time(recovered)} IST; last failure ${time(last)} IST.`
+        : `Last failure ${time(last)} IST; ${serviceLabel(incident.affectedService)} has not reported recovery.`;
+  return {
+    ...(failures[0] ? { firstFailureAt: failures[0] } : {}),
+    ...(last ? { lastFailureAt: last } : {}),
+    ...(opened[0] ? { firstCaseOpenedAt: opened[0] } : {}),
+    ...(lastOpened ? { lastCaseOpenedAt: lastOpened } : {}),
+    ...(recovered ? { recoveredAt: recovered } : {}),
+    failuresAfterRecovery: after,
+    deadlineSeconds: contract.deadlineSeconds,
+    summary,
+  };
+}
+
 export function incidentWorkspace(repos: Repositories, incidentId: string, asOf: string) {
   const incident = repos.incidents.get(incidentId);
   if (!incident) return undefined;
@@ -272,6 +335,7 @@ export function incidentWorkspace(repos: Repositories, incidentId: string, asOf:
     .at(-1);
   const contract = requireContract(repos, incident.outcomeContractId);
   const evidenceIds = incident.investigation?.evidenceIds ?? [];
+  const run = describeIncidentInvestigation(repos, incident.id, asOf);
   return {
     incident,
     contract,
@@ -286,7 +350,10 @@ export function incidentWorkspace(repos: Repositories, incidentId: string, asOf:
     likelyCause: incident.likelyCause,
     rootCauseConfidence: incident.investigation?.confidence,
     evidence: groupEvidence(repos, evidenceIds, incident.investigation?.hypotheses ?? []),
-    investigation: investigationView(repos, incident.investigation, describeIncidentInvestigation(repos, incident.id, asOf), "incident"),
+    investigation: investigationView(repos, incident.investigation, run, "incident"),
+    investigationFreshness: incidentInvestigationFreshness(repos, incident.id, run, asOf),
+    failureWindow: failureWindow(repos, incident, asOf),
+    exposure: exposureOf(repos, repos.cases.forIncident(incident.id).filter(isAtRisk)),
     uncertainties: incident.investigation?.uncertainties ?? [],
     contribution: agentContribution(repos, incident, asOf),
     lifecycle: incidentLifecycle(repos, incident, asOf),
@@ -307,7 +374,7 @@ export function incidentWorkspace(repos: Repositories, incidentId: string, asOf:
     engineering: engineeringIncident(incident),
     accessPending: (incident.containment ?? []).some((d) => d.action === "access_pending"),
     reviewRequired: (incident.containment ?? []).some((d) => d.action === "require_review"),
-    history: incidentHistory(repos, incident),
+    history: incidentHistory(repos, incident, asOf),
   };
 }
 

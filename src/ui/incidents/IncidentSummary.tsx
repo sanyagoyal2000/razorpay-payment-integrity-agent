@@ -4,12 +4,15 @@ import { Badge } from "@razorpay/blade/components";
 import { MetaList } from "@/ui/components/MetaList";
 import { formatINR } from "@/domain/money";
 import { formatDuration, formatIstShort, formatRelative, secondsBetween } from "@/domain/time";
+import { exposureCountsLabel } from "@/services/metrics/selectors";
 import type { IncidentWorkspaceModel } from "@/services/views/incidents";
 import { Money } from "@/ui/components/Money";
 
 export function IncidentSummary({ model, now }: { model: IncidentWorkspaceModel; now: Date }) {
   const { incident, totals, systemHealth } = model;
-  const resolvedPart = totals.resolvedAmount > 0 ? `${formatINR(totals.resolvedAmount)} resolved of ${formatINR(totals.initialAmountAtRisk)}` : `${totals.caseCount} cases`;
+  const { exposure } = model;
+  const duplicates = exposure.duplicateCharges > 0 ? ` + ${formatINR(exposure.duplicateCharges)} in duplicate charges under review` : "";
+  const resolvedPart = `${totals.resolvedAmount > 0 ? `${formatINR(totals.resolvedAmount)} resolved of ${formatINR(totals.initialAmountAtRisk)}. ` : ""}Original payments only${duplicates}. ${exposureCountsLabel(exposure)} open`;
   return (
     <MetaList
       items={[

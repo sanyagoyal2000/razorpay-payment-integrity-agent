@@ -49,7 +49,7 @@ export function ValueDelivered({ value, onShowCases }: { value: Value; onShowCas
         <ValueFigure
           label="GMV resolved before refund or dispute"
           value={formatINR(value.gmvResolvedBeforeRefundOrDispute.value)}
-          detail={`${value.gmvResolvedBeforeRefundOrDispute.caseIds.length} cases`}
+          detail={`${value.gmvResolvedBeforeRefundOrDispute.caseIds.length} cases${value.afterCustomerContact.length > 0 ? `, incl. ${value.afterCustomerContact.length} after the learner contacted Marrow` : ""}`}
           explanation={VALUE_DELIVERED_EXPLANATIONS.gmvResolvedBeforeRefundOrDispute}
           onView={show("GMV resolved before refund or dispute", VALUE_DELIVERED_EXPLANATIONS.gmvResolvedBeforeRefundOrDispute, value.gmvResolvedBeforeRefundOrDispute.caseIds)}
         />
@@ -63,7 +63,7 @@ export function ValueDelivered({ value, onShowCases }: { value: Value; onShowCas
         <ValueFigure
           label="Estimated support contacts avoided"
           value={value.supportContactsAvoided.value.toLocaleString("en-IN")}
-          detail="Contacts; one per case"
+          detail={`${value.supportContactsAvoided.value} cases · one estimated contact each`}
           explanation={VALUE_DELIVERED_EXPLANATIONS.supportContactsAvoided}
           onView={show("Estimated support contacts avoided", VALUE_DELIVERED_EXPLANATIONS.supportContactsAvoided, value.supportContactsAvoided.caseIds)}
         />

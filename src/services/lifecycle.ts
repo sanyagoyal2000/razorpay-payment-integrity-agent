@@ -4,6 +4,7 @@ import { incidentTotals, isAtRisk } from "@/services/metrics/cases";
 import { serviceLabel } from "@/services/policy/actions";
 import { serviceHealth } from "@/services/policy/currentState";
 import { assessCase } from "@/services/recovery/groups";
+import { approvalsLabel, pendingApprovalCaseIds } from "@/services/metrics/selectors";
 import { systemicBlocker } from "@/services/views/systemStatus";
 
 export type AgentState = "monitoring" | "investigating" | "awaiting_approval" | "executing" | "verifying_outcome" | "resolved" | "blocked";
@@ -55,8 +56,8 @@ function stateFor(repos: Repositories, cases: readonly IntegrityCase[], asOf: st
   }
 
   const assessed = open.map((c) => assessCase(repos, c, asOf));
-  const awaiting = assessed.filter((a) => a.verdict?.result === "requires_approval").map((a) => a.caseData.id);
-  if (awaiting.length > 0) return lifecycle("awaiting_approval", `${plural(awaiting.length, "recommendation waits", "recommendations wait")} for your approval.`, awaiting);
+  const awaiting = pendingApprovalCaseIds(repos, asOf, open);
+  if (awaiting.length > 0) return lifecycle("awaiting_approval", `${approvalsLabel({ open: open.length, pendingApproval: awaiting.length })}.`, awaiting);
   if (open.length > 0 && assessed.every((a) => a.verdict?.result === "blocked")) {
     return lifecycle("blocked", `Policy blocks every proposed action for ${plural(open.length, "open case", "open cases")}; a person must decide.`, open.map((c) => c.id));
   }

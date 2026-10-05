@@ -15,6 +15,8 @@ import { groupEvidence, resolveEvidence } from "./evidence";
 import { investigationView } from "./investigation";
 import { AMOUNT_BANDS, type AmountBand } from "./incidents";
 import { CASE_TYPE_LABELS } from "./overview";
+import { caseInvestigationFreshness } from "@/services/investigation/freshness";
+import { confidenceThreshold, exposureOf, observationState } from "@/services/metrics/selectors";
 
 // ---------------------------------------------------------------------------
 // Case list
@@ -32,7 +34,11 @@ export type CaseRow = {
   type: CaseType;
   typeLabel: string;
   amount: number;
+  /** Linked extra charges for the same purchase that are still captured. */
+  duplicateCharges: number;
   detectedAt: string;
+  /** When fulfilment first failed, if it did; the case opens later, when the deadline passes. */
+  failedAt?: string;
   recommendation: string;
   recommendedAction?: ActionType;
   policyState: PolicyVerdict["result"] | "not_applicable";
@@ -68,6 +74,7 @@ export function caseRows(repos: Repositories, asOf: string): CaseRow[] {
         type: c.type,
         typeLabel: CASE_TYPE_LABELS[c.type],
         amount: c.amountAtRisk,
+        duplicateCharges: exposureOf(repos, [c]).duplicateCharges,
         detectedAt: c.detectedAt,
         recommendation: c.recommendation ? actionLabel(c.recommendation.action, repos.config.contract(c.outcomeContractId)) : c.status === "observing" ? "None: observing" : "None",
         policyState: verdict?.result ?? "not_applicable",
@@ -76,6 +83,8 @@ export function caseRows(repos: Repositories, asOf: string): CaseRow[] {
         status: c.status,
       };
       if (c.recommendation) row.recommendedAction = c.recommendation.action;
+      const failedAt = firstFailureAt(repos, c);
+      if (failedAt) row.failedAt = failedAt;
       if (c.incidentId) row.incidentId = c.incidentId;
       return row;
     })
@@ -168,6 +177,20 @@ export function bulkSelection(repos: Repositories, caseIds: readonly string[], a
 // ---------------------------------------------------------------------------
 // Case detail
 // ---------------------------------------------------------------------------
+
+/**
+ * When the payment's fulfilment first failed, as reported by the merchant.
+ * Distinct from `detectedAt`: a case opens only once the contract deadline
+ * passes without the outcome.
+ */
+export function firstFailureAt(repos: Repositories, c: IntegrityCase): string | undefined {
+  return [c.paymentId, ...c.relatedPaymentIds]
+    .map((id) => repos.payments.get(id))
+    .flatMap((p) => (p ? repos.outcomes.events(p.merchantOrderId) : []))
+    .filter((e) => e.status === "failed")
+    .map((e) => e.occurredAt)
+    .sort()[0];
+}
 
 export type TimelineSource = "razorpay" | "merchant" | "agent" | "human";
 
@@ -323,6 +346,7 @@ export function caseDetail(repos: Repositories, caseId: string, asOf: string) {
   const receipt = repos.outcomes.receiptForPayment(c.paymentId);
   const outcomeEvent = receipt?.outcomeEventId ? repos.outcomes.event(receipt.outcomeEventId) : undefined;
   const evidence = groupEvidence(repos, c.recommendation?.evidenceIds ?? [], c.investigation?.hypotheses ?? []);
+  const run = describeCaseInvestigation(repos, c, asOf);
 
   return {
     caseData: c,
@@ -338,7 +362,11 @@ export function caseDetail(repos: Repositories, caseId: string, asOf: string) {
     otherAttempts,
     customerView: customerStatus(repos, c),
     timeline: caseTimeline(repos, c, asOf),
-    investigation: investigationView(repos, c.investigation, describeCaseInvestigation(repos, c, asOf), "case"),
+    investigation: investigationView(repos, c.investigation, run, "case"),
+    investigationFreshness: caseInvestigationFreshness(repos, c, run, asOf),
+    observation: observationState(repos, c, asOf),
+    confidenceThreshold: confidenceThreshold(contract, repos.config.globalControls()),
+    failedAt: firstFailureAt(repos, c),
     recommendation: c.recommendation,
     evidence,
     evidenceCount: evidence.reduce((n, g) => n + g.items.length, 0),

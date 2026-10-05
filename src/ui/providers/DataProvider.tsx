@@ -6,6 +6,8 @@ import type { Dataset } from "@/fixtures/dataset-types";
 import { localStoragePersistence } from "@/repositories/store";
 import { createAppServices, type AppServices } from "@/services/container";
 import { pendingExecutionIds, runExecutions } from "@/services/execution";
+import { runAutomaticActions } from "@/services/automation";
+import { nextObservationDeadline } from "@/services/metrics/selectors";
 import { checkObservations } from "@/services/observation";
 
 export type DataState =
@@ -31,13 +33,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    // Observed cases past their contract deadline become missing outcomes.
+    let deadlineTimer: number | undefined;
+    // Observed cases past their contract deadline become missing outcomes, are
+    // investigated, and any recommendation policy allows without approval runs.
     const observe = (current: AppServices) => {
       if (checkingRef.current) return;
       checkingRef.current = true;
-      void checkObservations(current).finally(() => {
-        checkingRef.current = false;
-      });
+      void checkObservations(current)
+        .then(() => {
+          const runs = runAutomaticActions(current, current.clock.now().toISOString());
+          const started = runs.flatMap((r) => (r.executionId ? [r.executionId] : []));
+          if (started.length > 0) void runExecutions(current, started);
+        })
+        .finally(() => {
+          checkingRef.current = false;
+          scheduleDeadline(current);
+        });
+    };
+    // Promote an observation the moment its deadline passes, not on the next clock tick,
+    // so no screen shows a case as "observing" after its deadline.
+    const scheduleDeadline = (current: AppServices) => {
+      window.clearTimeout(deadlineTimer);
+      const next = nextObservationDeadline(current.repos, new Date().toISOString());
+      if (!next || cancelled) return;
+      deadlineTimer = window.setTimeout(() => {
+        current.store.sync(new Date());
+        observe(current);
+      }, Math.max(0, Date.parse(next) - Date.now()) + 50);
     };
     let unsubscribe: (() => void) | undefined;
     import("@/fixtures/dataset.json")
@@ -72,6 +94,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }, CLOCK_TICK_MS);
     return () => {
       cancelled = true;
+      window.clearTimeout(deadlineTimer);
       unsubscribe?.();
       window.clearInterval(tick);
     };

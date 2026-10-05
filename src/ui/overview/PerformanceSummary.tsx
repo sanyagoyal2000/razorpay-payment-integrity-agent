@@ -80,7 +80,7 @@ export function PerformanceSummary({
           onClick: () =>
             onShowCases({
               title: "Resolved before customer contact",
-              explanation: "Resolved with a verified outcome before the learner contacted Marrow.",
+              explanation: "Resolved with a verified outcome in the last 30 days, before the learner contacted Marrow, where the default would have been an automatic refund or a customer contact. Same set as the Overview figure.",
               caseIds: performance.resolvedBeforeContact.caseIds,
             }),
         }}
@@ -104,7 +104,7 @@ export function PerformanceSummary({
       <Figure
         label="Wrong-action rate"
         value={percent(wrong.rate, 1)}
-        detail={`${wrong.wrong.length} of ${wrong.executed.length} executed actions later reversed, trailing 30 days`}
+        detail={`${wrong.wrong.length} of ${wrong.executed.length} recovery actions executed (automatic or approved) later reversed, trailing 30 days. Cases closed because the outcome arrived on its own are not actions.`}
         action={
           wrong.wrong.length > 0
             ? {

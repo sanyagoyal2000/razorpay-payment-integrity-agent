@@ -7,6 +7,7 @@ import { incidentTotals } from "@/services/metrics/cases";
 import { requireContract } from "@/services/policy/currentState";
 import { groupIncidentCases, type RecoveryGroupId } from "@/services/recovery/groups";
 import { hypothesisCounts } from "./investigation";
+import { sourceSummary } from "@/services/agent/progress";
 
 export type AgentContributionState = "valid" | "no_safe" | "resolved" | "not_investigated" | "failed";
 
@@ -98,15 +99,15 @@ export function agentContribution(repos: Repositories, incident: IncidentRecord,
   }
 
   const run = describeIncidentInvestigation(repos, incident.id, asOf);
-  // Payment Integrity's own records are not a connected source (matches the evidence counts and authority line).
-  const sourceCount = run ? Object.keys(run.sources).filter((s) => s !== "Payment Integrity").length : 0;
+  // Payment Integrity's own receipts are named separately from connected sources (matches the evidence counts and authority line).
+  const sources = run ? sourceSummary(run.sources) : undefined;
   const counts = hypothesisCounts(incident.investigation);
   const evaluated = counts.supported + counts.ruled_out + counts.inconclusive;
   const examined: ContributionMetric = {
     id: "examined",
     label: "Agent examined",
     value: run?.eventsExamined ?? 0,
-    detail: sourceCount > 0 ? `events across ${sourceCount} connected ${sourceCount === 1 ? "source" : "sources"}` : "events; source breakdown not recorded",
+    detail: sources && sources.total > 0 ? `events across ${sources.phrase}` : "events; source breakdown not recorded",
   };
   const causes: ContributionMetric = {
     id: "causes",

@@ -41,12 +41,12 @@ describe("P0.1 Three confidence concepts", () => {
       mode: "Suggest only",
       consequence: "Merchant approval required",
       blocked: false,
-      tooltip: "Automatic execution requires at least 95% action confidence and an eligible automation mode. Restore learning access is currently configured as Suggest only.",
+      tooltip: "Automatic execution requires at least 95% action confidence (contract and global minimum) and an eligible automation mode. Restore learning access is currently configured as Suggest only.",
     });
     env.repos.config.saveGlobalControls({ ...env.repos.config.globalControls(), minimumConfidence: 0.98 });
     setActionMode(env.repos, "retry_provisioning", "always_require_approval", ACTORS.operator, NOW);
     const changed = recoveryModeView(env.repos, env.incident, NOW);
-    expect(changed.tooltip).toBe("Automatic execution requires at least 98% action confidence and an eligible automation mode. Restore learning access is currently configured as Always require approval.");
+    expect(changed.tooltip).toBe("Automatic execution requires at least 98% action confidence (global minimum) and an eligible automation mode. Restore learning access is currently configured as Always require approval.");
     expect(changed.mode).toBe("Always require approval");
   });
 

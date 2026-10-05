@@ -40,6 +40,19 @@ export function countSources(evidence: readonly EvidenceItem[]): Record<string, 
   return counts;
 }
 
+/**
+ * Sources of an investigation run, worded consistently: Payment Integrity's
+ * own receipts are evidence but not a connected source, so they are named
+ * separately ("3 connected sources + Payment Integrity receipts").
+ */
+export function sourceSummary(sources: Record<string, number>): { connected: number; ownReceipts: boolean; total: number; phrase: string } {
+  const names = Object.keys(sources);
+  const ownReceipts = names.includes(SOURCE_LABELS.payment_integrity);
+  const connected = names.filter((s) => s !== SOURCE_LABELS.payment_integrity).length;
+  const phrase = `${connected} connected ${connected === 1 ? "source" : "sources"}${ownReceipts ? " + Payment Integrity receipts" : ""}`;
+  return { connected, ownReceipts, total: names.length, phrase };
+}
+
 function evidenceKind(item: EvidenceItem): string {
   if (item.source === "razorpay") return item.type.startsWith("webhook.") ? "webhook" : "payment";
   if (item.source === "merchant") return "merchant";
@@ -56,11 +69,10 @@ export function listPhrase(items: readonly string[]): string {
 
 export function gatherStage(evidence: readonly EvidenceItem[]): InvestigationStage {
   const kinds = KIND_ORDER.filter((kind) => evidence.some((item) => evidenceKind(item) === kind));
-  const sources = Object.keys(countSources(evidence)).length;
   return {
     step: "gathering",
     status: "complete",
-    detail: `Collected ${evidence.length} ${listPhrase(kinds)} events from ${sources} ${sources === 1 ? "source" : "sources"}.`,
+    detail: `Collected ${evidence.length} ${listPhrase(kinds)} events from ${sourceSummary(countSources(evidence)).phrase}.`,
   };
 }
 

@@ -102,7 +102,7 @@ export function IncidentWorkspacePage({ incidentId }: { incidentId: string }) {
         <TabPanel value="decision">
           <Box display="flex" flexDirection="column" gap="spacing.6" paddingTop="spacing.6">
             <DecisionSummary summary={model.decision} onReview={reviewRecovery} onInvestigate={() => selectTab("investigation")} onAsk={() => setAskOpen(true)} />
-            <WhatHappened model={model} />
+            <WhatHappened model={model} now={state.now} />
             <RecoverySection model={model} services={state.services} asOf={state.asOf} onShowCases={setDrawer} />
             <ContainmentSection model={model} services={state.services} now={state.now} />
           </Box>
@@ -115,6 +115,7 @@ export function IncidentWorkspacePage({ incidentId }: { incidentId: string }) {
               subject="incident"
               view={model.investigation}
               now={state.now}
+              freshness={model.investigationFreshness}
               {...(incident.status !== "resolved" ? { onReinvestigate: (onProgress: (p: InvestigationProgress) => void) => reinvestigateIncident(state.services, incident.id, onProgress) } : {})}
             />
             <UncertaintiesPanel uncertainties={model.uncertainties} />

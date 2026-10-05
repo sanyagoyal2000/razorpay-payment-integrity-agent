@@ -8,6 +8,7 @@ import { grantedScopes } from "@/services/permissions";
 import { earnedAutonomy, type AutonomyEvidence } from "@/services/metrics/autonomy";
 import { actionLabel, POLICY_ACTION_LABELS, theService } from "@/services/policy/actions";
 import { modeLabel } from "@/services/policy/evaluatePolicy";
+import { productClaims } from "@/services/metrics/selectors";
 
 export class ConfigurationError extends Error {
   constructor(
@@ -234,12 +235,15 @@ export function validateContract(repos: Repositories, values: ContractForm, cont
   if (values.maxAutomaticValue > globalMax) errors["maxAutomaticValue"] ??= `Cannot exceed the global maximum of ${formatINR(globalMax)}`;
   const clash = repos.config.contracts().find((c) => c.id !== contractId && c.name.trim().toLowerCase() === values.name.trim().toLowerCase());
   if (clash) errors["name"] ??= "Another contract already has this name";
-  const taken = repos.config
-    .contracts()
-    .filter((c) => c.id !== contractId && c.status !== "draft")
-    .flatMap((c) => c.productScope.map((p) => ({ product: p, contract: c.name })));
-  const overlap = values.status !== "draft" ? taken.find((t) => values.productScope.includes(t.product)) : undefined;
-  if (overlap) errors["productScope"] ??= `A product is already covered by “${overlap.contract}”`;
+  // A product may belong to at most one active contract.
+  if (values.status === "active") {
+    const claims = productClaims(repos, contractId);
+    const clashes = values.productScope.filter((p) => claims.has(p));
+    if (clashes.length > 0) {
+      const names = clashes.map((p) => `${repos.payments.product(p)?.name ?? p} (used by “${claims.get(p)!.contractName}”)`);
+      errors["productScope"] ??= `Each product can belong to only one active contract: ${names.join(", ")}`;
+    }
+  }
   if (values.expectedOutcome === "booking_confirmed" && !values.requiresInventoryCheck) errors["requiresInventoryCheck"] ??= "Bookings need an inventory check";
   return errors;
 }

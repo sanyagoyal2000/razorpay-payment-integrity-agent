@@ -39,7 +39,9 @@ describe("Overview model", () => {
     expect(types).toContain("Inventory conflict");
     const waiting = rows.find((r) => r.type === "Delayed processing")!;
     expect(waiting.attentionRequired).toBe(false);
-    expect(waiting.reason).toMatch(/within the normal range/);
+    // The delay is measured now (capture 14:23:31, now 14:25:41), not frozen at the 70 s seen at detection.
+    expect(waiting.reason).toMatch(/pending for 2 min 10 s, above this contract's normal range/);
+    expect(waiting.reason).toMatch(/Becomes a missing outcome at/);
     expect(rows.every((r) => r.reason.length > 0)).toBe(true);
   });
 

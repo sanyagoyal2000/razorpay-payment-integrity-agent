@@ -30,6 +30,7 @@ import type { ActionMode, GlobalControls, PolicyAction } from "@/domain/types";
 import { formatINR } from "@/domain/money";
 import { formatIstShort } from "@/domain/time";
 import { OPERATOR } from "@/fixtures/catalogue";
+import { automationSummary, type AutomationSummary } from "@/services/automation";
 import { assessAutonomy, ConfigurationError, saveGlobalControls, setActionMode, setAutomationPaused } from "@/services/configuration";
 import { POLICY_ACTION_LABELS } from "@/services/policy/actions";
 import { actionPolicyRows, MODE_OPTIONS } from "@/services/views/configuration";
@@ -47,7 +48,8 @@ const modeText = (mode: ActionMode) => MODE_OPTIONS.find((o) => o.value === mode
 
 export function AutomationsPage() {
   const toast = useToast();
-  const state = useModel((services) => ({
+  const state = useModel((services, asOf) => ({
+    automation: automationSummary(services.repos, asOf),
     rows: actionPolicyRows(services.repos),
     controls: services.repos.config.globalControls(),
     queued: services.repos.executions.list().filter((e) => !["resolved", "stopped", "failed"].includes(e.status)).length,
@@ -66,7 +68,7 @@ export function AutomationsPage() {
   if (state.status === "loading") return <>{header}<PageSkeleton rows={2} /></>;
   if (state.status === "error") return <>{header}<PageError message={state.message} /></>;
   const { services, asOf } = state;
-  const { rows, controls, queued, assessment } = state.model;
+  const { rows, controls, queued, assessment, automation } = state.model;
 
   const confirmMode = () => {
     if (!pending) return;
@@ -84,7 +86,7 @@ export function AutomationsPage() {
     <>
       {header}
       <Box display="flex" flexDirection="column" gap="spacing.6">
-        <KillSwitch paused={controls.automationPaused} since={controls.updatedAt} queued={queued} now={state.now} onToggle={() => setKillDialog(true)} />
+        <KillSwitch automation={automation} since={controls.updatedAt} queued={queued} now={state.now} onToggle={() => setKillDialog(true)} />
 
         <Surface title="Action policies" description="Each action is configured separately from Outcome Contracts." padded={false}>
           <Table data={{ nodes: rows.map((r) => ({ ...r, id: r.action })) }} rowDensity="normal" gridTemplateColumns="minmax(180px, 1fr) minmax(240px, 2fr) 280px 170px">
@@ -210,7 +212,9 @@ export function AutomationsPage() {
   );
 }
 
-function KillSwitch({ paused, since, queued, now, onToggle }: { paused: boolean; since: string; queued: number; now: Date; onToggle: () => void }) {
+function KillSwitch({ automation, since, queued, now, onToggle }: { automation: AutomationSummary; since: string; queued: number; now: Date; onToggle: () => void }) {
+  const { paused } = automation;
+  const lastRun = automation.lastRunAt ? `Last automatic run ${formatIstShort(automation.lastRunAt, now)} IST${automation.lastRunCaseId ? ` (${automation.lastRunCaseId})` : ""}` : "Last automatic run: never";
   return (
     <Box
       display="flex"
@@ -224,11 +228,11 @@ function KillSwitch({ paused, since, queued, now, onToggle }: { paused: boolean;
       backgroundColor={paused ? "feedback.background.notice.subtle" : "surface.background.gray.intense"}
     >
       <Box>
-        <Text size="medium" weight="semibold">{paused ? "All automated actions are paused" : "Automated actions are running"}</Text>
+        <Text size="medium" weight="semibold">{paused ? automation.headline : `${automation.headline} · ${lastRun.charAt(0).toLowerCase()}${lastRun.slice(1)}`}</Text>
         <Text size="small" color="surface.text.gray.subtle">
           {paused
             ? `Since ${formatIstShort(since, now)}. Monitoring and investigation continue.${queued > 0 ? ` ${queued} queued actions remain visible.` : ""}`
-            : "The kill switch stops every new execution immediately. Monitoring and investigation keep running."}
+            : `${automation.detail} The kill switch stops every new execution immediately; monitoring and investigation keep running.`}
         </Text>
       </Box>
       <Button variant={paused ? "primary" : "secondary"} color={paused ? "primary" : "negative"} onClick={onToggle}>

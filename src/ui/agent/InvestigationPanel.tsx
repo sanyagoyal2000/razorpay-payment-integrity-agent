@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  Alert,
+  Badge,
   Box,
   Button,
   CheckIcon,
@@ -18,6 +20,7 @@ import {
 import { Fragment, useState } from "react";
 import { formatIstShort } from "@/domain/time";
 import type { InvestigationProgress } from "@/services/agent";
+import type { InvestigationFreshness } from "@/services/investigation/freshness";
 import type { InvestigationProduction, InvestigationView } from "@/services/views/investigation";
 import { MetaList } from "@/ui/components/MetaList";
 import { RayInsight } from "@/ui/ray/RayInsight";
@@ -80,9 +83,12 @@ export function InvestigationPanel({
   now,
   onReinvestigate,
   subject,
+  freshness,
 }: {
   view: InvestigationView | undefined;
   now: Date;
+  /** Whether what the investigation relied on has changed since it ran. */
+  freshness?: InvestigationFreshness | undefined;
   onReinvestigate?: (onProgress: (p: InvestigationProgress) => void) => Promise<{ status: "valid" | "invalid" | "unavailable" }>;
   subject: "case" | "incident";
 }) {
@@ -109,6 +115,7 @@ export function InvestigationPanel({
   };
 
   const runInfo = view?.run;
+  const stale = freshness?.stale === true;
 
   return (
     <RaySurface
@@ -117,12 +124,28 @@ export function InvestigationPanel({
       description={runInfo ? `Investigated ${formatIstShort(runInfo.at, now)} IST` : undefined}
       actions={
         onReinvestigate ? (
-          <Button variant="secondary" size="small" icon={RefreshIcon} isLoading={running} isDisabled={running} onClick={run}>
-            Re-investigate
-          </Button>
+          <Box display="flex" alignItems="center" gap="spacing.3">
+            {stale && freshness?.changedAt ? (
+              <Badge color="notice" size="medium">{`Stale: conditions changed since ${formatIstShort(freshness.changedAt, now)} IST`}</Badge>
+            ) : null}
+            <Button variant={stale ? "primary" : "secondary"} size="small" icon={RefreshIcon} isLoading={running} isDisabled={running} onClick={run}>
+              Re-investigate
+            </Button>
+          </Box>
         ) : undefined
       }
     >
+      {stale && freshness && progress === null ? (
+        <Box marginBottom="spacing.5">
+          <Alert
+            color="notice"
+            title={`Conditions changed after this investigation ran (${formatIstShort(freshness.ranAt, now)} IST)`}
+            description={`${freshness.changes.join(" ")} Its findings may no longer hold. Re-investigate before relying on them; policy re-checks current state before anything runs.`}
+            isDismissible={false}
+            isFullWidth
+          />
+        </Box>
+      ) : null}
       {progress !== null ? (
         <Box marginBottom="spacing.5">
           <div role="status" aria-live="polite">

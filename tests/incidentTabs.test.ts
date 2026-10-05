@@ -72,7 +72,7 @@ describe("Decision summary", () => {
     const s = decisionSummary(env.repos, env.incident, NOW, new Date(NOW));
     expect(s).toMatchObject({
       headline: "43 learners paid but cannot access their learning package",
-      atRisk: "₹1,82,457 is at risk.",
+      atRisk: "₹1,82,457 at risk + ₹10,497 in 3 duplicate charges under review.",
       cause: "The Learning Access Service failed after deployment v2.3 and has now recovered.",
       recommendation: "Restore access for 38 learners worth ₹1,51,962. Five cases are excluded for individual review.",
       safeCount: 38,
@@ -142,7 +142,7 @@ describe("Confidence, approval and automatic execution", () => {
     const env = setup();
     const base = recoveryConfidence(env.repos, env.incident, NOW);
     expect(base).toMatchObject({ investigation: 0.93, automaticThreshold: 0.95, mode: "Suggest only" });
-    expect(base.explanation).toMatch(/^Automatic execution requires 95% confidence.*You may approve this recovery because all mandatory policy checks pass for these 38 cases\. Policy is checked again before execution\.$/);
+    expect(base.explanation).toMatch(/^Automatic execution requires 95% action confidence \(contract and global minimum\).*You may approve this recovery because all mandatory policy checks pass for these 38 cases\. Policy is checked again before execution\.$/);
 
     const controls = env.repos.config.globalControls();
     env.repos.config.saveGlobalControls({ ...controls, minimumConfidence: 0.97 });
@@ -184,7 +184,7 @@ describe("Evidence counts", () => {
   it("reports distinct counts without adjusting them to match", () => {
     const env = setup();
     const counts = evidenceCounts(env.repos, env.incident, NOW, groupEvidence(env.repos, env.incident.investigation!.evidenceIds))!;
-    expect(counts).toEqual({ eventsAnalysed: 373, citationsValidated: 30, keyEventsShown: 19, connectedSources: 3 });
+    expect(counts).toEqual({ eventsAnalysed: 373, citationsValidated: 30, keyEventsShown: 19, connectedSources: 3, ownReceipts: true });
   });
 });
 

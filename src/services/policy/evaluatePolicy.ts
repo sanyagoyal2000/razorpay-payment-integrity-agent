@@ -9,6 +9,7 @@ import type {
 import { formatINR } from "@/domain/money";
 import { formatIstDateTime } from "@/domain/time";
 import { ACTIONS, actionLabel, requiredScope, serviceLabel } from "./actions";
+import { confidenceThreshold, thresholdLabel } from "./thresholds";
 
 type Check = PolicyCheck;
 
@@ -164,11 +165,12 @@ export function evaluatePolicy(
     );
   }
   if (touchesPayment) {
-    const minimum = Math.max(s.contract.minimumConfidence, s.controls.minimumConfidence);
+    const threshold = confidenceThreshold(s.contract, s.controls);
+    const minimum = threshold.value;
     checks.push(
       action.confidence >= minimum
-        ? pass("confidence_threshold", "Confidence threshold met", `Confidence ${percent(action.confidence)} meets the ${percent(minimum)} minimum.`, "review")
-        : fail("confidence_threshold", "Confidence threshold met", `Confidence ${percent(action.confidence)} is below the ${percent(minimum)} minimum.`, "review"),
+        ? pass("confidence_threshold", "Confidence threshold met", `Action confidence ${percent(action.confidence)} · ${thresholdLabel(threshold)}.`, "review")
+        : fail("confidence_threshold", "Confidence threshold met", `Action confidence ${percent(action.confidence)} is below the threshold · ${thresholdLabel(threshold)}.`, "review"),
     );
     const matchEnforcement: Check["enforcement"] = s.controls.neverActOnLowConfidenceMatch ? "hard" : "review";
     checks.push(

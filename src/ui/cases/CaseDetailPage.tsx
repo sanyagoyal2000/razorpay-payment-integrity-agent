@@ -61,6 +61,7 @@ export function CaseDetailPage({ caseId }: { caseId: string }) {
             subject="case"
             view={model.investigation}
             now={state.now}
+            freshness={model.investigationFreshness}
             {...(model.open && model.investigation ? { onReinvestigate: (onProgress: (p: InvestigationProgress) => void) => reinvestigateCase(state.services, model.caseData.id, onProgress) } : {})}
           />
         </Box>
