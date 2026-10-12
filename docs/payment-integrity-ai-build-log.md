@@ -219,21 +219,21 @@ AI let me explore more options, run more criticism, build a deeper prototype, an
 
 ## 9. Representative prompts
 
-I often began with short or vague questions, reviewed the response, and then wrote a precise Claude Code prompt. These examples keep my original wording.
+The prompts became more specific as the product developed. The examples below are lightly edited for clarity while preserving the questions and decisions I was working through.
 
 | Stage | Prompt | What changed |
 |---|---|---|
-| Exploration | “Help me with ideas for track two. give me detailed breakdown of current razorpay features and suggest atleast 15 ideas and problems that i can solve” | Produced the first landscape and idea set. |
-| Originality | “wont everybody choose the same idea” | Made differentiation part of selection. |
-| Model comparison | “this is what claude is saying” | Started an adversarial multi-model review. |
-| Validation | “verify this idea and validate if it is not being already done. also check can i make it more impactful for business” | Forced comparison with existing products and competitors. |
-| AI necessity | “Why AI is necessary and what it does better than a fixed rule. from which point is this getting validated?” | Led to the offline evaluation. |
-| Product quality | “so forget the demo time. i need a prompt to build a good enough product... you focus on the product and quality” | Shifted from a demo flow to complete product behaviour. |
-| Product realism | “would a product explain so much to a user?” | Moved judging explanations out of the main interface. |
-| Design | “razorpay logo is not there and if you look at ray ai it has more colours and is using green a lot” | Corrected the Razorpay and RAY visual hierarchy. |
-| Navigation | “i need to kind of make it same by adding an icon as well and the keeping the tab that is not selected muted” | Added icons, active blue state, and muted inactive tabs. |
-| Merchant | “it does not feel like learnloop is the client name” followed by “use marrow” | Changed the merchant while adding a simulation disclaimer. |
-| Misleading UI | “should i remove live , what is the point” | Removed a production-status badge with no function. |
+| Exploration | “Analyse Razorpay’s current products and AI direction, then propose at least 15 problems I could solve for Track 2. Include ideas from relevant competitors and adjacent fintech products.” | Produced the first product landscape and idea set. |
+| Originality | “Which of these ideas are likely to be chosen by many participants? Re-rank them after accounting for originality, differentiation, and fit with Razorpay’s existing products.” | Made differentiation a formal selection criterion. |
+| Model comparison | “Review this alternative critique of the shortlist. Identify where it is stronger or weaker than the previous recommendation, and update the decision rather than simply agreeing with it.” | Turned the process into an adversarial multi-model review. |
+| Validation | “Verify whether Payment Integrity is already covered by Razorpay’s current products. Identify overlaps, genuine gaps, and competitor capabilities that could make the business impact stronger.” | Forced comparison with existing products and competitors. |
+| AI necessity | “Explain exactly why this problem requires AI instead of fixed rules. Define what evidence would validate that claim and design a fair comparison against a rules-based baseline.” | Led to the offline evaluation framework. |
+| Product quality | “Ignore presentation time constraints and design this as a credible product, not a guided demo. Prioritise complete workflows, failure states, trust controls, and product quality.” | Shifted the prototype from a demo flow to complete product behaviour. |
+| Product realism | “Review the interface as a real merchant product. Remove explanations that exist only for judges, and keep deeper reasoning available through investigation or evidence views.” | Moved submission explanations out of the main workflow. |
+| Visual alignment | “Compare the interface with Razorpay’s public RAY and Agentic Dashboard experience. Correct the logo treatment, colour hierarchy, navigation, density, and use of green without copying the interface blindly.” | Improved the Razorpay and RAY visual hierarchy. |
+| Navigation | “Update the top navigation to match the interaction pattern visible in Razorpay’s Agentic Dashboard: add relevant icons, clearly indicate the active tab, and mute inactive tabs.” | Added icons, an active blue state, and muted inactive tabs. |
+| Merchant context | “Replace the fictional merchant with a credible Razorpay education customer. Adapt the terminology to the merchant’s domain while making it explicit that all incidents and data are simulated.” | Changed the merchant to Marrow and added a simulation disclaimer. |
+| Misleading UI | “Review whether the ‘Live’ badge serves a real product function. Remove it if the prototype has no environment switch or if it could make simulated data appear real.” | Removed a production-status badge with no functional purpose. |
 
 A later structured Claude Code instruction was:
 
